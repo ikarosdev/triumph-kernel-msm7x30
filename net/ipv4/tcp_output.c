@@ -223,7 +223,11 @@ void tcp_select_initial_window(int __space, __u32 mss,
 	 * will be satisfied with 2.
 	 */
 	if (mss > (1 << *rcv_wscale)) {
-		int init_cwnd = 4;
+        //+++ modified begin +++
+        //int init_cwnd = 4;
+        int init_cwnd = 16;
+        printk(KERN_INFO "[henry.wang] initial window\r\n");
+        //--- modified end ---
 		if (mss > 1460 * 3)
 			init_cwnd = 2;
 		else if (mss > 1460)

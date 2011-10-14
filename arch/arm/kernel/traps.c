@@ -438,11 +438,13 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 		if (end > vma->vm_end)
 			end = vma->vm_end;
 
-		flush_cache_user_range(vma, start, end);
+		up_read(&mm->mmap_sem);
+		flush_cache_user_range(start, end);
+
 #ifdef CONFIG_ARCH_MSM7X27
 		dmb();
 #endif
-
+		return;
 	}
 	up_read(&mm->mmap_sem);
 }
@@ -633,7 +635,7 @@ static struct undef_hook arm_mrc_hook = {
 	.cpsr_mask	= PSR_T_BIT,
 	.cpsr_val	= 0,
 	.fn		= get_tp_trap,
-};
+}
 
 static int __init arm_mrc_hook_init(void)
 {

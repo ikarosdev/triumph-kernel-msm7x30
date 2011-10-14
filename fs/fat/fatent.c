@@ -96,6 +96,7 @@ err_brelse:
 	brelse(bhs[0]);
 err:
 	printk(KERN_ERR "FAT: FAT read failed (blocknr %llu)\n", (llu)blocknr);
+	dump_stack();
 	return -EIO;
 }
 
@@ -110,6 +111,7 @@ static int fat_ent_bread(struct super_block *sb, struct fat_entry *fatent,
 	if (!fatent->bhs[0]) {
 		printk(KERN_ERR "FAT: FAT read failed (blocknr %llu)\n",
 		       (llu)blocknr);
+		dump_stack();
 		return -EIO;
 	}
 	fatent->nr_bhs = 1;

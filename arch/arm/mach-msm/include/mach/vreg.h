@@ -25,5 +25,6 @@ void vreg_put(struct vreg *vreg);
 int vreg_enable(struct vreg *vreg);
 int vreg_disable(struct vreg *vreg);
 int vreg_set_level(struct vreg *vreg, unsigned mv);
+int vreg_pull_down_switch(struct vreg *vreg, int enable);//Div2-SW6-MM-MC-ImplementVregPullDownSwitchAPI-00+
 
 #endif

@@ -32,6 +32,9 @@
 #include <linux/pm_qos_params.h>
 #include <mach/gpio.h>
 
+#ifdef CONFIG_FIH_FTM
+extern int i2c_elan_touch_update;
+#endif
 
 enum {
 	I2C_WRITE_DATA          = 0x00,
@@ -138,6 +141,33 @@ dump_status(uint32_t status)
 }
 #endif
 
+#ifdef CONFIG_FIH_FTM
+static void
+dump_status1(uint32_t status)
+{
+	printk("STATUS (0x%.8x): ", status);
+	if (status & I2C_STATUS_BUS_MASTER)
+		printk("MST ");
+	if (status & I2C_STATUS_BUS_ACTIVE)
+		printk("ACT ");
+	if (status & I2C_STATUS_INVALID_WRITE)
+		printk("INV_WR ");
+	if (status & I2C_STATUS_ARB_LOST)
+		printk("ARB_LST ");
+	if (status & I2C_STATUS_PACKET_NACKED)
+		printk("NAK ");
+	if (status & I2C_STATUS_BUS_ERROR)
+		printk("BUS_ERR ");
+	if (status & I2C_STATUS_RD_BUFFER_FULL)
+		printk("RD_FULL ");
+	if (status & I2C_STATUS_WR_BUFFER_FULL)
+		printk("WR_FULL ");
+	if (status & I2C_STATUS_FAILED)
+		printk("FAIL 0x%x", (status & I2C_STATUS_FAILED));
+	printk("\n");
+}
+#endif
+
 static irqreturn_t
 msm_i2c_interrupt(int irq, void *devid)
 {
@@ -149,6 +179,11 @@ msm_i2c_interrupt(int irq, void *devid)
 	dump_status(status);
 #endif
 
+#ifdef CONFIG_FIH_FTM
+	if (i2c_elan_touch_update)
+		dump_status1(status);
+#endif
+
 	spin_lock(&dev->lock);
 	if (!dev->msg) {
 		printk(KERN_ERR "%s: IRQ but nothing to do!\n", __func__);
@@ -157,8 +192,22 @@ msm_i2c_interrupt(int irq, void *devid)
 	}
 
 	if (status & I2C_STATUS_ERROR_MASK) {
-		err = -EIO;
-		goto out_err;
+//Div2-SW2-BSP-Touch, Vincent +
+		if ((dev->cnt == 0) && (status & I2C_STATUS_BUS_ERROR)) {
+			dev_err(dev->dev,
+				"don't care the init status error, status(%x), inf(%x)\n",
+				status, readl(dev->base + I2C_INTERFACE_SELECT));
+			spin_unlock(&dev->lock);
+			return IRQ_HANDLED;
+		}
+		else {
+			dev_err(dev->dev,
+				"init status error, status(%x), inf(%x)\n",
+				status, readl(dev->base + I2C_INTERFACE_SELECT));
+			err = -EIO;
+			goto out_err;
+		}
+//Div2-SW2-BSP-Touch, Vincent -
 	}
 
 	if (dev->msg->flags & I2C_M_RD) {

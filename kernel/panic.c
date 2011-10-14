@@ -116,7 +116,10 @@ NORET_TYPE void panic(const char * fmt, ...)
 		 * shutting down.  But if there is a chance of
 		 * rebooting the system it will be rebooted.
 		 */
-		emergency_restart();
+		// FIHTDC, HenryMCWang, give restart reason when kernel panic {
+		//emergency_restart();
+		kernel_restart("panic");
+		// } FIHTDC, HenryMCWang, give restart reason when kernel panic
 	}
 #ifdef __sparc__
 	{

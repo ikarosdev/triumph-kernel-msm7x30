@@ -28,13 +28,31 @@
 #include <linux/utsname.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/debugfs.h>
 
 #include <linux/usb/android_composite.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
+#include <linux/moduleparam.h>
+#include <linux/miscdevice.h>
 
 #include "gadget_chips.h"
+
+//Div2-5-3-Peripheral-LL-UsbPorting-00+{
+#include "../../../arch/arm/mach-msm/smd_private.h"
+#define USB_PID_FUNC_ALL 0xc000    //C000
+#define USB_PID_FUNC_NODIAG 0xc001  //c001
+#define USB_PID_FUNC_FTM 0xc003 //c003
+#define USB_PID_FUNC_NODIAG_NOADB 0xc004 //c004
+bool vbus_online = false;
+static bool doRndis = false;
+static bool enable_rndis_diag = false;
+bool usb_check_rndis_switch(void);
+void usb_switch_pid(int);
+#define USBDBG(fmt, args...) \
+    printk(KERN_INFO "android_usb:%s() " fmt "\n", __func__, ## args)
+//Div2-5-3-Peripheral-LL-UsbPorting-00+}
 
 /*
  * Kbuild is not very cooperative with respect to linking separately
@@ -56,8 +74,22 @@ MODULE_VERSION("1.0");
 static const char longname[] = "Gadget Android";
 
 /* Default vendor and product IDs, overridden by platform data */
-#define VENDOR_ID		0x18D1
-#define PRODUCT_ID		0x0001
+//Div6-D1-JL-UsbPidVid-00+{    
+//#define VENDOR_ID		0x18D1
+//#define PRODUCT_ID		0x0001
+#define VENDOR_ID 0x0489
+#define PRODUCT_ID 0xC000
+//Div6-D1-JL-UsbPidVid-00+}
+
+//FXP Dmitriy Berchanskiy USB FXPCAYM-100 {
+/* support product ID */
+static int product_id = 0;
+static int android_set_pid(const char *val, struct kernel_param *kp);
+static int android_get_pid(char *buf, struct kernel_param *kp);
+
+module_param_call(product_id, android_set_pid, android_get_pid, &product_id, 0664);
+MODULE_PARM_DESC(product_id,"USB device product id");
+//FXP Dmitriy Berchanskiy USB FXPCAYM-100 }
 
 struct android_dev {
 	struct usb_composite_dev *cdev;
@@ -73,12 +105,14 @@ struct android_dev {
 
 static struct android_dev *_android_dev;
 
+#define MAX_STR_LEN 16
 /* string IDs are assigned dynamically */
 
 #define STRING_MANUFACTURER_IDX		0
 #define STRING_PRODUCT_IDX		1
 #define STRING_SERIAL_IDX		2
 
+char serial_number[MAX_STR_LEN];
 /* String Table */
 static struct usb_string strings_dev[] = {
 	/* These dummy values should be overridden by platform data */
@@ -145,6 +179,19 @@ static struct android_usb_function *get_function(const char *name)
 	}
 	return 0;
 }
+
+//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00+{
+//avoid the enable RNDIS first offline state switch then 
+//recover to original state update
+bool usb_check_rndis_switch()
+{
+    bool ret = doRndis;
+    printk("%s state=%d\n",__func__,ret);
+    doRndis = false;
+    return ret;
+}
+EXPORT_SYMBOL(usb_check_rndis_switch);
+//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00+}
 
 static void bind_functions(struct android_dev *dev)
 {
@@ -237,18 +284,21 @@ static int product_matches_functions(struct android_usb_product *p)
 
 static int get_product_id(struct android_dev *dev)
 {
-	struct android_usb_product *p = dev->products;
-	int count = dev->num_products;
-	int i;
+    struct android_usb_product *p = dev->products;
+    int count = dev->num_products;
+    int i;
 
-	if (p) {
-		for (i = 0; i < count; i++, p++) {
-			if (product_matches_functions(p))
-				return p->product_id;
-		}
-	}
-	/* use default product ID */
-	return dev->product_id;
+    if (p) {
+        for (i = 0; i < count; i++, p++) {
+            if (product_matches_functions(p)){
+                USBDBG("PID(%X)", p->product_id);
+                return p->product_id;
+            }
+        }
+    }
+    USBDBG("PID(%X)", dev->product_id);
+    /* use default product ID */
+    return dev->product_id;
 }
 
 static int __init android_bind(struct usb_composite_dev *cdev)
@@ -314,7 +364,12 @@ static int __init android_bind(struct usb_composite_dev *cdev)
 
 	usb_gadget_set_selfpowered(gadget);
 	dev->cdev = cdev;
-	product_id = get_product_id(dev);
+    #if 0
+    product_id = get_product_id(dev);
+    #else
+    product_id = dev->product_id;
+    USBDBG("PID(%X)", dev->product_id);
+    #endif
 	device_desc.idProduct = __constant_cpu_to_le16(product_id);
 	cdev->desc.idProduct = device_desc.idProduct;
 
@@ -354,19 +409,21 @@ void android_register_function(struct android_usb_function *f)
  */
 static void android_set_function_mask(struct android_usb_product *up)
 {
-	int index;
-	struct usb_function *func;
+    int index;
+    struct usb_function *func;
 
-	list_for_each_entry(func, &android_config_driver.functions, list) {
-		/* adb function enable/disable handled separetely */
-		if (!strcmp(func->name, "adb"))
-			continue;
-		func->hidden = 1;
-		for (index = 0; index < up->num_functions; index++) {
-			if (!strcmp(up->functions[index], func->name))
-				func->hidden = 0;
-		}
-	}
+    list_for_each_entry(func, &android_config_driver.functions, list) {
+        /* adb function enable/disable handled separetely */
+        if (!strcmp(func->name, "adb"))
+            continue;
+        func->hidden = 1;
+        for (index = 0; index < up->num_functions; index++) {
+            if (!strcmp(up->functions[index], func->name)){
+                USBDBG("func->name = %s enable", func->name);//Div2-5-3-Peripheral-LL-UsbPorting-00+
+                func->hidden = 0;
+            }
+        }
+    }
 }
 
 /**
@@ -400,30 +457,86 @@ static void android_set_default_product(int pid)
  * TODO : Search of function in product id can be extended for all index.
  * RNDIS function enable/disable uses this.
 */
+#ifdef CONFIG_USB_ANDROID_RNDIS
 static void android_config_functions(struct usb_function *f, int enable)
 {
-	struct android_dev *dev = _android_dev;
-	struct android_usb_product *up = dev->products;
-	int index;
-	char **functions;
+    struct android_dev *dev = _android_dev;
+    struct android_usb_product *up = dev->products;
+    int index;
+    char **functions;
 
-	/* Searches for product id having function at first index */
-	if (enable) {
-		for (index = 0; index < dev->num_products; index++, up++) {
-			functions = up->functions;
-			if (!strcmp(*functions, f->name))
-				break;
-		}
-		android_set_function_mask(up);
-	} else
-		android_set_default_product(dev->product_id);
+    /* Searches for product id having function at first index */
+    if (enable) {
+        for (index = 0; index < dev->num_products; index++, up++) {
+            functions = up->functions;
+            //if (!strcmp(*functions, f->name))
+            //Div2-5-3-Peripheral-LL-UsbPorting-00*{
+            if(enable_rndis_diag) {
+                if (!strcmp("rndis", f->name) && (up->product_id == 0xc007))
+                    break;
+            } else {
+                if (!strcmp(*functions, f->name))
+                    break;
+            }
+            //Div2-5-3-Peripheral-LL-UsbPorting-00*}
+            
+        }
+        android_set_function_mask(up);
+    } else
+        android_set_default_product(dev->product_id);
 }
+#endif
+
+//Div2-5-3-Peripheral-LL-UsbPorting-00+
+void usb_switch_pid(int pid)
+{
+    struct android_dev *dev = _android_dev;
+    struct android_usb_product *up = dev->products;
+    int index;
+    struct usb_function *func;
+
+    for (index = 0; index < dev->num_products; index++, up++) {
+        if (pid == up->product_id)
+            break;
+    }
+
+    list_for_each_entry(func, &android_config_driver.functions, list) {
+        // FXPCAYM-213: Start - ADB should be controlled by USB debugging settings
+        if (!strcmp(func->name, "adb"))
+            continue;
+        // FXPCAYM-213: End
+        func->hidden = 1;
+        for (index = 0; index < up->num_functions; index++) {
+            if (!strcmp(up->functions[index], func->name)){
+                USBDBG("func->name = %s enable", func->name);
+                func->hidden = 0;
+            }
+        }
+    }
+
+    device_desc.idProduct = __constant_cpu_to_le16(pid);
+    if (dev->cdev)
+        dev->cdev->desc.idProduct = device_desc.idProduct;
+
+    /* force reenumeration */
+    if (dev->cdev && dev->cdev->gadget &&
+            dev->cdev->gadget->speed != USB_SPEED_UNKNOWN) {
+        usb_gadget_disconnect(dev->cdev->gadget);
+        msleep(10);
+        usb_gadget_connect(dev->cdev->gadget);
+    }
+
+}
+EXPORT_SYMBOL(usb_switch_pid);
+//Div2-5-3-Peripheral-LL-UsbPorting-00+}
 
 void android_enable_function(struct usb_function *f, int enable)
 {
 	struct android_dev *dev = _android_dev;
 	int disable = !enable;
 	int product_id;
+
+	printk(KERN_INFO "%s: function name = %s, enable = %d.\n", __func__, f->name, enable);
 
 	if (!!f->hidden != disable) {
 		f->hidden = disable;
@@ -442,10 +555,12 @@ void android_enable_function(struct usb_function *f, int enable)
 #else
 				dev->cdev->desc.bDeviceClass = USB_CLASS_COMM;
 #endif
+				doRndis = true;//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00+
 			} else {
 				dev->cdev->desc.bDeviceClass = USB_CLASS_PER_INTERFACE;
 				dev->cdev->desc.bDeviceSubClass      = 0;
 				dev->cdev->desc.bDeviceProtocol      = 0;
+				doRndis = false;//SW2-5-3-LL-Peripheral-Tethering_RNDIS-00+
 			}
 
 			android_config_functions(f, enable);
@@ -467,52 +582,238 @@ void android_enable_function(struct usb_function *f, int enable)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int android_debugfs_open(struct inode *inode, struct file *file)
+{
+    file->private_data = inode->i_private;
+    return 0;
+}
+
+static ssize_t android_debugfs_serialno_write(struct file *file, const char
+            __user *buf,	size_t count, loff_t *ppos)
+{
+    char str_buf[MAX_STR_LEN];
+
+    if (count > MAX_STR_LEN)
+        return -EFAULT;
+
+    if (copy_from_user(str_buf, buf, count))
+        return -EFAULT;
+
+    memcpy(serial_number, str_buf, count);
+
+    if (serial_number[count - 1] == '\n')
+        serial_number[count - 1] = '\0';
+
+    strings_dev[STRING_SERIAL_IDX].s = serial_number;
+
+    return count;
+}
+static ssize_t android_debugfs_rndis_diag_write(struct file *file, const char
+            __user *buf,	size_t count, loff_t *ppos)
+{
+    char str_buf[1];
+
+    if (copy_from_user(str_buf, buf, sizeof(str_buf)))
+        return -EFAULT;
+    enable_rndis_diag = (str_buf[0] == '1');
+    USBDBG("diag %s",enable_rndis_diag?"enable":"disable");
+    return count;
+}
+static ssize_t android_debugfs_pid_write(struct file *file, const char
+            __user *buf,	size_t count, loff_t *ppos)
+{
+    char str_buf[5];
+
+    if (copy_from_user(str_buf, buf, sizeof(str_buf)))
+        return -EFAULT;
+    str_buf[4] = '\0';
+    USBDBG("pid(%s)",str_buf);
+    if(!strcmp("c000", str_buf)) {
+        usb_switch_pid(0xc000);
+    } else if(!strcmp("c001", str_buf)) {
+        usb_switch_pid(0xc001);
+    } else if(!strcmp("c002", str_buf)) {
+        usb_switch_pid(0xc002);
+    } else if(!strcmp("c003", str_buf)) {
+        usb_switch_pid(0xc003);
+    } else if(!strcmp("c004", str_buf)) {
+        usb_switch_pid(0xc004);
+    } else if(!strcmp("c007", str_buf)) {
+        usb_switch_pid(0xc007);
+    } else if(!strcmp("c008", str_buf)) {
+        usb_switch_pid(0xc008);
+    }
+    return count;
+}
+
+const struct file_operations android_fops = {
+    .open = android_debugfs_open,
+    .write = android_debugfs_serialno_write,
+};
+const struct file_operations android_rndis_diag_fops = {
+    .open = android_debugfs_open,
+    .write = android_debugfs_rndis_diag_write,
+};
+const struct file_operations android_pid_fops = {
+    .open = android_debugfs_open,
+    .write = android_debugfs_pid_write,
+};
+
+struct dentry *android_debug_root;
+struct dentry *android_debug_serialno;
+struct dentry *android_debug_rndis_diag;
+struct dentry *android_debug_pid;
+
+static int android_debugfs_init(struct android_dev *dev)
+{
+    android_debug_root = debugfs_create_dir("android", NULL);
+    if (!android_debug_root)
+        return -ENOENT;
+
+    android_debug_serialno = debugfs_create_file("serial_number", 0200,
+            android_debug_root, dev,
+            &android_fops);
+    if (!android_debug_serialno) {
+        goto err;
+    }
+    android_debug_rndis_diag = debugfs_create_file("tethering_diag", 0200,
+            android_debug_root, dev,
+            &android_rndis_diag_fops);
+    if (!android_debug_rndis_diag) {
+        goto err;
+    }
+    android_debug_pid = debugfs_create_file("pid", 0200,
+            android_debug_root, dev,
+            &android_pid_fops);
+    if (!android_debug_pid) {
+        goto err;
+    }
+
+    return 0;
+err:
+    if(android_debug_serialno)
+        debugfs_remove(android_debug_serialno);
+    if(android_debug_rndis_diag)
+        debugfs_remove(android_debug_rndis_diag);
+    if(android_debug_pid)
+        debugfs_remove(android_debug_pid);
+    if(android_debug_root)
+        debugfs_remove(android_debug_root);
+    return -ENOENT;
+}
+
+static void android_debugfs_cleanup(void)
+{
+       debugfs_remove(android_debug_serialno);
+       debugfs_remove(android_debug_root);
+}
+#endif
 static int __init android_probe(struct platform_device *pdev)
 {
-	struct android_usb_platform_data *pdata = pdev->dev.platform_data;
-	struct android_dev *dev = _android_dev;
-	int result;
+    struct android_usb_platform_data *pdata = pdev->dev.platform_data;
+    struct android_dev *dev = _android_dev;
+    int result;
+    //Div2-5-3-Peripheral-LL-UsbPorting-00+{
+    unsigned int info_size;
+    struct smem_host_oem_info *smem_Usb_type_info = NULL;
+    //Div2-5-3-Peripheral-LL-UsbPorting-00+}
 
-	printk(KERN_INFO "android_probe pdata: %p\n", pdata);
+    printk(KERN_INFO "android_probe pdata: %p\n", pdata);
 
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+    pm_runtime_set_active(&pdev->dev);
+    pm_runtime_enable(&pdev->dev);
 
-	result = pm_runtime_get(&pdev->dev);
-	if (result < 0) {
-		dev_err(&pdev->dev,
-			"Runtime PM: Unable to wake up the device, rc = %d\n",
-			result);
-		return result;
-	}
+    result = pm_runtime_get(&pdev->dev);
+    if (result < 0) {
+        dev_err(&pdev->dev,
+            "Runtime PM: Unable to wake up the device, rc = %d\n",
+            result);
+        return result;
+    }
 
-	if (pdata) {
-		dev->products = pdata->products;
-		dev->num_products = pdata->num_products;
-		dev->functions = pdata->functions;
-		dev->num_functions = pdata->num_functions;
-		if (pdata->vendor_id)
-			device_desc.idVendor =
-				__constant_cpu_to_le16(pdata->vendor_id);
-		if (pdata->product_id) {
-			dev->product_id = pdata->product_id;
-			device_desc.idProduct =
-				__constant_cpu_to_le16(pdata->product_id);
-		}
-		if (pdata->version)
-			dev->version = pdata->version;
+    if (pdata) {
+        dev->products = pdata->products;
+        dev->num_products = pdata->num_products;
+        dev->functions = pdata->functions;
+        dev->num_functions = pdata->num_functions;
+        if (pdata->vendor_id)
+            device_desc.idVendor =
+                __constant_cpu_to_le16(pdata->vendor_id);
+        if (pdata->product_id) {
+            dev->product_id = pdata->product_id;
+            device_desc.idProduct =
+                __constant_cpu_to_le16(pdata->product_id);
+        }
+        if (pdata->version)
+            dev->version = pdata->version;
 
-		if (pdata->product_name)
-			strings_dev[STRING_PRODUCT_IDX].s = pdata->product_name;
-		if (pdata->manufacturer_name)
-			strings_dev[STRING_MANUFACTURER_IDX].s =
-					pdata->manufacturer_name;
-		if (pdata->serial_number)
-			strings_dev[STRING_SERIAL_IDX].s = pdata->serial_number;
-	}
+        if (pdata->product_name)
+            strings_dev[STRING_PRODUCT_IDX].s = pdata->product_name;
+        if (pdata->manufacturer_name)
+            strings_dev[STRING_MANUFACTURER_IDX].s =
+                pdata->manufacturer_name;
+        if (pdata->serial_number)
+            strings_dev[STRING_SERIAL_IDX].s = pdata->serial_number;
+        else
+            strings_dev[STRING_SERIAL_IDX].s = 0;
+    }
 
-	return usb_composite_register(&android_usb_driver);
+    //Div2-5-3-Peripheral-LL-UsbPorting-00+{
+    smem_Usb_type_info = smem_get_entry(SMEM_ID_VENDOR2, &info_size);
+    if(smem_Usb_type_info) {
+        dev->product_id = smem_Usb_type_info->host_usb_id;
+        device_desc.idProduct = __constant_cpu_to_le16(dev->product_id);
+        USBDBG("ready to set USB PID(%X)", dev->product_id);
+    } else {
+        dev->product_id = USB_PID_FUNC_ALL;
+        device_desc.idProduct = __constant_cpu_to_le16(dev->product_id);
+        USBDBG("can't get USB PID from smem, set default PID(%X)", dev->product_id);
+    }
+
+#ifdef CONFIG_FIH_FTM
+    dev->product_id = USB_PID_FUNC_FTM;
+    device_desc.idProduct = __constant_cpu_to_le16(dev->product_id);
+    strings_dev[STRING_SERIAL_IDX].s = 0;
+    USBDBG("ready to set USB PID(%X) for FTM", dev->product_id);
+#endif
+    //Div2-5-3-Peripheral-LL-UsbPorting-00+}
+#ifdef CONFIG_DEBUG_FS
+    result = android_debugfs_init(dev);
+    if (result)
+        pr_info("%s: android_debugfs_init failed\n", __func__);
+#endif
+    return usb_composite_register(&android_usb_driver);
 }
+
+//Div6-D1-JL-PidSwitching-00+}
+
+//Fih DB ##Port switching{
+static int android_set_pid(const char *val, struct kernel_param *kp)
+{
+  struct android_dev *dev = _android_dev;
+  int ret = 0;
+  unsigned long tmp;
+
+  ret = strict_strtoul(val, 16, &tmp);
+  if( dev->product_id != (unsigned int)tmp )
+  {
+     dev->product_id = (unsigned int)tmp;
+     usb_switch_pid( (unsigned int)tmp);
+  }
+  return ret;
+}
+
+static int android_get_pid(char *buffer, struct kernel_param *pm)
+{
+   struct android_dev *dev = _android_dev;
+   int ret;
+   ret = sprintf(buffer,"%x", dev->product_id );
+   return  ret; 
+}
+
+//Fih DB ##Port switching}
+
 
 static int andr_runtime_suspend(struct device *dev)
 {
@@ -538,24 +839,28 @@ static struct platform_driver android_platform_driver = {
 
 static int __init init(void)
 {
-	struct android_dev *dev;
+    struct android_dev *dev;
 
-	printk(KERN_INFO "android init\n");
+    printk(KERN_INFO "android init\n");
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
+    dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+    if (!dev)
+        return -ENOMEM;
 
-	/* set default values, which should be overridden by platform data */
-	dev->product_id = PRODUCT_ID;
-	_android_dev = dev;
+    /* set default values, which should be overridden by platform data */
+    dev->product_id = PRODUCT_ID;
+    _android_dev = dev;
 
-	return platform_driver_register(&android_platform_driver);
+
+    return platform_driver_register(&android_platform_driver);
 }
 module_init(init);
 
 static void __exit cleanup(void)
 {
+#ifdef CONFIG_DEBUG_FS
+	android_debugfs_cleanup();
+#endif
 	usb_composite_unregister(&android_usb_driver);
 	platform_driver_unregister(&android_platform_driver);
 	kfree(_android_dev);

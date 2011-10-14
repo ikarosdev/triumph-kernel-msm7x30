@@ -47,6 +47,13 @@
 
 #include "msm_fb_panel.h"
 
+extern uint32 mdp_hw_revision;
+
+#define MDP4_REVISION_V1		0
+#define MDP4_REVISION_V2		1
+#define MDP4_REVISION_V2_1	2
+#define MDP4_REVISION_NONE	0xffffffff
+
 #ifdef BIT
 #undef BIT
 #endif
@@ -671,7 +678,16 @@ int mdp_get_bytes_per_pixel(uint32_t format);
 #ifdef MDP_HW_VSYNC
 void mdp_hw_vsync_clk_enable(struct msm_fb_data_type *mfd);
 void mdp_hw_vsync_clk_disable(struct msm_fb_data_type *mfd);
+void mdp_vsync_clk_disable(void);
+void mdp_vsync_clk_enable(void);
 #endif
+
+#ifdef CONFIG_DEBUG_FS
+int mdp_debugfs_init(void);
+#endif
+
+
+
 
 void mdp_dma_s_update(struct msm_fb_data_type *mfd);
 #endif /* MDP_H */

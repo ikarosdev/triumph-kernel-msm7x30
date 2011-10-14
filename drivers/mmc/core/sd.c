@@ -549,8 +549,12 @@ static void mmc_sd_remove(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
-	mmc_remove_card(host->card);
-	host->card = NULL;
+	//Prevent call mmc_remove_card when host and host->card are null  
+	if(host && host->card)
+	{
+		mmc_remove_card(host->card);
+		host->card = NULL;
+	}
 }
 
 /*

@@ -30,6 +30,11 @@
 
 #include <linux/input/pmic8058-keypad.h>
 
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+#include <mach/gpio.h>
+#include <linux/irq.h>
+#endif
+
 #define PM8058_MAX_ROWS		18
 #define PM8058_MAX_COLS		8
 #define PM8058_ROW_SHIFT	3
@@ -95,7 +100,20 @@
 /* Internal flags */
 #define KEYF_FIX_LAST_ROW		0x01
 
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+// Silent Key is on PMIC GPIO 18
+#define SILENT_KEY_UP_GPIO		18 //Div2D5-OwenHung-keypad driver porting+
+#define SF4V5_PMICKPD_NAME	"pm8058-keypad"
+#define PM8058_GPIO_PM_TO_SYS(pm_gpio)     (pm_gpio + NR_GPIO_IRQS)
 
+bool	silent_key_down = false;
+static int silent_on;
+int phone_state = 0;
+
+module_param_named(
+    silent_on, silent_on, int, S_IRUGO | S_IWUSR | S_IWGRP
+);
+#endif
 /* ---------------------------------------------------------------------*/
 struct pmic8058_kp {
 	const struct pmic8058_keypad_data *pdata;
@@ -104,6 +122,10 @@ struct pmic8058_kp {
 	int key_stuck_irq;
 
 	unsigned short *keycodes;
+	
+#ifdef CONFIG_FIH_PROJECT_SF4V5	
+	struct work_struct gpio_silent;		//Div2D5-OwenHung-keypad driver porting+
+#endif
 
 	struct device *dev;
 	u16 keystate[PM8058_MAX_ROWS];
@@ -453,6 +475,39 @@ static ssize_t pmic8058_kp_disable_store(struct device *dev,
 static DEVICE_ATTR(disable_kp, 0664, pmic8058_kp_disable_show,
 			pmic8058_kp_disable_store);
 
+//Div2D5-AH-Get phone state for check keypad into suspend+{
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+static ssize_t pmic8058_phone_state_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	printk(KERN_INFO "[KEYPAD]  %s , phone state: %d", __func__, phone_state);
+	
+	return sprintf(buf, "%d\n", phone_state);		
+}
+
+static ssize_t pmic8058_phone_state_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+
+	phone_state = simple_strtoul(buf, NULL, 10);
+	
+	if (phone_state < 0)
+	{	
+		printk(KERN_INFO "[KEYPAD]  %s FAILED, phone state: %d", __func__, phone_state);
+		return -EINVAL;
+	}		
+
+	printk(KERN_INFO "[KEYPAD]  %s SUCCESS, phone state: %d", __func__, phone_state);
+	
+	return count; 
+}
+
+static DEVICE_ATTR(phone_state, 0666, pmic8058_phone_state_show,
+			pmic8058_phone_state_store);
+#endif
+//Div2D5-AH-Get phone state for check keypad into suspend+}
 
 /*
  * NOTE: We are reading recent and old data registers blindly
@@ -471,6 +526,8 @@ static irqreturn_t pmic8058_kp_stuck_irq(int irq, void *data)
 	u16 old_state[PM8058_MAX_ROWS];
 	int rc;
 	struct pmic8058_kp *kp = data;
+
+	printk(KERN_INFO "[KEYPAD]  pmic8058_kp_stuck_irq");
 
 	rc = pmic8058_kp_read_matrix(kp, new_state, old_state);
 	__pmic8058_kp_scan_matrix(kp, new_state, kp->stuckstate);
@@ -498,6 +555,7 @@ static irqreturn_t pmic8058_kp_irq(int irq, void *data)
 		mdelay(1);
 
 	dev_dbg(kp->dev, "key sense irq\n");
+	printk(KERN_INFO "[KEYPAD]  pmic8058_kp_irq~");
 	__dump_kp_regs(kp, "pmic8058_kp_irq");
 
 	rc = pmic8058_kp_read(kp, &ctrl_val, KEYP_CTRL, 1);
@@ -507,6 +565,94 @@ static irqreturn_t pmic8058_kp_irq(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+
+//Div2D5-OwenHung-keypad driver porting+
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+static irqreturn_t pmic8058_silent_key_handler(int irq, void *data)
+{
+	struct pmic8058_kp *kp = data;
+	bool gpio_val;
+	printk(KERN_INFO "[KEYPAD] Silent Key Up IRQ ~");
+
+	if(PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, SILENT_KEY_UP_GPIO) == irq)
+	{
+		gpio_val = (bool)gpio_get_value(PM8058_GPIO_PM_TO_SYS(SILENT_KEY_UP_GPIO));
+		
+		set_irq_type(irq, gpio_val ? IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH);
+
+		if(gpio_val)
+		{
+			if(!silent_key_down)
+			{	
+				//printk(KERN_INFO "[KEYPAD] SilentKeyUp GPIO HIGH\n");			
+				printk(KERN_INFO "[KEYPAD] Silent Key Down \n");
+				input_report_key(kp->input, KEY_SILENT, 1);
+				silent_key_down = true;
+				silent_on =1;
+			}
+		}	
+		else
+		{
+			if(silent_key_down)
+			{	
+				//printk(KERN_INFO "[KEYPAD] SilentKeyUp GPIO LOW\n");			
+				printk(KERN_INFO "[KEYPAD] Silent Key Up \n");
+				input_report_key(kp->input, KEY_SILENT, 0); 
+				silent_key_down = false;				
+				silent_on =0;
+			}
+		}
+	}	
+	input_sync(kp->input);
+	return IRQ_HANDLED;
+}
+
+static int gpio_keypad_config(struct pmic8058_kp *kp)
+{
+	struct pm8058_gpio gpiokpd_configuration = {
+		.direction      = PM_GPIO_DIR_IN,
+		.pull           = PM_GPIO_PULL_UP_31P5,
+		.vin_sel        = 2,
+		.out_strength   = PM_GPIO_STRENGTH_NO,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+	int rc = 0;
+//-------	
+	rc = pm8058_gpio_config(SILENT_KEY_UP_GPIO, &gpiokpd_configuration);	//Div2D5-OwenHung-Silent Key GPIO shift+
+	if (rc < 0) {
+		printk(KERN_ERR "[KEYPAD] Config GPIO %d fail", SILENT_KEY_UP_GPIO);
+		return rc;
+	}
+	else
+	{
+        
+		rc = gpio_request(PM8058_GPIO_PM_TO_SYS(SILENT_KEY_UP_GPIO), "silent_key_up");		//Div2D5-OwenHung-Silent Key GPIO shift+
+        
+		if (rc < 0)
+		{
+			printk(KERN_ERR "[KEYPAD] GPIO request - %d fail", SILENT_KEY_UP_GPIO);
+			return rc;
+		}
+		else
+		{
+			rc = gpio_direction_input(PM8058_GPIO_PM_TO_SYS(SILENT_KEY_UP_GPIO) );		//Div2D5-OwenHung-Silent Key GPIO shift+
+            
+			if (rc < 0)
+			{
+				printk(KERN_ERR "[KEYPAD] GPIO direction - %d fail", SILENT_KEY_UP_GPIO);                
+				return rc;
+			}
+		}
+	}
+
+	printk(KERN_INFO "[KEYPAD] Config GPIO %d OK", SILENT_KEY_UP_GPIO);	
+
+	return rc;
+}
+#endif
+//Div2D5-OwenHung-keypad driver porting-
+
 /*
  * NOTE: Last row multi-interrupt issue
  *
@@ -646,6 +792,10 @@ static int __devinit pmic8058_kp_probe(struct platform_device *pdev)
 	unsigned short *keycodes;
 	u8 ctrl_val;
 	struct pm8058_chip	*pm_chip;
+
+#ifdef CONFIG_FIH_PROJECT_SF4V5	
+	bool gpio_val;
+#endif
 
 	pm_chip = platform_get_drvdata(pdev);
 	if (pm_chip == NULL) {
@@ -816,20 +966,61 @@ static int __devinit pmic8058_kp_probe(struct platform_device *pdev)
 		goto err_gpio_config;
 	}
 
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+	rc = request_threaded_irq(kp->key_sense_irq, NULL, pmic8058_kp_irq,
+				 IRQF_TRIGGER_RISING, SF4V5_PMICKPD_NAME, kp);
+#else 
 	rc = request_threaded_irq(kp->key_sense_irq, NULL, pmic8058_kp_irq,
 				 IRQF_TRIGGER_RISING, "pmic-keypad", kp);
+#endif
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to request keypad sense irq\n");
 		goto err_req_sense_irq;
 	}
 
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+	rc = request_threaded_irq(kp->key_stuck_irq, NULL,
+				 pmic8058_kp_stuck_irq, IRQF_TRIGGER_RISING,
+				 SF4V5_PMICKPD_NAME, kp);
+#else
 	rc = request_threaded_irq(kp->key_stuck_irq, NULL,
 				 pmic8058_kp_stuck_irq, IRQF_TRIGGER_RISING,
 				 "pmic-keypad-stuck", kp);
+#endif
 	if (rc < 0) {
 		dev_err(&pdev->dev, "failed to request keypad stuck irq\n");
 		goto err_req_stuck_irq;
 	}
+
+//Div2D5-OwenHung-keypad driver porting+
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+	gpio_keypad_config(kp);
+
+	gpio_val = (bool)gpio_get_value(PM8058_GPIO_PM_TO_SYS(SILENT_KEY_UP_GPIO));
+	if(gpio_val)
+	{	
+		input_report_key(kp->input, KEY_SILENT, 1);
+		printk(KERN_INFO "[KEYPAD] Initial is Silent Key Down so add to report key.\n");
+		silent_key_down = true;
+		silent_on =1;
+	}	
+	else
+	{	
+		input_report_key(kp->input, KEY_SILENT, 0);
+		printk(KERN_INFO "[KEYPAD] Initial is Silent Key Up so add to report key.\n");
+		silent_key_down = false;
+		silent_on =0;
+	}
+	input_sync(kp->input);
+	
+	rc = request_irq(PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, SILENT_KEY_UP_GPIO), &pmic8058_silent_key_handler,
+				 gpio_val ? IRQF_TRIGGER_LOW : IRQF_TRIGGER_HIGH, SF4V5_PMICKPD_NAME, kp);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "failed to request Silent Key UP irq\n");
+		goto err_req_gpio_irq;
+	}
+#endif
+//Div2D5-OwenHung-keypad driver porting-
 
 	rc = pmic8058_kp_read_u8(kp, &ctrl_val, KEYP_CTRL);
 	ctrl_val |= KEYP_CTRL_KEYP_EN;
@@ -843,7 +1034,17 @@ static int __devinit pmic8058_kp_probe(struct platform_device *pdev)
 	if (rc < 0)
 		goto err_create_file;
 
+//Div2D5-AH-Get phone state for check keypad into suspend+{
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+	rc = device_create_file(&pdev->dev, &dev_attr_phone_state);
+	if (rc < 0)
+		goto err_create_file;
+#endif
+//Div2D5-AH-Get phone state for check keypad into suspend+}
+
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
+
+	dev_info(&pdev->dev, "%s Complete \n", __func__ );
 
 	return 0;
 
@@ -852,6 +1053,9 @@ err_create_file:
 err_req_stuck_irq:
 	free_irq(kp->key_sense_irq, NULL);
 err_req_sense_irq:
+#ifdef CONFIG_FIH_PROJECT_SF4V5	
+err_req_gpio_irq: 
+#endif
 err_gpio_config:
 err_kpd_init:
 	input_unregister_device(kp->input);
@@ -890,6 +1094,23 @@ static int pmic8058_kp_suspend(struct device *dev)
 {
 	struct pmic8058_kp *kp = dev_get_drvdata(dev);
 
+//Div2D5-AH-Get phone state for check keypad into suspend+{
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+	printk(KERN_INFO "[KEYPAD]  %s , phone state: %d", __func__, phone_state);
+
+	if (device_may_wakeup(dev) && !pmic8058_kp_disabled(kp) && phone_state) 
+	{
+		enable_irq_wake(kp->key_sense_irq);
+		printk(KERN_INFO "[KEYPAD] pmic8058_kp_suspend enable_irq_wake.\n");
+	}
+	else
+	{
+		mutex_lock(&kp->mutex);
+		pmic8058_kp_disable(kp);
+		mutex_unlock(&kp->mutex);
+		printk(KERN_INFO "[KEYPAD] pmic8058_kp_suspend pmic8058_kp_disable.\n");
+	}
+#else
 	if (device_may_wakeup(dev) && !pmic8058_kp_disabled(kp)) {
 		enable_irq_wake(kp->key_sense_irq);
 	} else {
@@ -897,14 +1118,34 @@ static int pmic8058_kp_suspend(struct device *dev)
 		pmic8058_kp_disable(kp);
 		mutex_unlock(&kp->mutex);
 	}
-
+#endif
+//Div2D5-AH-Get phone state for check keypad into suspend+}
+	
 	return 0;
 }
 
 static int pmic8058_kp_resume(struct device *dev)
 {
-	struct pmic8058_kp *kp = dev_get_drvdata(dev);
 
+	struct pmic8058_kp *kp = dev_get_drvdata(dev);
+	
+//Div2D5-AH-Get phone state for check keypad into suspend+{
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+	printk(KERN_INFO "[KEYPAD]  %s , phone state: %d", __func__, phone_state);
+
+	if (device_may_wakeup(dev) && !pmic8058_kp_disabled(kp) && phone_state) 
+	{
+		disable_irq_wake(kp->key_sense_irq);
+		printk(KERN_INFO "[KEYPAD] pmic8058_kp_resume disable_irq_wake.\n");
+	} 
+	else 
+	{
+		mutex_lock(&kp->mutex);
+		pmic8058_kp_enable(kp);
+		mutex_unlock(&kp->mutex);
+		printk(KERN_INFO "[KEYPAD] pmic8058_kp_resume pmic8058_kp_enable.\n");
+	}
+#else
 	if (device_may_wakeup(dev) && !pmic8058_kp_disabled(kp)) {
 		disable_irq_wake(kp->key_sense_irq);
 	} else {
@@ -912,6 +1153,8 @@ static int pmic8058_kp_resume(struct device *dev)
 		pmic8058_kp_enable(kp);
 		mutex_unlock(&kp->mutex);
 	}
+#endif
+//Div2D5-AH-Get phone state for check keypad into suspend+}
 
 	return 0;
 }
@@ -926,7 +1169,11 @@ static struct platform_driver pmic8058_kp_driver = {
 	.probe		= pmic8058_kp_probe,
 	.remove		= __devexit_p(pmic8058_kp_remove),
 	.driver		= {
+#ifdef CONFIG_FIH_PROJECT_SF4V5
+		.name = SF4V5_PMICKPD_NAME,
+#else
 		.name = "pm8058-keypad",
+#endif
 		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &pm8058_kp_pm_ops,

@@ -87,6 +87,7 @@
 					struct msm_audio_buf_cfg)
 #define AUDIO_SET_BUF_CFG    _IOW(AUDIO_IOCTL_MAGIC, 94, \
 					struct msm_audio_buf_cfg)
+#define FM_CODECSETTING _IOR(AUDIO_IOCTL_MAGIC, 95, unsigned)//MM-RC-ChangeFMPath-00+
 
 #define	AUDIO_MAX_COMMON_IOCTL_NUM	100
 

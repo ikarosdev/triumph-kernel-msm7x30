@@ -425,6 +425,12 @@ static int device_resume(struct device *dev, pm_message_t state)
 			error = pm_op(dev, dev->class->pm, state);
 		} else if (dev->class->resume) {
 			pm_dev_dbg(dev, state, "legacy class ");
+
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+            print_symbol("class resume: %s\n", (unsigned long)dev->class->resume);
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 			error = dev->class->resume(dev);
 		}
 	}
@@ -683,6 +689,13 @@ static int device_suspend(struct device *dev, pm_message_t state)
 			error = pm_op(dev, dev->class->pm, state);
 		} else if (dev->class->suspend) {
 			pm_dev_dbg(dev, state, "legacy class ");
+
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+            print_symbol("class suspend: %s\n", (unsigned long)dev->class->suspend);
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
+
 			error = dev->class->suspend(dev, state);
 			suspend_report_result(dev->class->suspend, error);
 		}

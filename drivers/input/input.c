@@ -83,7 +83,39 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 
 	return value;
 }
-
+//DIV5-BSP-CH-SF6-GSENSOR-PM00++[
+//Div2D5-OwenHuang-FB0_Sensors-Porting_New_Sensors_Architecture-01+{
+#if defined(CONFIG_NEW_YAMAHA_SENSORS)
+//determine if this input event is from sensors(orientation/geomagnetic/accelerometer/light/proximity..etc)
+static int is_sensor_input(const char *dev_name)
+{
+	if (strcmp(dev_name, "accelerometer") == 0 || strcmp(dev_name, "light") == 0 ||
+		strcmp(dev_name, "proximity") == 0 || strcmp(dev_name, "orientation") == 0 ||
+		strcmp(dev_name, "geomagnetic") == 0 || strcmp(dev_name, "geomagnetic_raw") == 0) //Div2D5-OwenHuang-FB0_Sensors-Porting_New_Sensors_Architecture-02*
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+#elif defined(CONFIG_FIH_PROJECT_SF4Y6)
+static int is_sensor_input(const char *dev_name)
+{
+	if (strcmp(dev_name, "bma150") == 0 || strcmp(dev_name, "ltr502als_alsps") == 0 ||
+		strcmp(dev_name, "akm8975_dev") == 0 || strcmp(dev_name, "compass") == 0)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+#endif
+//Div2D5-OwenHuang-FB0_Sensors-Porting_New_Sensors_Architecture-01+}
+//DIV5-BSP-CH-SF6-GSENSOR-PM00++]
 /*
  * Pass event through all open handles. This function is called with
  * dev->event_lock held and interrupts disabled.
@@ -97,12 +129,39 @@ static void input_pass_event(struct input_dev *dev,
 
 	handle = rcu_dereference(dev->grab);
 	if (handle)
+	{
+		printk("[INPUT]handle found\n");
 		handle->handler->event(handle, type, code, value);
+	}
 	else
+	{
+	//DIV5-BSP-CH-SF6-SENSOR-PORTING04++
+	//Div2D5-OwenHuang-FB0_Sensors-Porting_New_Sensors_Architecture-01+{
+	#if defined(CONFIG_NEW_YAMAHA_SENSORS) || defined(CONFIG_FIH_PROJECT_SF4Y6)
+		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
+			if (handle->open)
+			{
+				if (is_sensor_input(dev->name) && strcmp(handle->handler->name, "cpufreq_ond")==0)
+				{
+					//Do not call cpufreq_ondemand to change cpu freq to max.
+					//printk(KERN_INFO "[INPUT]Do not call cpufreq_ondemand.c(%s)\n", dev->name);
+				}
+				else
+				{
+					handle->handler->event(handle,
+									type, code, value);
+				}
+			}
+	#else
 		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
 			if (handle->open)
 				handle->handler->event(handle,
-							type, code, value);
+									type, code, value);
+	#endif
+	//Div2D5-OwenHuang-FB0_Sensors-Porting_New_Sensors_Architecture-01+}
+	//DIV5-BSP-CH-SF6-SENSOR-PORTING04++]
+	}
+							
 	rcu_read_unlock();
 }
 
@@ -161,6 +220,16 @@ static void input_stop_autorepeat(struct input_dev *dev)
 #define INPUT_PASS_TO_HANDLERS	1
 #define INPUT_PASS_TO_DEVICE	2
 #define INPUT_PASS_TO_ALL	(INPUT_PASS_TO_HANDLERS | INPUT_PASS_TO_DEVICE)
+
+//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-01*{
+//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-00+{
+//#if defined(CONFIG_NEW_YAMAHA_SENSORS)
+#if 0
+static struct timespec previous_ts = {0, 0};
+static struct timespec current_ts = {0, 0};
+#endif
+//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-00+}
+//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-01*}
 
 static void input_handle_event(struct input_dev *dev,
 			       unsigned int type, unsigned int code, int value)
@@ -228,6 +297,27 @@ static void input_handle_event(struct input_dev *dev,
 				dev->abs[code] = value;
 				disposition = INPUT_PASS_TO_HANDLERS;
 			}
+		//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-01-{
+		//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-00+{
+		//#if defined(CONFIG_NEW_YAMAHA_SENSORS)
+		#if 0
+			//always report light sensor data
+			if (strcmp(dev->name, "light") == 0 && dev->abs[code] == value)
+			{
+				ktime_get_ts(&current_ts); //get current time
+				if (current_ts.tv_sec - previous_ts.tv_sec > 2) //pending time is bigger than 2 second
+				{
+					//printk("[%s][Report]input device name(%s), value(%d)\n", __func__, 
+					//		dev->name, value);
+					previous_ts.tv_sec = current_ts.tv_sec;
+					dev->abs[code] = value;
+					disposition = INPUT_PASS_TO_HANDLERS;
+				}
+			}
+		#endif
+		//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-00+}
+		//Div2D5-OwenHuang-BSP2030_FB0_FQC_ALS-01-}
+				
 		}
 		break;
 
@@ -307,7 +397,7 @@ void input_event(struct input_dev *dev,
 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
 
 		spin_lock_irqsave(&dev->event_lock, flags);
-		add_input_randomness(type, code, value);
+		add_input_randomness(type, code, value); 
 		input_handle_event(dev, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}

@@ -447,12 +447,6 @@ void mddi_host_timer_service(unsigned long data)
 
 	unsigned long time_ms = MDDI_DEFAULT_TIMER_LENGTH;
 	init_timer(&mddi_host_timer);
-	mddi_host_timer.function = mddi_host_timer_service;
-	mddi_host_timer.data = 0;
-
-	mddi_host_timer.expires = jiffies + ((time_ms * HZ) / 1000);
-	add_timer(&mddi_host_timer);
-
 	for (host_idx = MDDI_HOST_PRIM; host_idx < MDDI_NUM_HOST_CORES;
 	     host_idx++) {
 		pmhctl = &(mhctl[host_idx]);
@@ -622,6 +616,15 @@ void mddi_host_timer_service(unsigned long data)
 	}
 	if (mddi_log_stats_counter >= mddi_log_stats_frequency)
 		mddi_log_stats_counter = 0;
+
+	mutex_lock(&mddi_timer_lock);
+	if (!mddi_timer_shutdown_flag) {
+		mddi_host_timer.function = mddi_host_timer_service;
+		mddi_host_timer.data = 0;
+		mddi_host_timer.expires = jiffies + ((time_ms * HZ) / 1000);
+		add_timer(&mddi_host_timer);
+	}
+	mutex_unlock(&mddi_timer_lock);
 
 	return;
 }				/* mddi_host_timer_cb */
@@ -964,15 +967,21 @@ static void mddi_process_rev_packets(void)
 			{
 				mddi_register_access_packet_type
 				    * regacc_pkt_ptr;
+				uint32 data_count;
 
 				regacc_pkt_ptr =
 				    (mddi_register_access_packet_type *)
 				    rev_packet_data;
 
-				MDDI_MSG_DEBUG
-				    ("Reg Acc parse reg=0x%x, value=0x%x\n",
-				     regacc_pkt_ptr->register_address,
-				     regacc_pkt_ptr->register_data_list);
+				/* Bits[0:13] - read data count */
+				data_count = regacc_pkt_ptr->read_write_info
+					& 0x3FFF;
+				MDDI_MSG_DEBUG("\n MDDI rev read: 0x%x",
+					regacc_pkt_ptr->read_write_info);
+				MDDI_MSG_DEBUG("Reg Acc parse reg=0x%x,"
+					"value=0x%x\n", regacc_pkt_ptr->
+					register_address, regacc_pkt_ptr->
+					register_data_list[0]);
 
 				/* Copy register value to location passed in */
 				if (mddi_reg_read_value_ptr) {
@@ -980,13 +989,20 @@ static void mddi_process_rev_packets(void)
 					/* only least significant 16 bits are valid with 6280 */
 					*mddi_reg_read_value_ptr =
 					    regacc_pkt_ptr->
-					    register_data_list & 0x0000ffff;
-#else
-					*mddi_reg_read_value_ptr =
-					    regacc_pkt_ptr->register_data_list;
-#endif
+					    register_data_list[0] & 0x0000ffff;
 					mddi_reg_read_successful = TRUE;
 					mddi_reg_read_value_ptr = NULL;
+#else
+				if (data_count && data_count <=
+					MDDI_HOST_MAX_CLIENT_REG_IN_SAME_ADDR) {
+					memcpy(mddi_reg_read_value_ptr,
+						(void *)&regacc_pkt_ptr->
+						register_data_list[0],
+						data_count * 4);
+					mddi_reg_read_successful = TRUE;
+					mddi_reg_read_value_ptr = NULL;
+				}
+#endif
 				}
 
 #ifdef DEBUG_MDDIHOSTI
@@ -998,7 +1014,7 @@ static void mddi_process_rev_packets(void)
 					 * here...
 					 */
 					 mddi_client_lcd_gpio_poll(
-					 regacc_pkt_ptr->register_data_list);
+					 regacc_pkt_ptr->register_data_list[0]);
 				}
 #endif
 				pmhctl->log_parms.reg_read_cnt++;
@@ -1061,6 +1077,8 @@ static void mddi_process_rev_packets(void)
 				if (mddi_enable_reg_read_retry_once)
 					mddi_reg_read_retry =
 					    mddi_reg_read_retry_max;
+				else
+					mddi_reg_read_retry++;
 				pmhctl->rev_state = MDDI_REV_REG_READ_SENT;
 				pmhctl->stats.reg_read_failure++;
 			} else {
@@ -1312,7 +1330,6 @@ static void mddi_host_isr(void)
 
 	if (!MDDI_HOST_IS_HCLK_ON) {
 		MDDI_HOST_ENABLE_HCLK;
-		MDDI_MSG_DEBUG("HCLK disabled, but isr is firing\n");
 	}
 	int_reg = mddi_host_reg_in(INT);
 	int_en = mddi_host_reg_in(INTEN);
@@ -1557,8 +1574,10 @@ void mddi_host_configure_interrupts(mddi_host_type host_idx, boolean enable)
 			     "PMDH", 0) != 0)
 				printk(KERN_ERR
 				       "a mddi: unable to request_irq\n");
-			else
+			else {
 				int_mddi_pri_flag = TRUE;
+				irq_enabled = 1;
+			}
 		} else {
 			if (request_irq
 			    (INT_MDDI_EXT, mddi_emdh_isr_proxy, IRQF_DISABLED,
@@ -1639,6 +1658,13 @@ static void mddi_host_powerup(mddi_host_type host_idx)
 		mddi_host_timer_service(0);
 }
 
+void mddi_send_fw_link_skew_cal(mddi_host_type host_idx)
+{
+	mddi_host_reg_out(CMD, MDDI_CMD_FW_LINK_SKEW_CAL);
+	MDDI_MSG_DEBUG("%s: Skew Calibration done!!\n", __func__);
+}
+
+
 void mddi_host_init(mddi_host_type host_idx)
 /* Write out the MDDI configuration registers */
 {
@@ -1653,6 +1679,7 @@ void mddi_host_init(mddi_host_type host_idx)
 	if (!initialized) {
 		uint16 idx;
 		mddi_host_type host;
+
 		for (host = MDDI_HOST_PRIM; host < MDDI_NUM_HOST_CORES; host++) {
 			pmhctl = &(mhctl[host]);
 			initialized = TRUE;
@@ -1789,6 +1816,7 @@ uint32 mddi_get_client_id(void)
 	mddi_host_cntl_type *pmhctl;
 	unsigned long flags;
 	uint16 saved_rev_pkt_size;
+	int ret;
 
 	if (!client_detection_try) {
 		/* Toshiba display requires larger drive_lo value */
@@ -1841,6 +1869,10 @@ uint32 mddi_get_client_id(void)
 
 		if (!mddi_client_id)
 			mddi_disable(1);
+
+		ret = mddi_client_power(mddi_client_id);
+		if (ret < 0)
+			MDDI_MSG_ERR("mddi_client_power return %d", ret);
 	}
 
 #if 0

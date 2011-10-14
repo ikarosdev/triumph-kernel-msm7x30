@@ -8,7 +8,7 @@ obj-y += mdp.o
 
 ifeq ($(CONFIG_FB_MSM_MDP40),y)
 obj-y += mdp4_util.o
-obj-$(CONFIG_DEBUG_FS) += mdp4_debugfs.o
+obj-$(CONFIG_DEBUG_FS) += mdp_debugfs.o
 else
 obj-y += mdp_hw_init.o
 obj-y += mdp_ppp.o
@@ -73,6 +73,9 @@ obj-$(CONFIG_FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF) += ebi2_tmd20.o
 obj-$(CONFIG_FB_MSM_EBI2_TMD_QVGA_EPSON_QCIF) += ebi2_l2f.o
 
 ifeq ($(CONFIG_FB_MSM_MDDI_AUTO_DETECT),y)
+# SW2-6-MM-JH-SF5_Display_Porting-00+
+obj-y += mddi_toshiba_fwvga.o
+# SW2-6-MM-JH-SF5_Display_Porting-00-
 obj-y += mddi_prism.o
 obj-y += mddi_toshiba.o
 obj-y += mddi_toshiba_vga.o
@@ -81,6 +84,9 @@ obj-y += mddi_toshiba_wvga.o
 obj-y += mddi_sharp.o
 obj-y += mddi_orise.o
 else
+# SW2-6-MM-JH-SF5_Display_Porting-00+
+obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_FWVGA_PORTRAIT) += mddi_toshiba_fwvga_pt.o
+# SW2-6-MM-JH-SF5_Display_Porting-00-
 obj-$(CONFIG_FB_MSM_MDDI_PRISM_WVGA) += mddi_prism.o
 obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_COMMON) += mddi_toshiba.o
 obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_COMMON_VGA) += mddi_toshiba_vga.o
@@ -101,7 +107,11 @@ obj-$(CONFIG_FB_MSM_LCDC_GORDON_VGA) += lcdc_gordon.o
 obj-$(CONFIG_FB_MSM_LCDC_WXGA) += lcdc_wxga.o
 obj-$(CONFIG_FB_MSM_LCDC_TOSHIBA_WVGA_PT) += lcdc_toshiba_wvga_pt.o
 obj-$(CONFIG_FB_MSM_LCDC_SHARP_WVGA_PT) += lcdc_sharp_wvga_pt.o
+# SW2-6-MM-JH-SF8_Display_Porting-00+
+obj-$(CONFIG_FB_MSM_LCDC_SONY_WVGA_PT) += lcdc_sony_wvga_pt.o
+# SW2-6-MM-JH-SF8_Display_Porting-00-
 obj-$(CONFIG_FB_MSM_HDMI_ADV7520_PANEL) += adv7520.o
+obj-$(CONFIG_FB_MSM_HDMI_ADV7525_PANEL) += adv7525.o
 obj-$(CONFIG_FB_MSM_LCDC_ST15_WXGA) += lcdc_st15.o
 obj-$(CONFIG_FB_MSM_HDMI_MSM_PANEL) += hdmi_msm.o
 obj-$(CONFIG_FB_MSM_HDMI_COMMON) += hdmi_common.o

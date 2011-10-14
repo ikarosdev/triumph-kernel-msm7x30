@@ -63,6 +63,7 @@ extern void kernel_restart_prepare(char *cmd);
 extern void kernel_restart(char *cmd);
 extern void kernel_halt(void);
 extern void kernel_power_off(void);
+extern void Restart_To_Download(void);  //Div6-D1-JL-UsbPorting-00+
 
 void ctrl_alt_del(void);
 

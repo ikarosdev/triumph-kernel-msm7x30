@@ -166,10 +166,41 @@ struct timespec raw_time;
 int __read_mostly timekeeping_suspended;
 
 static struct timespec xtime_cache __attribute__ ((aligned (16)));
+
+//Div2-SW2-BSP-pmlog, HenryMCWang +
+#include "linux/pmlog.h"
+
+#ifdef __FIH_PM_STATISTICS__
+unsigned long get_nseconds(void)
+{
+	return xtime_cache.tv_nsec;
+}
+EXPORT_SYMBOL(get_nseconds);
+#endif	// __FIH_PM_STATISTICS__
+//Div2-SW2-BSP-pmlog, HenryMCWang -
+
 void update_xtime_cache(u64 nsec)
 {
 	xtime_cache = xtime;
 	timespec_add_ns(&xtime_cache, nsec);
+//Div2-SW2-BSP-pmlog, HenryMCWang +
+#ifdef __FIH_PM_STATISTICS__
+	if (g_secupdatereq) {
+		if (g_secupdatereq-- == 1) {
+			unsigned long l = xtime_cache.tv_sec - g_pms_suspend.pre;
+			g_pms_suspend.ntime += ((l) ? (l--, (NSEC_PER_SEC - g_pms_suspend.npre + xtime_cache.tv_nsec)) :
+			                              (xtime_cache.tv_nsec - g_pms_suspend.npre));
+			g_pms_suspend.time += (l + (g_pms_suspend.ntime / NSEC_PER_SEC));
+			g_pms_suspend.ntime %= NSEC_PER_SEC;
+#ifdef __FIH_DBG_PM_STATISTICS__
+			g_pms_resume.pre = get_seconds();
+			g_pms_resume.npre = get_nseconds();
+#endif		// __FIH_DBG_PM_STATISTICS__
+			g_secupdatereq = 0;
+		}
+	}
+#endif	// __FIH_PM_STATISTICS__
+//Div2-SW2-BSP-pmlog, HenryMCWang -
 }
 
 /* must hold xtime_lock */

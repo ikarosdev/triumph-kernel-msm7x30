@@ -20,3 +20,9 @@ obj-y += audio_acdb.o snddev_virtual.o
 obj-y += audio_fm.o
 obj-y += lpa.o snddev_mi2s.o
 obj-y += audio_mvs.o
+
+#SW5-MM-DL-AudioPorting-00+{
+ifdef CONFIG_FIH_PROJECT_SFX
+	obj-y += headset_fih.o 
+endif
+#SW5-MM-DL-AudioPorting-00+}

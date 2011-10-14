@@ -377,6 +377,9 @@ struct input_absinfo {
 
 #define KEY_WIMAX		246
 
+#define KEY_SILENT		237		//SW2-D5-OwenHung-Silent Key function implement+
+#define KEY_COVERDET	247		//SW2-D5-AriesHuang-Cover Detect Key function implement+
+
 /* Range 248 - 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100

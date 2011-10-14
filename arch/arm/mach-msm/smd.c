@@ -38,6 +38,12 @@
 #include "proc_comm.h"
 #include "modem_notifier.h"
 
+//Div251-PK-SUSPEND_LOG-00+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+  #include "clock.h"
+#endif
+//Div251-PK-SUSPEND_LOG-00+]
+
 #if defined(CONFIG_ARCH_QSD8X50) || defined(CONFIG_ARCH_MSM8X60)
 #define CONFIG_QDSP6 1
 #endif
@@ -45,6 +51,10 @@
 #if defined(CONFIG_ARCH_MSM8X60)
 #define CONFIG_DSPS 1
 #endif
+
+//Div2-SW2-BSP-pmlog, HenryMCWang +
+#include "linux/pmlog.h"
+//Div2-SW2-BSP-pmlog, HenryMCWang -
 
 #define MODULE_NAME "msm_smd"
 #define SMEM_VERSION 0x000B
@@ -746,6 +756,7 @@ static int smd_stream_read(smd_channel_t *ch, void *data, int len)
 static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 {
 	unsigned long flags;
+    
 	int r;
 
 	if (len < 0)
@@ -1043,10 +1054,10 @@ int smd_close(smd_channel_t *ch)
 {
 	unsigned long flags;
 
-	SMD_INFO("smd_close(%p)\n", ch);
-
 	if (ch == 0)
 		return -1;
+
+	SMD_INFO("smd_close(%s)\n", ch->name);
 
 	spin_lock_irqsave(&smd_lock, flags);
 	ch->notify = do_nothing_notify;
@@ -1557,6 +1568,273 @@ int smd_core_init(void)
 
 	return 0;
 }
+
+//#ifdef CONFIG_FIH_CONFIG_GROUP
+//Div2-SW2-BSP, JOE HSU,+++
+typedef enum
+{
+  DRAM_1G,
+  DRAM_2G,
+  DRAM_3G,
+  DRAM_4G,
+}dram_size_enum;
+
+typedef struct
+{
+  unsigned int device_name;
+  dram_size_enum dram_size;
+}fih_dram_info;
+
+typedef struct
+{
+  char p_name[8];
+  char m_name[12];
+  unsigned int  p_rev;
+}fih_emmc_info;
+
+
+
+
+struct smem_oem_info
+{
+	unsigned int hw_id;
+	unsigned int keypad_info;
+	unsigned int power_on_cause;
+	fih_dram_info fih_smem_dram_info;
+	fih_emmc_info fih_smem_emmc_info;
+	unsigned int dl_reboot_magic;
+//KC-OEMInfo-01+[
+	unsigned int fih_restore_customer_partition_flag;
+	unsigned int fih_nv_backup_flag; //record unique nv backup finish or not to nodify PD
+//KC-OEMInfo-01+]
+// FIHTDC-Div2-SW2-BSP, Ming { //
+    unsigned int oemsbl_mode; 
+    char         flash_name[32];
+    unsigned int progress;
+    unsigned int msg_counter;
+    unsigned int dram_info;
+// } FIHTDC-Div2-SW2-BSP, Ming //
+
+//Div251-PK-SUSPEND_LOG-00+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+	unsigned int not_mpm_reason;
+	unsigned int mao_int_pendding;
+	unsigned int tcxo_off_time;
+	unsigned int tcxo_off_count;
+	unsigned int curr_not_okts_mask0;
+	unsigned int curr_not_okts_mask1;
+	unsigned int powercollapse_time;
+	unsigned long against_clock[4];
+#endif
+//Div251-PK-SUSPEND_LOG-00+]
+// FIHTDC-Div2-SW2-BSP, Ming { //
+	unsigned int vbatt_info;
+// } FIHTDC-Div2-SW2-BSP, Ming //
+// FIHTDC-Div2-SW2-BSP, Ming, HWID { //
+    fih_hw_info_type fih_hwid_information;
+// } FIHTDC-Div2-SW2-BSP, Ming, HWID //
+};
+
+typedef enum
+{
+	SAMSUNG_1G_1G = 0,
+	SAMSUNG_2G_2G = 1,
+	ELPIDA_1G_1G  = 20,
+	ELPIDA_2G_2G  = 21,
+	UNKNOWN_TYPE  =0xFFFF,
+} ddr_dram_type;
+
+
+static struct smem_oem_info oem_info = {0};
+static unsigned int fih_product_id = 0;
+static unsigned int fih_product_phase = 0;
+static unsigned int fih_band_id = 0;
+
+//SW2-5-1-MP-DbgCfgTool-00+[
+static unsigned int msm_poweron_cause;
+module_param_named(poweron_cause, msm_poweron_cause, int, S_IRUGO);
+//SW2-5-1-MP-DbgCfgTool-00+]
+
+//SW2-5-1-MP-HostOemInfo-00+[
+unsigned int fih_host_log_from_uart = 0x0;
+unsigned int fih_host_usb_id = 0x0;
+unsigned int fih_host_boot_mode = 0x0; //SW-2-5-1-MP-DbgCfgTool-03+
+
+//Div251-PK-SUSPEND_LOG-00+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+void show_smem_sleep_info (void)
+{
+	static struct smem_oem_info *gsmem_oem_info = NULL;
+	int i;
+
+	if (gsmem_oem_info==NULL)
+	{
+		unsigned int bsize;
+		gsmem_oem_info = (struct smem_oem_info *)smem_get_entry(SMEM_OEM_INFO, &bsize);
+		if (gsmem_oem_info==NULL)
+		{
+			printk(KERN_EMERG "[PM] Can not get smem sleep info !!!\n");
+		}
+	}
+	if (gsmem_oem_info!=NULL)
+	{
+		printk(KERN_EMERG "[PM] not_mpm_reason=0x%08X, curr_not_okts_mask=0x%08X %08X .\n", 
+								gsmem_oem_info->not_mpm_reason, 
+								gsmem_oem_info->curr_not_okts_mask1,
+								gsmem_oem_info->curr_not_okts_mask0		);
+		printk(KERN_EMERG "[PM] ( pc_time: %u ms, mpm_time: %u ms, %u times), mao_int_pendding=0x%08X.\n", 
+								gsmem_oem_info->powercollapse_time>>5,
+								gsmem_oem_info->tcxo_off_time>>5,
+								gsmem_oem_info->tcxo_off_count,
+								gsmem_oem_info->mao_int_pendding		);
+
+		for_each_bit(i, gsmem_oem_info->against_clock, P_NR_CLKS) {
+			char clk_name[16];
+
+			clk_name[0] = '\0';
+			msm_clock_get_name(i, clk_name, sizeof(clk_name));
+			printk(KERN_ERR "[PM] clock against TCXO shutdown, %s (id=%d).\n", clk_name, i);
+		}
+	}
+}
+EXPORT_SYMBOL(show_smem_sleep_info);
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-00+]
+
+void fih_get_host_oem_info(void)
+{
+    struct smem_host_oem_info* fih_smem_host_used;
+    printk(KERN_INFO "fih_smem_alloc_for_host_used\n");
+    fih_smem_host_used = smem_alloc(SMEM_ID_VENDOR2, sizeof(*fih_smem_host_used));
+    if(fih_smem_host_used == NULL)    	
+    {
+    	printk(KERN_INFO "fih_smem_alloc_for_host_used = NULL!\n");
+        fih_host_log_from_uart = 0;
+	fih_host_usb_id = 0;
+	fih_host_boot_mode = 0; //SW-2-5-1-MP-DbgCfgTool-03+
+	return;
+    }
+    if(fih_smem_host_used)
+    {
+        fih_host_log_from_uart = (fih_smem_host_used->host_log_from_uart);
+	fih_host_usb_id = (fih_smem_host_used->host_usb_id);
+	fih_host_boot_mode = (fih_smem_host_used->host_used3); //SW-2-5-1-MP-DbgCfgTool-03+
+    }
+    printk(KERN_INFO "smd.c, fih_smem_host_used address = 0x%X, host_usb_id = 0x%X, host_log_from_uart = 0x%X\n"
+    , (unsigned int)fih_smem_host_used
+    , fih_smem_host_used->host_usb_id
+    , fih_smem_host_used->host_log_from_uart);
+}
+
+unsigned int fih_read_uart_switch_from_smem(void)   //printk used
+{
+    return fih_host_log_from_uart;
+}
+
+unsigned int fih_read_usb_id_from_smem(void)   //board-msm7x27.c, and msm_hsusb.c  used
+{
+    return fih_host_usb_id;
+}
+//SW2-5-1-MP-DbgCfgTool-03+[
+unsigned int fih_read_boot_mode_from_smem(void)
+{
+    return fih_host_boot_mode;
+}
+//SW2-5-1-MP-DbgCfgTool-03+]
+
+//SW2-5-1-MP-HostOemInfo-00+]
+
+void fih_get_oem_info(void)
+{
+	struct smem_oem_info *fih_smem_info = smem_alloc(SMEM_OEM_INFO, sizeof(oem_info));
+	if (fih_smem_info==NULL) {
+		return;
+	}
+	memcpy(&oem_info, fih_smem_info, sizeof(oem_info));
+	msm_poweron_cause = oem_info.power_on_cause; //SW2-5-1-MP-DbgCfgTool-00+
+	printk(KERN_INFO "%s: keypad_info=0x%x, power_on_cause=0x%x\n",
+	__func__, oem_info.keypad_info, oem_info.power_on_cause);
+  //Div252-AC-HARDWARE_ID_01+{
+	//get product id
+	fih_product_id = oem_info.fih_hwid_information.virtual_project_id;
+	printk(KERN_INFO "FIH kernel - fih_product_id = %d \r\n",fih_product_id);
+
+	//get product phsae
+	fih_product_phase = oem_info.fih_hwid_information.virtual_phase_id;
+	printk(KERN_INFO "FIH kernel - fih_product_phase = %d \r\n",fih_product_phase);
+
+	//get band id
+	fih_band_id = oem_info.fih_hwid_information.virtual_band_id;
+	printk(KERN_INFO "FIH kernel - fih_band_id = %d \r\n",fih_band_id);
+  //Div252-AC-HARDWARE_ID_01+}
+
+} /*fih_get_oem_info*/
+EXPORT_SYMBOL(fih_get_oem_info);
+
+unsigned int fih_get_product_id(void)
+{
+	return fih_product_id;
+} /*fih_get_product_id*/
+EXPORT_SYMBOL(fih_get_product_id);
+
+unsigned int fih_get_product_phase(void)
+{
+	return fih_product_phase;
+} /*fih_get_product_phase*/
+EXPORT_SYMBOL(fih_get_product_phase);
+
+unsigned int fih_get_band_id(void)
+{
+	return fih_band_id;
+} /*fih_get_band_id*/
+EXPORT_SYMBOL(fih_get_band_id);
+
+/* FIHTDC, Div2-SW2-BSP CHHsieh, { */
+unsigned int fih_ftm_get_hw_id(char* buf)
+{
+//	unsigned int pid, pph, bid;
+	char buf1[3] = {0};
+	
+	buf1[0] = fih_get_product_id();
+	buf1[1] = fih_get_product_phase();
+	buf1[2] = fih_get_band_id();
+	
+	memcpy(buf, buf1, 3);
+	
+	printk(KERN_INFO "fih_ftm_get_hw_id() pid=%d, pph=%d, bid=%d", buf[0], buf[1], buf[2]);
+	
+	return 0;
+}
+EXPORT_SYMBOL(fih_ftm_get_hw_id);
+/* } FIHTDC, Div2-SW2-BSP CHHsieh */
+
+char *fih_get_emmc_info()
+{
+  printk(KERN_INFO "FIH kernel - fih_emmc_info = %s \r\n",oem_info.fih_smem_emmc_info.p_name);
+  return oem_info.fih_smem_emmc_info.p_name;
+} 
+
+unsigned int fih_get_dram_info()
+{
+  printk(KERN_INFO "FIH kernel - fih_dram_info = %d \r\n",oem_info.fih_smem_dram_info.dram_size);
+
+  return oem_info.fih_smem_dram_info.dram_size;
+} /*fih_get_band_id*/
+//Div2-SW2-BSP, JOE HSU,---
+//Div2-SW2-BSP, HenryMCWang, get power on cause, +++
+unsigned int fih_get_poweroncause_info()
+{
+	return oem_info.power_on_cause;
+}
+
+//#endif
+
+/* Div2-SW2-BSP-FB0-BATT { */
+unsigned int fih_get_keypad_info(void)
+{
+    return oem_info.keypad_info;
+}
+/* } Div2-SW2-BSP-FB0-BATT */
 
 static int __init msm_smd_probe(struct platform_device *pdev)
 {

@@ -763,6 +763,18 @@ static int rmt_storage_get_sync_status(void)
 	return recv_args.data;
 }
 
+//Div2-SW2-BSP, JOE HSU ,rmt_sync
+int rmt_sync_call(void)
+{
+	int rc;
+	
+	rc = rmt_storage_force_sync();
+//	while ((rmt_storage_get_sync_status() == RMT_STORAGE_NO_ERROR) || timeout == 0) {
+//		  timeout --;
+//		}
+	return rc;
+}
+
 static int rmt_storage_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct rmt_storage_client_info *rmc = _rmc;

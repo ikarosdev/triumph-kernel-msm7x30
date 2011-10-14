@@ -126,6 +126,11 @@ static void pmic8058_vib_enable(struct timed_output_dev *dev, int value)
 	struct pmic8058_vib *vib = container_of(dev, struct pmic8058_vib,
 					 timed_dev);
 	unsigned long flags;
+/* Div2-SW2-BSP-FBX-FTM-VIB { */
+#ifdef CONFIG_FIH_FTM_PMIC_VIB
+    int ftm_check = value;
+#endif
+/* } Div2-SW2-BSP-FBX-FTM-VIB */
 
 	spin_lock_irqsave(&vib->lock, flags);
 	hrtimer_cancel(&vib->vib_timer);
@@ -136,6 +141,11 @@ static void pmic8058_vib_enable(struct timed_output_dev *dev, int value)
 		value = (value > vib->pdata->max_timeout_ms ?
 				 vib->pdata->max_timeout_ms : value);
 		vib->state = 1;
+/* Div2-SW2-BSP-FBX-FTM-VIB { */
+#ifdef CONFIG_FIH_FTM_PMIC_VIB
+    	if (22685511 != ftm_check)
+#endif
+/* } Div2-SW2-BSP-FBX-FTM-VIB */
 		hrtimer_start(&vib->vib_timer,
 			      ktime_set(value / 1000, (value % 1000) * 1000000),
 			      HRTIMER_MODE_REL);

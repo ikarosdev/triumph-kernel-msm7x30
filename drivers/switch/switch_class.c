@@ -156,6 +156,52 @@ void switch_dev_unregister(struct switch_dev *sdev)
 }
 EXPORT_SYMBOL_GPL(switch_dev_unregister);
 
+//Div6-D1-JL-UsbPorting-00+{
+void switch_set_MassStorage_state(struct switch_dev *sdev, int state)
+{
+    char name_buf[120];
+    char state_buf[120];
+    char *prop_buf;
+    char *envp[3];
+    int env_offset = 0;
+    int length;
+
+    sdev->state = state;
+
+    prop_buf = (char *)get_zeroed_page(GFP_KERNEL);
+    if (prop_buf) 
+    {
+        length = name_show(sdev->dev, NULL, prop_buf);
+        if (length > 0) 
+        {
+            if (prop_buf[length - 1] == '\n')
+                prop_buf[length - 1] = 0;
+
+            snprintf(name_buf, sizeof(name_buf),
+                "SWITCH_NAME=%s", prop_buf);
+            envp[env_offset++] = name_buf;
+        }
+        length = state_show(sdev->dev, NULL, prop_buf);
+        if (length > 0) 
+        {
+            if (prop_buf[length - 1] == '\n')
+                prop_buf[length - 1] = 0;
+
+            snprintf(state_buf, sizeof(state_buf), "SWITCH_STATE=%s", prop_buf);
+            envp[env_offset++] = state_buf;
+        }
+        envp[env_offset] = NULL;
+        kobject_uevent_env(&sdev->dev->kobj, KOBJ_CHANGE, envp);
+        free_page((unsigned long)prop_buf);
+    } else 
+    {
+        printk(KERN_ERR "out of memory in switch_set_state\n");
+        kobject_uevent(&sdev->dev->kobj, KOBJ_CHANGE);
+    }
+}
+EXPORT_SYMBOL_GPL(switch_set_MassStorage_state);
+//Div6-D1-JL-UsbPorting-00+}
+
 static int __init switch_class_init(void)
 {
 	return create_switch_class();

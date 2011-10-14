@@ -21,6 +21,8 @@ config CONSTRUCTORS
 	depends on !UML
 	default y
 
+source init/FIH_Kconfig
+
 menu "General setup"
 
 config EXPERIMENTAL

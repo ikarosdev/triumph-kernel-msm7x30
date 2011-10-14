@@ -49,10 +49,13 @@ static int pdev_list_cnt;
 
 static struct clk *tv_src_clk;
 static struct clk *tv_enc_clk;
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */	
+#if 0
 static struct clk *tv_dac_clk;
 static struct clk *hdmi_clk;
 static struct clk *mdp_tv_clk;
-
+#endif
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */
 
 static int mdp4_dtv_runtime_suspend(struct device *dev)
 {
@@ -92,13 +95,15 @@ static int dtv_off(struct platform_device *pdev)
 	ret = panel_next_off(pdev);
 
 	pr_info("%s\n", __func__);
-
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */	
+#if 0
 	clk_disable(tv_enc_clk);
 	clk_disable(tv_dac_clk);
 	clk_disable(hdmi_clk);
 	if (mdp_tv_clk)
 		clk_disable(mdp_tv_clk);
-
+#endif	
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */
 	if (dtv_pdata && dtv_pdata->lcdc_power_save)
 		dtv_pdata->lcdc_power_save(0);
 
@@ -133,24 +138,29 @@ static int dtv_on(struct platform_device *pdev)
 	pm_qos_update_requirement(PM_QOS_SYSTEM_BUS_FREQ , "dtv",
 						pm_qos_rate);
 	mfd = platform_get_drvdata(pdev);
-
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */
 	ret = clk_set_rate(tv_src_clk, mfd->fbi->var.pixclock);
 	if (ret) {
 		pr_info("%s: clk_set_rate(%d) failed\n", __func__,
 			mfd->fbi->var.pixclock);
 		if (mfd->fbi->var.pixclock == 27030000)
 			mfd->fbi->var.pixclock = 27000000;
+		else if (mfd->fbi->var.pixclock == 25200000)
+		    mfd->fbi->var.pixclock = 27000000;	
 		ret = clk_set_rate(tv_src_clk, mfd->fbi->var.pixclock);
 	}
 	pr_info("%s: tv_src_clk=%dkHz, pm_qos_rate=%ldkHz, [%d]\n", __func__,
 		mfd->fbi->var.pixclock/1000, pm_qos_rate, ret);
-
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */		
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */
+#if 0
 	clk_enable(tv_enc_clk);
 	clk_enable(tv_dac_clk);
 	clk_enable(hdmi_clk);
 	if (mdp_tv_clk)
 		clk_enable(mdp_tv_clk);
-
+#endif   
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */	
 	if (dtv_pdata && dtv_pdata->lcdc_power_save)
 		dtv_pdata->lcdc_power_save(1);
 	if (dtv_pdata && dtv_pdata->lcdc_gpio_config)
@@ -170,6 +180,10 @@ static int dtv_probe(struct platform_device *pdev)
 
 	if (pdev->id == 0) {
 		dtv_pdata = pdev->dev.platform_data;
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */		
+		if (dtv_pdata && dtv_pdata->lcdc_power_save)
+			dtv_pdata->lcdc_power_save(1);	
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */				
 		return 0;
 	}
 
@@ -216,8 +230,9 @@ static int dtv_probe(struct platform_device *pdev)
 	 * get/set panel specific fb info
 	 */
 	mfd->panel_info = pdata->panel_info;
-	mfd->fb_imgType = MDP_RGB_565;
-
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */	
+	mfd->fb_imgType = MDP_RGB_888;///MDP_RGB_565;
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */
 	fbi = mfd->fbi;
 	fbi->var.pixclock = mfd->panel_info.clk_rate;
 	fbi->var.left_margin = mfd->panel_info.lcdc.h_back_porch;
@@ -270,20 +285,23 @@ static int __init dtv_driver_init(void)
 		printk(KERN_ERR "error: can't get tv_enc_clk!\n");
 		return IS_ERR(tv_enc_clk);
 	}
-
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */	
+#if 0   
 	tv_dac_clk = clk_get(NULL, "tv_dac_clk");
 	if (IS_ERR(tv_dac_clk)) {
 		printk(KERN_ERR "error: can't get tv_dac_clk!\n");
 		return IS_ERR(tv_dac_clk);
 	}
-
+#endif
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */	
 	tv_src_clk = clk_get(NULL, "tv_src_clk");
 	if (IS_ERR(tv_src_clk)) {
 		tv_src_clk = tv_enc_clk; /* Fallback to slave */
 		pr_info("%s: tv_src_clk not available, using tv_enc_clk"
 			" instead\n", __func__);
 	}
-
+/* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */		
+#if 0
 	hdmi_clk = clk_get(NULL, "hdmi_clk");
 	if (IS_ERR(hdmi_clk)) {
 		printk(KERN_ERR "error: can't get hdmi_clk!\n");
@@ -293,7 +311,8 @@ static int __init dtv_driver_init(void)
 	mdp_tv_clk = clk_get(NULL, "mdp_tv_clk");
 	if (IS_ERR(mdp_tv_clk))
 		mdp_tv_clk = NULL;
-
+#endif
+/* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */	
 	pm_qos_add_requirement(PM_QOS_SYSTEM_BUS_FREQ , "dtv",
 				PM_QOS_DEFAULT_VALUE);
 

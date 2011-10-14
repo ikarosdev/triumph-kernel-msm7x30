@@ -19,6 +19,20 @@
 
 #define SYNAPTICS_I2C_RMI_NAME "synaptics-rmi-ts"
 
+//SW2-D5-OwenHung-Synaptics T1320 touch screen porting+
+#define GPIO_TP_INT_N               42	// low active
+#define GPIO_TP_RST_N               56	// high active
+
+#define LOW                         0
+#define HIGH                        1
+#define FALSE                      0
+#define TRUE                        1
+
+#ifndef CONFIG_FIH_FTM
+#define SYNAP_TS_MT	//multi touch
+#endif
+//SW2-D5-OwenHung-Synaptics T1320 touch screen porting-
+
 enum {
 	SYNAPTICS_FLIP_X = 1UL << 0,
 	SYNAPTICS_FLIP_Y = 1UL << 1,

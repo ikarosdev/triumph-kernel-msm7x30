@@ -170,5 +170,197 @@ enum {
 
 void msm_proc_comm_reset_modem_now(void);
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
+//Div2-SW2-BSP,JOE HSU,+++
+int msm_proc_comm_oem(unsigned cmd, unsigned *data1, unsigned *data2, unsigned *cmd_parameter);
+#define SMEM_OEM_CMD_BUF_SIZE  32
+
+//SW2-5-1-MP-DbgCfgTool-00+[
+int msm_proc_comm_oem_n(unsigned cmd, unsigned *data1, unsigned *data2, unsigned *cmd_parameter, int para_size);
+#define NV_FIHDBG_I    51001
+/*--------------------------------------------------------------------------* 
+ * Size of smem_oem_cmd_data to carry both return value and FIH debug 
+ * configurations.
+ *
+ * FIHDBG:(FIH_DEBUG_CMD_DATA_SIZE:5 int)
+ *
+ *   |-- 1 unsigned int return value  --|-- 4 unsigned int(128 bit) configurations --|
+ *
+ *   a) SMEM command's return value:
+ *       true  : 1
+ *       false : 0
+ *   b) configurations:
+ *       Magic number : 0xFFFF FFFF FFFF FFFF FFFF FFFF FFFF FFFF is default value.
+ *       enable       : bit(n) = 1
+ *       disable      : bit(n) = 0
+ *--------------------------------------------------------------------------*/
+#define FIH_DEBUG_CMD_DATA_SIZE  5
+#define FIH_DEBUG_CFG_LEN  4 * sizeof(unsigned int)
+
+/*--------------------------------------------------------------------------*
+ * Function    : fih_read_fihdbg_config_nv
+ *
+ * Description :
+ *     Read fih debug configuration settings from nv item (NV_FIHDBG_I).
+ *
+ * Parameters  :
+ *     String of 16 bytes fih debug configuration setting array in 
+ *     unsigned char.
+ *
+ * Return value: Integer
+ *     Zero     - Successful
+ *     Not zero - Fail
+ *--------------------------------------------------------------------------*/
+int fih_read_fihdbg_config_nv( unsigned char* );
+
+int fih_read_fihversion_nv( unsigned char* );     //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +
+
+/*--------------------------------------------------------------------------*
+ * Function    : fih_write_fihdbg_config_nv
+ *
+ * Description :
+ *     Write fih debug configuration settings into nv item (NV_FIHDBG_I).
+ *
+ * Parameters  :
+ *     String of 16 bytes fih debug configuration setting array in 
+ *     unsigned char.
+ *
+ * Return value: Integer
+ *     Zero     - Successful
+ *     Not zero - Fail
+ *--------------------------------------------------------------------------*/
+int fih_write_fihdbg_config_nv( unsigned char* );
+//SW2-5-1-MP-DbgCfgTool-00+]
+
+typedef union
+{
+	struct t_cmd_data
+	{
+		unsigned check_flag;
+		unsigned cmd_parameter[SMEM_OEM_CMD_BUF_SIZE];
+	}cmd_data;
+	
+	struct t_return_data
+	{
+	unsigned check_flag;
+	unsigned return_value[SMEM_OEM_CMD_BUF_SIZE];
+	}return_data;
+  
+} smem_oem_cmd_data;
+
+// used for checking the cmd_buff
+#define smem_oem_locked_flag		0x10000000
+#define smem_oem_unlocked_flag	0x20000000
+
+typedef enum
+{
+  SMEM_PROC_COMM_OEM_CHG_MODE = 0,
+  SMEM_PROC_COMM_OEM_SET_PREF,
+  SMEM_PROC_COMM_OEM_DIAL_EMERGENCY,
+  SMEM_PROC_COMM_OEM_GET_CARD_MODE,
+  SMEM_PROC_COMM_OEM_NV_READ,
+  SMEM_PROC_COMM_OEM_NV_WRITE = 5,
+  SMEM_PROC_COMM_OEM_CONFIG_CHG_CURRENT,
+  SMEM_PROC_COMM_OEM_CONFIG_COIN_CELL,
+  SMEM_PROC_COMM_OEM_RESET_CHIP_EBOOT,
+  SMEM_PROC_COMM_OEM_POWER_OFF,
+  SMEM_PROC_COMM_OEM_PWRKEY_DETECT = 10,
+  SMEM_PROC_COMM_OEM_PM_LOW_CURRENT_LED_SET_EXT_SIGNAL,
+  SMEM_PROC_COMM_OEM_PM_LOW_CURRENT_SET_CURRENT,
+  SMEM_PROC_COMM_OEM_BACKUP_UNIQUE_NV,
+  SMEM_PROC_COMM_OEM_HW_RESET,
+  SMEM_PROC_COMM_OEM_BACKUP_NV_FLAG = 15,
+  SMEM_PROC_COMM_OEM_HOST_CHECK_TO_UPDATE_DL_FLAG,
+  SMEM_PROC_COMM_OEM_FUSE_BOOT,
+  SMEM_PROC_COMM_OEM_ALLOC_SD_DL_INFO,
+  SMEM_PROC_COMM_OEM_PMIC_UNLOCK,
+  SMEM_PROC_COMM_OEM_HW_RESET_TO_FTM,
+/* FIH; Tiger; 2009/12/10 { */
+/* add TCP filter command */
+  SMEM_PROC_COMM_OEM_UPDATE_TCP_FILTER,
+/* } FIH; Tiger; 2009/12/10 */
+  SMEM_PROC_COMM_OEM_SET_CHG_VAL,
+  SMEM_PROC_COMM_OEM_NUM_CMDS
+} smem_proc_comm_oem_cmd_type;
+//Div2-SW2-BSP,JOE HSU,---
+
+/* FIHTDC, Div2-SW2-BSP CHHsieh { */
+int proc_comm_phone_online(void);
+int proc_comm_phone_setpref(void);
+int proc_comm_phone_dialemergency(void);
+int proc_comm_phone_getsimstatus(void);
+void proc_comm_ftm_product_id_write(unsigned* pid);
+void proc_comm_ftm_product_id_read(unsigned* pid);
+void proc_comm_ftm_imei_write(unsigned* pid);
+void proc_comm_ftm_imei_read(unsigned* pid);
+void proc_comm_ftm_bdaddr_write(char* buf);
+void proc_comm_ftm_bdaddr_read(char* buf);
+void proc_comm_ftm_wlanaddr_write(char* buf);
+int proc_comm_ftm_wlanaddr_read(char * buf);
+int proc_comm_ftm_backup_unique_nv(void);
+void proc_comm_ftm_hw_reset(void);
+int proc_comm_ftm_nv_flag(void);
+/* } FIHTDC, Div2-SW2-BSP CHHsieh */
+
+int proc_comm_touch_id_read(void);
+//+++ FIH; Louis; 2010/11/9
+void proc_comm_compass_param_read(int* buf);
+void proc_comm_compass_param_write(int* buf);
+int proc_comm_fuse_boot_set(void);
+int proc_comm_fuse_boot_get(void);
+
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+int proc_comm_read_nv(unsigned *cmd_parameter);
+int proc_comm_write_nv(unsigned *cmd_parameter);
+int fih_write_nv4719( unsigned int* fih_debug );
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
+/* FIHTDC, CHHsieh, PMIC Unlock { */
+int proc_comm_ftm_pmic_unlock(void);
+/* } FIHTDC, CHHsieh, PMIC Unlock */
+/* FIHTDC, CHHsieh, MEID Get/Set { */
+int proc_comm_ftm_meid_write(char* buf);
+int proc_comm_ftm_meid_read(unsigned* buf);
+/* } FIHTDC, CHHsieh, MEID Get/Set */
+/* FIHTDC, CHHsieh, FD1 NV programming in factory { */
+int proc_comm_ftm_esn_read(unsigned* buf);
+int proc_comm_ftm_akey1_write(unsigned* buf);
+int proc_comm_ftm_akey2_write(unsigned* buf);
+int proc_comm_ftm_akey1_read(char* buf);
+int proc_comm_ftm_spc_read(char* buf);
+int proc_comm_ftm_spc_write(unsigned* buf);
+void proc_comm_ftm_customer_pid_write(unsigned* buf);
+void proc_comm_ftm_customer_pid_read(unsigned* buf);
+void proc_comm_ftm_customer_pid2_write(unsigned* buf);
+void proc_comm_ftm_customer_pid2_read(unsigned* buf);
+void proc_comm_ftm_customer_swid_write(unsigned* buf);
+void proc_comm_ftm_customer_swid_read(unsigned* buf);
+void proc_comm_ftm_dom_write(unsigned* buf);
+void proc_comm_ftm_dom_read(unsigned* buf);
+/* } FIHTDC, CHHsieh, FD1 NV programming in factory */
+/* FIHTDC, CHHsieh, FB3 CA/WCA Time Set/Get { */
+void proc_comm_ftm_ca_time_write(char* buf);
+void proc_comm_ftm_ca_time_read(char* buf);
+void proc_comm_ftm_wca_time_write(char* buf);
+void proc_comm_ftm_wca_time_read(char* buf);
+/* } FIHTDC, CHHsieh, FB3 CA/WCA Time Set/Get */
+void proc_comm_hw_reset_to_ftm(void);
+/* FIHTDC, CHHsieh, FB0 FactoryInfo Set/Get { */
+int proc_comm_ftm_factory_info_write(char* buf);
+int proc_comm_ftm_factory_info_read(char* buf);
+/* } FIHTDC, CHHsieh, FB0 FactoryInfo Set/Get */
+/* FIHTDC, Peter, 2011/3/18 { */
+void proc_comm_version_info_read(char* buf);
+/* } FIHTDC, Peter, 2011/3/18 */
+int proc_comm_ftm_change_modem_lpm(void);
+
+/* FIH, Tiger, 2009/12/10 { */
+#ifdef CONFIG_FIH_FXX
+#define CLEAR_TABLE			0
+#define ADD_DEST_PORT		1
+#define DELETE_DEST_PORT	2
+#define UPDATE_COMPLETE		3
+
+extern int msm_proc_comm_oem_tcp_filter(void *cmd_data, unsigned cmd_size);
+#endif 
+/* } FIH; Tiger; 2009/12/10 */
 
 #endif

@@ -21,6 +21,10 @@
 #include "sdio_cis.h"
 #include "bus.h"
 
+#ifdef CONFIG_DEBUG_FS
+#undef CONFIG_DEBUG_FS
+#endif
+
 #define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
 #define to_mmc_driver(d)	container_of(d, struct mmc_driver, drv)
 

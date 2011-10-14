@@ -31,6 +31,9 @@
 #include "diagmem.h"
 #include "diagchar.h"
 #include <linux/timer.h>
+#include <linux/usb.h>
+#include <mach/msm_hsusb.h>
+#include <mach/rpc_hsusb.h>
 
 MODULE_DESCRIPTION("Diag Char Driver");
 MODULE_LICENSE("GPL v2");
@@ -54,6 +57,23 @@ static unsigned int threshold_client_limit = 30;
 unsigned int diag_max_registration = 25;
 unsigned int diag_threshold_registration = 100;
 
+/* Variables to store the Diag Responses for FTM App (0c, 63, 119a, 119b)  (size == USB_MAX_OUT_BUF)*/
+char *diag_rsp_0c;
+char *diag_rsp_63;
+char *diag_rsp_1a;
+char *diag_rsp_119a;
+char *diag_rsp_119b;
+unsigned char drop_0c_packet = 0;
+unsigned char drop_63_packet = 0;
+unsigned char drop_1a_packet = 0;
+extern void diag_init_log_cmd(unsigned char log_type);
+extern void diag_restore_log_masks(void);
+//Slate Code Start
+extern void bq27x0_battery_charging_status_update(void);
+extern int slate_counter_flag;
+extern int fih_charger;
+ //Slate Code Ends
+
 /* Timer variables */
 static struct timer_list drain_timer;
 static int timer_in_progress;
@@ -61,6 +81,13 @@ void *buf_hdlc;
 module_param(itemsize, uint, 0);
 module_param(poolsize, uint, 0);
 module_param(max_clients, uint, 0);
+
+static int slate_charger_state = 0;
+
+//Slate command support FXPCAYM81
+#define SLATE_EVENT_MASK_BIT_SET(id) \
+  (driver->event_masks[(id)/8] & (1 << ((id) & 0x07)))
+//FXPCAYM81 ends here
 
 /* delayed_rsp_id 0 represents no delay in the response. Any other number
     means that the diag packet has a delayed response. */
@@ -211,13 +238,97 @@ static int diagchar_close(struct inode *inode, struct file *file)
 	return -ENOMEM;
 }
 
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+#define SD_CARD_DOWNLOAD    1
+#if SD_CARD_DOWNLOAD
+extern void diag_write_to_smd(uint8_t * cmd_buf, int cmd_size);
+extern int diag_read_from_smd(uint8_t * res_buf, int16_t * res_size);
+extern int proc_comm_alloc_sd_dl_smem(int);
+#define FLASH_PART_MAGIC1     0x55EE73AA
+#define FLASH_PART_MAGIC2     0xE35EBDDB
+#define FLASH_PARTITION_VERSION   0x3
+
+struct flash_partition_entry {
+	char name[16];
+	u32 offset;	/* Offset in blocks from beginning of device */
+	u32 length;	/* Length of the partition in blocks */
+	u8 attrib1;
+	u8 attrib2;
+	u8 attrib3;
+	u8 which_flash;	/* Numeric ID (first = 0, second = 1) */
+};
+struct flash_partition_table {
+	u32 magic1;
+	u32 magic2;
+	u32 version;
+	u32 numparts;
+	struct flash_partition_entry part_entry[16];
+};
+
+#endif
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
+extern int hsusb_chg_notify_over_tempearture(bool OT_flag);
+extern u32 msm_batt_get_batt_status(void);
+
 static int diagchar_ioctl(struct inode *inode, struct file *filp,
 			   unsigned int iocmd, unsigned long ioarg)
 {
+        int *iStatus;
 	int i, j, count_entries = 0, temp;
 	int success = -1;
+	//Slate Code Start Here FXPCAYM81
+	int *set_charger;
+	set_charger = (int *)ioarg;
 
-	if (iocmd == DIAG_IOCTL_COMMAND_REG) {
+	if(iocmd == USB_DIAG_SET_CHARGER)
+	{
+		    printk(KERN_INFO"%s:DB: CHARGER SETIING %d\n", __func__, *set_charger);
+			if( msm_chg_rpc_connect() >= 0 )
+			{
+				switch(*set_charger)
+				{
+				case 0:
+					//printk(KERN_INFO"%s:DB: DISABLING CHARGER\n", __func__);
+				    fih_charger = 1;
+					hsusb_chg_notify_over_tempearture(true);
+		            msm_chg_usb_charger_disconnected();
+			        bq27x0_battery_charging_status_update();
+			        slate_counter_flag = true;
+			        slate_charger_state = 0;
+					break;
+				case 1:
+					//printk(KERN_INFO"%s:DB: ENABLING CHARGER\n", __func__);
+				    fih_charger = 2;
+					hsusb_chg_notify_over_tempearture(false);
+					msm_chg_usb_charger_connected(USB_CHG_TYPE__SDP);
+			        bq27x0_battery_charging_status_update();
+			        slate_charger_state = 1;
+					break;
+				default:
+					printk(KERN_INFO"%s:DB: CHARGE COMMAND: NOT a valid case\n", __func__);
+					break;
+				}
+			}
+			return 0;
+	}
+	else if(iocmd == USB_DIAG_GET_CHARGER)
+	{
+		 iStatus = (int *)ioarg;
+	//	printk(KERN_INFO"DB: CHARGER GET= %d \n", msm_batt_get_batt_status());
+		*iStatus = (int)slate_charger_state;
+		if( *iStatus == 0 )
+		{
+		//	printk(KERN_INFO"%s:DB: CHARGER IN UNKNOWN STATE \n", __func__);
+			*iStatus = -1;
+		}
+		else
+		{
+		//	printk(KERN_INFO"%s:DB: CHARGER IN %d\n", __func__,  *iStatus);			
+		}
+
+		return  0;
+	}
+	else if (iocmd == DIAG_IOCTL_COMMAND_REG) {
 		struct bindpkt_params_per_process *pkt_params =
 			 (struct bindpkt_params_per_process *) ioarg;
 
@@ -341,6 +452,278 @@ static int diagchar_ioctl(struct inode *inode, struct file *filp,
 		} else if (temp == MEMORY_DEVICE_MODE && driver->logging_mode
 								== USB_MODE)
 			diagfwd_connect();
+		success = 1;
+	}
+    //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+    else if (iocmd == DIAG_IOCTL_WRITE_BUFFER) 
+    {
+        struct diagpkt_ioctl_param pkt;
+        uint8_t *pBuf = NULL;
+        if (copy_from_user(&pkt, (void __user *)ioarg, sizeof(pkt)))
+        {
+            return -EFAULT;
+        }
+        if ((pBuf = kzalloc(4096, GFP_KERNEL)) == NULL)
+            return -EFAULT;
+
+        memcpy(pBuf, pkt.pPacket, pkt.Len);
+
+        diag_write_to_smd(pBuf, pkt.Len);
+        kfree(pBuf);
+        return 0;
+    }
+    else if (iocmd == DIAG_IOCTL_READ_BUFFER) 
+    {
+    struct diagpkt_ioctl_param pkt;
+    struct diagpkt_ioctl_param *ppkt;
+    uint8_t *pBuf = NULL;
+        if (copy_from_user(&pkt, (void __user *)ioarg, sizeof(pkt)))
+        {
+            return -EFAULT;
+        }
+
+        if ((pBuf = kzalloc(4096, GFP_KERNEL)) == NULL)
+            return -EFAULT;
+
+        ppkt = (struct diagpkt_ioctl_param *)ioarg;
+
+        if (diag_read_from_smd(pBuf, &(pkt.Len)) < 0)
+        {
+            kfree(pBuf);
+            return -EFAULT;
+        }
+        
+        if (copy_to_user((void __user *) &ppkt->Len, &pkt.Len, sizeof(pkt.Len)))
+        {
+            kfree(pBuf);
+            return -EFAULT;
+        }
+        if (copy_to_user((void __user *) pkt.pPacket, pBuf, pkt.Len))
+        {
+            kfree(pBuf);
+            return -EFAULT;
+        }
+        kfree(pBuf);
+        return 0;
+    }
+    else if (iocmd == DIAG_IOCTL_PASS_FIRMWARE_LIST)
+    {
+        FirmwareList FL;
+        FirmwareList * pFL = NULL;
+        int size;
+
+        if (copy_from_user(&FL, (void __user *)ioarg, sizeof(FL)+4))
+        {
+            return -EFAULT;
+        }
+
+        printk("update flag 0x%X\n",FL.iFLAG);
+        printk("image %s\n",FL.pCOMBINED_IMAGE);
+        printk("0x%08X 0x%08X\n", FL.aANDROID_BOOT[0], FL.aANDROID_BOOT[1]);
+        printk("FirmwareListChecksum(FL)=0x%08X, FirmwareListSize(FL)=%d\n", FL.checksum, sizeof(FL));
+		
+        // Fill smem_mem_type
+        proc_comm_alloc_sd_dl_smem(0);
+
+        size = sizeof(FirmwareList);
+        pFL = smem_alloc(SMEM_SD_IMG_UPGRADE_STATUS, size);
+
+        if (pFL == NULL)
+            return -EFAULT;
+
+        memcpy(pFL, &FL, sizeof(FirmwareList));
+        print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,16, 1, pFL, size, 0);
+
+        printk("0x%08X 0x%08X\n", pFL->aANDROID_BOOT[0], pFL->aANDROID_BOOT[1]);
+        printk("FirmwareListChecksum(pFL)=0x%08X, FirmwareListSize(pFL)=%d\n", pFL->checksum, size);
+        
+        return 0;
+    }
+    else if (iocmd == DIAG_IOCTL_GET_PART_TABLE_FROM_SMEM)
+    {
+        struct flash_partition_table *partition_table;
+        //struct flash_partition_entry *part_entry;
+        //struct mtd_partition *ptn = msm_nand_partitions;
+        //char *name = msm_nand_names;
+        //int part;
+
+        partition_table = (struct flash_partition_table *)
+            smem_alloc(SMEM_AARM_PARTITION_TABLE,
+        	       sizeof(struct flash_partition_table));
+
+        if (!partition_table) {
+            printk(KERN_WARNING "%s: no flash partition table in shared "
+                   "memory\n", __func__);
+            return -ENOENT;
+        }
+
+        if ((partition_table->magic1 != (u32) FLASH_PART_MAGIC1) ||
+            (partition_table->magic2 != (u32) FLASH_PART_MAGIC2) ||
+            (partition_table->version != (u32) FLASH_PARTITION_VERSION))
+        {
+        	printk(KERN_WARNING "%s: version mismatch -- magic1=%#x, "
+        	       "magic2=%#x, version=%#x\n", __func__,
+        	       partition_table->magic1,
+        	       partition_table->magic2,
+        	       partition_table->version);
+        	return -EFAULT;
+        }
+        if (copy_to_user((void __user *) ioarg, partition_table, sizeof(struct flash_partition_table)))
+        {
+            return -EFAULT;
+        }
+
+        return 0;
+    }
+    //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
+	//Mig_Changes-FXPCAYM81
+    else if (iocmd == DIAG_IOCTL_GET_RSSI) {
+        //printk(KERN_INFO "DIAG_IOCTL_GET_RSSI\n");
+        diag_process_get_rssi_log();
+    }
+    else if (iocmd == DIAG_IOCTL_GET_STATE_AND_CONN_INFO) {
+        //printk(KERN_INFO "DIAG_IOCTL_GET_STATE_AND_CONN_INFO\n");
+        diag_process_get_stateAndConnInfo_log();
+    }
+    else if (iocmd == DIAG_IOCTL_GET_KEY_EVENT_MASK) 
+    {
+	int *iStatus = (int *)ioarg;
+       // printk(KERN_INFO "DIAG_IOCTL_GET_KEY_EVENT_MASK\n");
+	*iStatus = (int)SLATE_EVENT_MASK_BIT_SET(0x1AE);
+	//printk(KERN_INFO"%s:DIAG_IOCTL_GET_KEY_EVENT_MASK=%x\n", __func__,  *iStatus);	
+    }
+    else if (iocmd == DIAG_IOCTL_GET_PEN_EVENT_MASK) 
+    {
+	int *iStatus = (int *)ioarg;
+        //printk(KERN_INFO "DIAG_IOCTL_GET_PEN_EVENT_MASK\n");
+	*iStatus = (int)SLATE_EVENT_MASK_BIT_SET(0x1AF);//
+	//printk(KERN_INFO"%s:DIAG_IOCTL_GET_PEN_EVENT_MASK=%x\n", __func__,  *iStatus);	
+    }
+	//FXPCAYM81 Ends here
+	// Ketan_Changes-FXP - FXPCAYM-87
+    else if (iocmd == DIAG_IOCTL_GET_SEARCHER_DUMP) {
+		printk(KERN_INFO "DIAG_LOG_CMD_TYPE_GET_1x_SEARCHER_DUMP\n");
+
+		diag_init_log_cmd(DIAG_LOG_CMD_TYPE_GET_1x_SEARCHER_DUMP);
+	}
+	else if (iocmd == DIAG_IOCTL_RESTORE_LOGGING_MASKS) {
+		printk(KERN_INFO "DIAG_IOCTL_RESTORE_LOGGING_MASKS\n");
+		diag_restore_log_masks();
+	}
+	else if (iocmd == DIAG_IOCTL_READ_DMSS_STATUS) {
+		unsigned int t_cmd = 0;
+
+		if (copy_from_user(&t_cmd,(void __user*)ioarg, 2)) 
+		{
+			printk(KERN_ERR "%s:%d copy_from_user failed \n", __func__, __LINE__);
+			return -EFAULT;
+		}
+
+		printk(KERN_INFO "USB_MAX_OUT_BUF = %d\n", USB_MAX_OUT_BUF);
+
+		switch ( t_cmd )
+		{
+			case 0x119A:
+				printk(KERN_INFO "DIAG_IOCTL_READ_DMSS_STATUS copying 0x119A called\n");
+				if (diag_rsp_119a == NULL) 
+					success = -EFAULT;
+				else 
+				{
+					if ( copy_to_user( (void __user*)ioarg, diag_rsp_119a, USB_MAX_OUT_BUF ) )
+						return -EFAULT;
+
+					success = 1;
+				}
+				break;
+			case 0x0c:
+				printk(KERN_INFO "DIAG_IOCTL_READ_DMSS_STATUS copying 0x0c called\n");
+				if (diag_rsp_0c == NULL) 
+					success = -EFAULT;
+				else 
+				{
+					if ( copy_to_user( (void __user*)ioarg, diag_rsp_0c, USB_MAX_OUT_BUF ) )
+						return -EFAULT;
+
+					success = 1;
+				}
+				break;
+			case 0x63:
+				printk(KERN_INFO "DIAG_IOCTL_READ_DMSS_STATUS copying 0x63 called\n");
+				if (diag_rsp_63 == NULL) 
+					success = -EFAULT;
+				else 
+				{
+					if ( copy_to_user( (void __user*)ioarg, diag_rsp_63, USB_MAX_OUT_BUF ) )
+						return -EFAULT;
+
+					success = 1;
+				}
+				break;
+			case 0x1a:
+				printk(KERN_INFO "DIAG_IOCTL_READ_DMSS_STATUS copying 0x1a called\n");
+				if (diag_rsp_1a == NULL) 
+					success = -EFAULT;
+				else 
+				{
+					if ( copy_to_user( (void __user*)ioarg, diag_rsp_1a, USB_MAX_OUT_BUF ) )
+						return -EFAULT;
+
+					success = 1;
+				}
+				break;
+			case 0x119B:
+				printk(KERN_INFO "DIAG_IOCTL_READ_DMSS_STATUS copying 0x119B called\n");
+				if (diag_rsp_119b == NULL) 
+					success = -EFAULT;
+				else 
+				{
+					if ( copy_to_user( (void __user*)ioarg, diag_rsp_119b, USB_MAX_OUT_BUF ) )
+						return -EFAULT;
+
+					success = 1;
+				}
+				break;
+			default:
+				printk(KERN_INFO "DIAG_IOCTL_READ_DMSS_STATUS copy failed, invalid cmd=%02X\n", t_cmd);
+				break;
+		}
+	}
+	else if (iocmd == DIAG_IOCTL_SEND_DMSS_STATUS ){
+		unsigned char t_cmd[4];
+
+		// IOCTL to send Custom commands (0x0c and 0x63)
+		// no data needed. Hence only 4 bytes
+
+		if (copy_from_user(&t_cmd,(void __user*)ioarg, 4)) 
+		{
+			printk(KERN_ERR "%s:%d copy_from_user failed \n", __func__, __LINE__);
+			return -EFAULT;
+		}
+
+		if ( ! ( (t_cmd[0] == 0x0C) || (t_cmd[0] == 0x63) || (t_cmd[0] == 0x1a) ) )
+		{
+			printk(KERN_ERR "Command : 0x%2X not supported via this IOCTL\n", t_cmd[0]);
+			return -EFAULT;
+		}
+
+		printk(KERN_INFO "DIAG_IOCTL_SEND_DMSS_STATUS ioctl called\n");
+
+		if (t_cmd[0] == 0x0C) 
+		{
+			drop_0c_packet = 1;
+		}
+		else if (t_cmd[0] == 0x63) 
+		{
+			drop_63_packet = 1;
+		}
+		else if (t_cmd[0] == 0x1a) 
+		{
+			drop_1a_packet = 1;
+		}
+		
+		// Send raw command
+		diag_process_hdlc((void *)&t_cmd, 4);
+
 		success = 1;
 	}
 
@@ -667,8 +1050,10 @@ static int diagchar_write(struct file *file, const char __user *buf,
 	}
 
 	driver->used = (uint32_t) enc.dest - (uint32_t) buf_hdlc;
-	if (pkt_type == DATA_TYPE_RESPONSE) {
-		err = diag_device_write(buf_hdlc, APPS_DATA, NULL);
+ //   printk(KERN_INFO "diagchar_write: pkt_type=%d\n", pkt_type);
+ //Slate comand changes FXPCAYM81
+	if ( (pkt_type == DATA_TYPE_RESPONSE) || (pkt_type == 0) ){ // 0 = DIAG_DATA_TYPE_EVENT
+		err = diag_device_write(buf_hdlc, APPS_DATA,NULL);
 		if (err) {
 			/*Free the buffer right away if write failed */
 			diagmem_free(driver, buf_hdlc, POOL_TYPE_HDLC);
@@ -874,6 +1259,42 @@ static int __init diagchar_init(void)
 		error = diagchar_setup_cdev(dev);
 		if (error)
 			goto fail;
+
+		diag_rsp_0c = kzalloc(USB_MAX_OUT_BUF, GFP_KERNEL);
+		if (diag_rsp_0c) {
+			memset(diag_rsp_0c, 0, USB_MAX_OUT_BUF);
+		} else {
+			printk(KERN_INFO "kzalloc failed for diag_rsp_0c\n");
+			goto fail;
+		}
+		diag_rsp_63 = kzalloc(USB_MAX_OUT_BUF, GFP_KERNEL);
+		if (diag_rsp_63) {
+			memset(diag_rsp_63, 0, USB_MAX_OUT_BUF);
+		} else {
+			printk(KERN_INFO "kzalloc failed for diag_rsp_63\n");
+			goto fail2;
+		}
+		diag_rsp_119a = kzalloc(USB_MAX_OUT_BUF, GFP_KERNEL);
+		if (diag_rsp_119a) {
+			memset(diag_rsp_119a, 0, USB_MAX_OUT_BUF);
+		} else {
+			printk(KERN_INFO "kzalloc failed for diag_rsp_119a\n");
+			goto fail3;
+		}
+		diag_rsp_119b = kzalloc(USB_MAX_OUT_BUF, GFP_KERNEL);
+		if (diag_rsp_119b) {
+			memset(diag_rsp_119b, 0, USB_MAX_OUT_BUF);
+		} else {
+			printk(KERN_INFO "kzalloc failed for diag_rsp_119b\n");
+			goto fail4;
+		}
+		diag_rsp_1a = kzalloc(USB_MAX_OUT_BUF, GFP_KERNEL);
+		if (diag_rsp_1a) {
+			memset(diag_rsp_1a, 0, USB_MAX_OUT_BUF);
+		} else {
+			printk(KERN_INFO "kzalloc failed for diag_rsp_1a\n");
+			goto fail5;
+		}
 	} else {
 		printk(KERN_INFO "kzalloc failed\n");
 		goto fail;
@@ -881,7 +1302,14 @@ static int __init diagchar_init(void)
 
 	printk(KERN_INFO "diagchar initialized\n");
 	return 0;
-
+fail5:
+	kfree(diag_rsp_119b);
+fail4:
+	kfree(diag_rsp_119a);
+fail3:
+	kfree(diag_rsp_63);
+fail2:
+	kfree(diag_rsp_0c);
 fail:
 	diagchar_cleanup();
 	diagfwd_exit();
@@ -892,6 +1320,13 @@ fail:
 static void __exit diagchar_exit(void)
 {
 	printk(KERN_INFO "diagchar exiting ..\n");
+
+	kfree(diag_rsp_0c);
+	kfree(diag_rsp_63);
+	kfree(diag_rsp_1a);
+	kfree(diag_rsp_119a);
+	kfree(diag_rsp_119b);
+
 	diagmem_exit(driver);
 	diagfwd_exit();
 	diagchar_cleanup();

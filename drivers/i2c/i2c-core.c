@@ -36,8 +36,14 @@
 #include <linux/rwsem.h>
 #include <asm/uaccess.h>
 
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+#include <linux/kallsyms.h>
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 #include "i2c-core.h"
 
+int i2c_elan_touch_update = 0;
 
 /* core_lock protects i2c_adapter_idr, userspace_devices, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
@@ -165,6 +171,13 @@ static int i2c_device_pm_suspend(struct device *dev)
 	pm = dev->driver->pm;
 	if (!pm || !pm->suspend)
 		return 0;
+		
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+    	print_symbol("i2c pm suspend: %s\n", (unsigned long)pm->suspend);
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
+
 	return pm->suspend(dev);
 }
 
@@ -177,6 +190,13 @@ static int i2c_device_pm_resume(struct device *dev)
 	pm = dev->driver->pm;
 	if (!pm || !pm->resume)
 		return 0;
+		
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+    	print_symbol("i2c pm resume: %s\n", (unsigned long)pm->resume);
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
+
 	return pm->resume(dev);
 }
 #else
@@ -1127,6 +1147,17 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		}
 #endif
 
+		if (i2c_elan_touch_update)
+		{
+			if (msgs[0].addr != 0x77)
+			{
+				//printk(KERN_INFO "%s: ELAN touch update mode. I2C addr 0x%02x access deny.", __func__, msgs[0].addr);
+				return -EOPNOTSUPP;
+			}
+			else
+				printk(KERN_INFO "%s: ELAN touch update mode. addr 0x%02x.", __func__, msgs[0].addr);
+		}
+		
 		if (in_atomic() || irqs_disabled()) {
 			ret = mutex_trylock(&adap->bus_lock);
 			if (!ret)

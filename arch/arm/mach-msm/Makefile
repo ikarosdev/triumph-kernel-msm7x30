@@ -163,3 +163,14 @@ obj-$(CONFIG_ARCH_MSM7X27)	+= gpiomux.o gpiomux-7x00.o gpiomux-7x27.o
 obj-$(CONFIG_ARCH_MSM7X30)	+= gpiomux.o gpiomux-7x00.o gpiomux-7x30.o
 obj-$(CONFIG_ARCH_QSD8X50)	+= gpiomux.o gpiomux-7x00.o gpiomux-8x50.o
 obj-$(CONFIG_ARCH_MSM8X60)	+= gpiomux.o gpiomux-8x60.o
+# Div2-SW2-BSP,JOE HSU ,Kernel Proc fs
+#obj-$(CONFIG_FIH_CONFIG_GROUP) += fxx_info.o
+obj-y += fxx_info.o
+
+# FIHTDC, HenryWang, FTM phone function
+obj-$(CONFIG_FIH_FTM_PHONE) += ftm_phone.o
+
+#SW2-5-1-MP-DbgCfgTool-00+[
+obj-y += dbgcfgtool.o
+obj-$(CONFIG_FIH_LAST_ALOG) += alog_ram_console.o
+#SW2-5-1-MP-DbgCfgTool-00+]

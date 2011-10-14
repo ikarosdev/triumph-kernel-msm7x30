@@ -97,6 +97,24 @@ struct mddi_panel_info {
 	__u32 vdopkt;
 };
 
+//SW2-6-MM-JH-Backlight_PWM-01+
+enum backlight_type {
+    BL_TYPE_UNKNOWN = 0,
+    BL_TYPE_GP_CLK,
+    BL_TYPE_PWM,
+};
+
+struct backlight_regs {
+    unsigned int bl_type;
+    unsigned int gp_clk_m;
+    unsigned int gp_clk_n;
+    unsigned int gp_clk_d;
+    unsigned int pwm;
+    unsigned int pwm_max;
+    unsigned int pwm_min;
+};
+//SW2-6-MM-JH-Backlight_PWM-01-
+
 struct msm_panel_info {
 	__u32 xres;
 	__u32 yres;
@@ -106,12 +124,18 @@ struct msm_panel_info {
 	DISP_TARGET_PHYS pdest;
 	__u32 bl_max;
 	__u32 bl_min;
+//SW2-6-MM-JH-Backlight_PWM-01+
+	struct backlight_regs bl_regs;
+//SW2-6-MM-JH-Backlight_PWM-01-
 	__u32 fb_num;
 	__u32 clk_rate;
 	__u32 clk_min;
 	__u32 clk_max;
 	__u32 frame_count;
-
+	/*Div2-SW6-SC-Add_panel_size-00+{*/
+	__u32 width;
+	__u32 height;
+	/*Div2-SW6-SC-Add_panel_size-00+}*/
 	union {
 		struct mddi_panel_info mddi;
 	};
@@ -127,11 +151,15 @@ struct msm_fb_panel_data {
 	void (*set_rect) (int x, int y, int xres, int yres);
 	void (*set_vsync_notifier) (msm_fb_vsync_handler_type, void *arg);
 	void (*set_backlight) (struct msm_fb_data_type *);
+//SW2-6-MM-JH-Backlight_PWM-01+
+	void (*set_backlight_regs) (struct msm_fb_data_type *, struct backlight_regs *);
+//SW2-6-MM-JH-Backlight_PWM-01-
 
 	/* function entry chain */
 	int (*on) (struct platform_device *pdev);
 	int (*off) (struct platform_device *pdev);
 	struct platform_device *next;
+	int (*clk_func) (int enable);
 };
 
 /*===========================================================================

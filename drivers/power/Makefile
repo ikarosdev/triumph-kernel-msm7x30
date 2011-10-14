@@ -31,3 +31,8 @@ obj-$(CONFIG_BATTERY_DA9030)	+= da9030_battery.o
 obj-$(CONFIG_BATTERY_MAX17040)	+= max17040_battery.o
 obj-$(CONFIG_CHARGER_PCF50633)	+= pcf50633-charger.o
 obj-$(CONFIG_BATTERY_MSM)	+= msm_battery.o
+obj-$(CONFIG_BATTERY_FIH_DS2784)	+= fih_ds2784_battery.o
+obj-$(CONFIG_BATTERY_FIH_MSM)	+= fih_msm_battery.o
+obj-$(CONFIG_BATTERY_BQ275X0)	+= bq275x0_battery.o
+
+obj-$(CONFIG_BQ275X0_ROMMODE)	+= bq275x0_RomMode.o

@@ -1,12 +1,19 @@
 #ifndef __LINUX_USB_H
 #define __LINUX_USB_H
 
+#ifdef __KERNEL__
 #include <linux/mod_devicetable.h>
+#endif
+
 #include <linux/usb/ch9.h>
+#include <linux/ioctl.h>
 
 #define USB_MAJOR			180
 #define USB_DEVICE_MAJOR		189
 
+/* ioctl definitions for the diag */
+#define USB_DIAG_SET_CHARGER _IOW('U',0xF1, int)
+#define USB_DIAG_GET_CHARGER _IOR('U',0xF2, int)
 
 #ifdef __KERNEL__
 

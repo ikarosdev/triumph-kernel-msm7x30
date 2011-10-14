@@ -30,16 +30,23 @@ static void msm_keypad_bl_led_set(struct led_classdev *led_cdev,
 	enum led_brightness value)
 {
 	int ret;
-
+	printk("[KBL] %s - value = %d", __func__, value);
+#if defined(CONFIG_FIH_PROJECT_SF4V5) || defined(CONFIG_FIH_PROJECT_SF4Y6) || defined(CONFIG_FIH_PROJECT_SF8)
+if(value)
+	ret = pmic_set_led_intensity(LED_KEYPAD, 1);	// level 1 - 10mA
+else	
+	ret = pmic_set_led_intensity(LED_KEYPAD, 0);
+#else
 	ret = pmic_set_led_intensity(LED_KEYPAD, value / MAX_KEYPAD_BL_LEVEL);
+#endif	
 	if (ret)
 		dev_err(led_cdev->dev, "can't set keypad backlight\n");
 }
 
 static struct led_classdev msm_kp_bl_led = {
-	.name			= "keyboard-backlight",
+	.name			= "button-backlight",
 	.brightness_set		= msm_keypad_bl_led_set,
-	.brightness		= LED_OFF,
+	.brightness		= 0,
 };
 
 static int msm_pmic_led_probe(struct platform_device *pdev)

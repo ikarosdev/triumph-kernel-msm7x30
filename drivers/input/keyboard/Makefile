@@ -40,3 +40,11 @@ obj-$(CONFIG_KEYBOARD_QCIKBD)       += qci_kbd.o
 obj-$(CONFIG_KEYBOARD_W90P910)		+= w90p910_keypad.o
 obj-$(CONFIG_KEYBOARD_I2C_MSM)		+= msm-i2ckbd.o
 obj-$(CONFIG_KEYBOARD_PMIC8058)		+= pmic8058-keypad.o
+obj-$(CONFIG_KEYBOARD_FBX)		+= fbx_kybd.o
+obj-$(CONFIG_KEYBOARD_SF4Y6)		+= sf6_kybd.o
+obj-$(CONFIG_KEYBOARD_SF4H8)		+= sf8_kybd.o
+
+ifeq ($(CONFIG_KEYBOARD_FBX_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
+endif
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -32,10 +32,9 @@ static u32 ddl_get_dec_property(struct ddl_client_context *pddl,
 static u32 ddl_get_enc_property(struct ddl_client_context *pddl,
 				struct vcd_property_hdr *property_hdr,
 				void *property_value);
-static u32 ddl_set_enc_dynamic_property(struct ddl_encoder_data *encoder,
-					struct vcd_property_hdr
-					*property_hdr,
-					void *property_value);
+static u32 ddl_set_enc_dynamic_property(struct ddl_client_context *ddl,
+				struct vcd_property_hdr *property_hdr,
+				void *property_value);
 static void ddl_set_default_enc_property(struct ddl_client_context *ddl);
 static void ddl_set_default_enc_profile(struct ddl_encoder_data
 					*encoder);
@@ -363,6 +362,11 @@ static u32 ddl_set_dec_property
 			}
 			break;
 		}
+	case VCD_I_FRAME_RATE:
+		{
+			vcd_status = VCD_S_SUCCESS;
+			break;
+		}
 	default:
 		{
 			vcd_status = VCD_ERR_ILLEGAL_OP;
@@ -378,61 +382,39 @@ static u32 ddl_set_enc_property(struct ddl_client_context *ddl,
 	u32 vcd_status = VCD_ERR_ILLEGAL_PARM;
 	struct ddl_encoder_data *encoder = &(ddl->codec_data.encoder);
 
-	if (DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_WAIT_FOR_FRAME)) {
-		vcd_status = ddl_set_enc_dynamic_property(encoder,
+	if (DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_WAIT_FOR_FRAME) ||
+	   (DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_WAIT_FOR_FRAME_DONE) ||
+		DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_OPEN)))
+		vcd_status = ddl_set_enc_dynamic_property(ddl,
 			property_hdr, property_value);
+	if (vcd_status == VCD_S_SUCCESS)
 		return vcd_status;
-	}
 
-	if (!DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_OPEN)) {
+	if (!DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_OPEN) ||
+		vcd_status != VCD_ERR_ILLEGAL_OP) {
 		VIDC_LOGERR_STRING
 			("ddl_set_enc_property:Fails_as_not_in_open_state");
 		return VCD_ERR_ILLEGAL_OP;
 	}
 
 	switch (property_hdr->prop_id) {
-	case VCD_I_TARGET_BITRATE:
-		{
-			struct vcd_property_target_bitrate *bitrate =
-				(struct vcd_property_target_bitrate *)
-				property_value;
-			if (sizeof(struct vcd_property_target_bitrate) ==
-				property_hdr->sz &&
-				bitrate->target_bitrate) {
-				encoder->target_bit_rate = *bitrate;
-				vcd_status = VCD_S_SUCCESS;
-			}
-			break;
-		}
-
-	case VCD_I_FRAME_RATE:
-		{
-			struct vcd_property_frame_rate *framerate =
-				(struct vcd_property_frame_rate *)
-				property_value;
-			if (sizeof(struct vcd_property_frame_rate)
-				== property_hdr->sz &&
-				framerate->fps_denominator &&
-				framerate->fps_numerator) {
-				encoder->frame_rate = *framerate;
-				vcd_status = VCD_S_SUCCESS;
-			}
-			break;
-		}
 	case VCD_I_FRAME_SIZE:
 		{
 			struct vcd_property_frame_size *framesize =
 				(struct vcd_property_frame_size *)
 				property_value;
 
-			if ((sizeof(struct vcd_property_frame_size)
-				== property_hdr->sz) &&
-				(DDL_ALLOW_ENC_FRAMESIZE(framesize->width,
+			if (sizeof(struct vcd_property_frame_size)
+				== property_hdr->sz &&
+				DDL_ALLOW_ENC_FRAMESIZE(framesize->width,
+				framesize->height) &&
+				(encoder->codec.codec == VCD_CODEC_H264 ||
+				 DDL_VALIDATE_ENC_FRAMESIZE(framesize->width,
 				framesize->height))
 				) {
 				encoder->frame_size = *framesize;
 				ddl_calculate_stride(&encoder->frame_size,
-					false);
+					false, encoder->codec.codec);
 				ddl_set_default_encoder_buffer_req(encoder);
 				vcd_status = VCD_S_SUCCESS;
 			}
@@ -461,24 +443,6 @@ static u32 ddl_set_enc_property(struct ddl_client_context *ddl,
 						encoder->codec.codec);
 					vcd_status = VCD_ERR_NOT_SUPPORTED;
 				}
-			}
-			break;
-		}
-	case VCD_I_REQ_IFRAME:
-		{
-			vcd_status = VCD_S_SUCCESS;
-			break;
-		}
-	case VCD_I_INTRA_PERIOD:
-		{
-			struct vcd_property_i_period *iperiod =
-				(struct vcd_property_i_period *)
-				property_value;
-			if ((sizeof(struct vcd_property_i_period) ==
-				property_hdr->sz) &&
-				(!iperiod->b_frames)) {
-				encoder->i_period = *iperiod;
-				vcd_status = VCD_S_SUCCESS;
 			}
 			break;
 		}
@@ -802,29 +766,6 @@ static u32 ddl_set_enc_property(struct ddl_client_context *ddl,
 
 			break;
 		}
-	case VCD_I_INTRA_REFRESH:
-		{
-
-		struct vcd_property_intra_refresh_mb_number
-			*intra_refresh_mbnum =
-			(struct	vcd_property_intra_refresh_mb_number *)
-			property_value;
-
-			u32 frame_mbnum =
-				(encoder->frame_size.width / 16) *
-				(encoder->frame_size.height / 16);
-			if (sizeof(struct
-				vcd_property_intra_refresh_mb_number)
-				== property_hdr->sz &&
-				intra_refresh_mbnum->cir_mb_number <=
-				frame_mbnum) {
-				encoder->intra_refresh =
-					*intra_refresh_mbnum;
-				vcd_status = VCD_S_SUCCESS;
-			}
-
-			break;
-		}
 	case VCD_I_BUFFER_FORMAT:
 		{
 			struct vcd_property_buffer_format *tile =
@@ -899,7 +840,8 @@ static u32 ddl_get_dec_property
 			    property_hdr->sz) {
 					ddl_calculate_stride(
 					&decoder->client_frame_size,
-					!decoder->progressive_only);
+					!decoder->progressive_only,
+					decoder->codec.codec);
 					*(struct vcd_property_frame_size *)
 					    property_value =
 					    decoder->client_frame_size;
@@ -1019,7 +961,8 @@ static u32 ddl_get_dec_property
 				struct vcd_property_frame_size frame_sz =
 					decoder->client_frame_size;
 				ddl_calculate_stride(&frame_sz,
-					!decoder->progressive_only);
+					!decoder->progressive_only,
+					decoder->codec.codec);
 				*(u32 *) property_value =
 				    ((frame_sz.stride >> 4) *
 				     (frame_sz.scan_lines >> 4));
@@ -1410,29 +1353,29 @@ static u32 ddl_get_enc_property
 }
 
 static u32 ddl_set_enc_dynamic_property
-    (struct ddl_encoder_data *encoder,
+    (struct ddl_client_context *ddl,
      struct vcd_property_hdr *property_hdr, void *property_value) {
-	u32 vcd_status = VCD_ERR_ILLEGAL_PARM;
+	struct ddl_encoder_data *encoder = &(ddl->codec_data.encoder);
+	u32 vcd_status = VCD_ERR_ILLEGAL_PARM, dynamic_prop_change = 0x0;
 	switch (property_hdr->prop_id) {
 	case VCD_I_REQ_IFRAME:
 		{
 			if (sizeof(struct vcd_property_req_i_frame) ==
 			    property_hdr->sz) {
-				encoder->dynamic_prop_change |=
-				    DDL_ENC_REQ_IFRAME;
+				dynamic_prop_change = DDL_ENC_REQ_IFRAME;
 				vcd_status = VCD_S_SUCCESS;
 			}
 			break;
 		}
 	case VCD_I_TARGET_BITRATE:
 		{
+		    struct vcd_property_target_bitrate *bitrate =
+				(struct vcd_property_target_bitrate *)
+				property_value;
 			if (sizeof(struct vcd_property_target_bitrate) ==
-			    property_hdr->sz) {
-				encoder->target_bit_rate =
-				    *(struct vcd_property_target_bitrate *)
-				    property_value;
-				encoder->dynamic_prop_change |=
-				    DDL_ENC_CHANGE_BITRATE;
+			 property_hdr->sz) {
+				encoder->target_bit_rate = *bitrate;
+				dynamic_prop_change = DDL_ENC_CHANGE_BITRATE;
 				vcd_status = VCD_S_SUCCESS;
 			}
 			break;
@@ -1446,8 +1389,7 @@ static u32 ddl_set_enc_dynamic_property
 				property_hdr->sz &&
 				!iperiod->b_frames) {
 				encoder->i_period = *iperiod;
-				encoder->dynamic_prop_change |=
-					DDL_ENC_CHANGE_IPERIOD;
+				dynamic_prop_change = DDL_ENC_CHANGE_IPERIOD;
 				vcd_status = VCD_S_SUCCESS;
 			}
 			break;
@@ -1464,10 +1406,35 @@ static u32 ddl_set_enc_dynamic_property
 			    frame_rate->fps_denominator <=
 			    frame_rate->fps_numerator) {
 				encoder->frame_rate = *frame_rate;
-				encoder->dynamic_prop_change |=
-				    DDL_ENC_CHANGE_FRAMERATE;
+				dynamic_prop_change = DDL_ENC_CHANGE_FRAMERATE;
+				if (DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_OPEN) &&
+					(encoder->codec.codec != VCD_CODEC_MPEG4
+					 || encoder->short_header.short_header))
+					ddl_set_default_enc_vop_timing(encoder);
 				vcd_status = VCD_S_SUCCESS;
 			}
+			break;
+		}
+	case VCD_I_INTRA_REFRESH:
+		{
+			struct vcd_property_intra_refresh_mb_number
+				*intra_refresh_mbnum = (
+				struct vcd_property_intra_refresh_mb_number *)
+					property_value;
+			u32 frame_mbnum =
+				(encoder->frame_size.width >> 4) *
+				(encoder->frame_size.height >> 4);
+			if (sizeof(struct
+				vcd_property_intra_refresh_mb_number)
+				== property_hdr->sz &&
+				intra_refresh_mbnum->cir_mb_number <=
+				frame_mbnum) {
+				encoder->intra_refresh =
+					*intra_refresh_mbnum;
+				dynamic_prop_change = DDL_ENC_CHANGE_CIR;
+				vcd_status = VCD_S_SUCCESS;
+			}
+
 			break;
 		}
 	default:
@@ -1476,6 +1443,10 @@ static u32 ddl_set_enc_dynamic_property
 			break;
 		}
 	}
+	if (vcd_status == VCD_S_SUCCESS &&
+	(DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_WAIT_FOR_FRAME) ||
+	DDLCLIENT_STATE_IS(ddl, DDL_CLIENT_WAIT_FOR_FRAME_DONE)))
+		encoder->dynamic_prop_change |= dynamic_prop_change;
 	return vcd_status;
 }
 
@@ -1642,7 +1613,7 @@ static void ddl_set_default_enc_rc_params(
 				encoder->session_qp.p_frame_qp = 0xf;
 			}
 
-			encoder->frame_level_rc.reaction_coeff = 0x6;
+			encoder->frame_level_rc.reaction_coeff = 0x14;
 			break;
 		}
 	case VCD_RATE_CONTROL_CBR_CFR:
@@ -1666,7 +1637,7 @@ void ddl_set_default_encoder_buffer_req(struct ddl_encoder_data *encoder)
 	u32 y_cb_cr_size;
 
 	y_cb_cr_size = ddl_get_yuv_buffer_size(&encoder->frame_size,
-		&encoder->buf_format, false);
+		&encoder->buf_format, false, encoder->codec.codec);
 
 	memset(&encoder->input_buf_req, 0,
 	       sizeof(struct vcd_buffer_requirement));
@@ -1709,8 +1680,8 @@ void ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
 		input_buf_req = &decoder->client_input_buf_req;
 		min_dpb = ddl_decoder_min_num_dpb(decoder);
 		 y_cb_cr_size = ddl_get_yuv_buffer_size(frame_size,
-			&decoder->buf_format,
-			(!decoder->progressive_only));
+			&decoder->buf_format, (!decoder->progressive_only),
+			decoder->codec.codec);
 	} else {
 		frame_size = &decoder->frame_size;
 		output_buf_req = &decoder->actual_output_buf_req;
@@ -1723,8 +1694,8 @@ void ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
 
 	output_buf_req->min_count = min_dpb;
 
-	num_mb = (frame_size->width * frame_size->height) >> 8;
-	if (num_mb >= VIDC_DDL_WVGA_MBS) {
+	num_mb = DDL_NO_OF_MB(frame_size->width, frame_size->height);
+	if (num_mb >= DDL_WVGA_MBS) {
 		output_buf_req->actual_count = min_dpb + 2;
 		if (output_buf_req->actual_count < 10)
 			output_buf_req->actual_count = 10;
@@ -1756,11 +1727,12 @@ void ddl_set_default_decoder_buffer_req(struct ddl_decoder_data *decoder,
 }
 
 u32 ddl_get_yuv_buffer_size(struct vcd_property_frame_size *frame_size,
-     struct vcd_property_buffer_format *buf_format, u32 inter_lace)
+     struct vcd_property_buffer_format *buf_format, u32 inter_lace,
+     enum vcd_codec codec)
 {
 	struct vcd_property_frame_size frame_sz = *frame_size;
 	u32 total_memory_size;
-	ddl_calculate_stride(&frame_sz, inter_lace);
+	ddl_calculate_stride(&frame_sz, inter_lace, codec);
 
 	if (buf_format->buffer_format != VCD_BUFFER_FORMAT_NV12) {
 		u32 component_mem_size;
@@ -1795,16 +1767,19 @@ u32 ddl_get_yuv_buffer_size(struct vcd_property_frame_size *frame_size,
 }
 
 void ddl_calculate_stride(struct vcd_property_frame_size *frame_size,
-						 u32 interlace)
+	u32 interlace, enum vcd_codec codec)
 {
 	frame_size->stride = ((frame_size->width + 15) >> 4) << 4;
-
-	if (interlace) {
-		frame_size->scan_lines =
-			((frame_size->height + 31) >> 5) << 5;
-	} else {
+	if (!interlace || codec == VCD_CODEC_MPEG4 ||
+		codec == VCD_CODEC_DIVX_4 ||
+		codec == VCD_CODEC_DIVX_5 ||
+		codec == VCD_CODEC_DIVX_6 ||
+		codec == VCD_CODEC_XVID) {
 		frame_size->scan_lines =
 			((frame_size->height + 15) >> 4) << 4;
+	} else {
+		frame_size->scan_lines =
+			((frame_size->height + 31) >> 5) << 5;
 	}
 
 }
@@ -1855,7 +1830,8 @@ static u32 ddl_decoder_min_num_dpb(struct ddl_decoder_data *decoder)
 	case VCD_CODEC_H264:
 		{
 			ddl_calculate_stride(&frame_sz,
-				!decoder->progressive_only);
+				!decoder->progressive_only,
+				decoder->codec.codec);
 			yuv_size =
 			    ((frame_sz.scan_lines *
 			      frame_sz.stride * 3) >> 1);

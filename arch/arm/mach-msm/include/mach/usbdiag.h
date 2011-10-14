@@ -44,4 +44,11 @@ int diag_write(struct diag_request *);
 int diag_usb_register(struct diag_operations *);
 int diag_usb_unregister(void);
 int diag_read_from_cb(unsigned char * , int);
+
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_EFS2SD
+int diag_usb_configure(void);
+#endif
+//SW2-5-1-MP-DbgCfgTool-00+]
+
 #endif

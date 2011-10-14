@@ -113,6 +113,44 @@ struct mmc_host_ops {
 struct mmc_card;
 struct device;
 
+//sw2-6-1-RH-Wlan_Reset7-00+[
+struct debug_stats {
+	ktime_t req_start;
+	ktime_t timer_start;
+	u32 opcode;
+	u32 args;
+	u32 mci_sts;
+	u32 mci_resp0;
+	u32 read_data_cnt;
+	u32 req_rsize;
+	u8 pio_simulated;
+	u8 sim_no_rxactive;
+	ktime_t t_rxactive;
+	ktime_t t_rxavail;
+	ktime_t t_dataend;
+	u32 mci_sts_before_datactl;
+	u32 mci_mask0_before_datactl;
+	u32 mci_datatimer_before_datactl;
+	u32 mci_datalen_before_datactl;
+	u32 mci_datactl_before_enabling_datactl;
+	u32 mci_pwr_before_datactl;
+	u32 mci_clk_before_datactl;
+	u32 mci_cmd_before_datactl;
+	u32 mci_cmd_after_enabling_cpsm;
+	u32 mci_data_ctl_after_dpsm;
+	u32 mci_sts_after_dataend;
+	u32 mci_mask0_after_dataend;
+	u32 mci_datatimer_after_dataend;
+	u32 mci_datalen_after_dataend;
+	u32 mci_datactl_after_dataend;
+	u32 mci_pwr_after_dataend;
+	u32 mci_clk_after_dataend;
+	u32 mci_cmd_after_dataend;
+	u32 mci_sts_after_reading_alldata;
+	u32 mci_sts_after_enabling_dpsm;
+	u32 mci_test_input;
+};
+//sw2-6-1-RH-Wlan_Reset7-00+]
 struct mmc_host {
 	struct device		*parent;
 	struct device		class_dev;
@@ -236,7 +274,18 @@ struct mmc_host {
 		ktime_t start;
 	} perf;
 #endif
+
+	unsigned int		card_status; 
+//sw2-6-1-RH-Wlan_Reset7-00+[
+	struct debug_stats entries[50];
+	unsigned int id;
+	unsigned int update_stats;
+	int stats_overflow;
+	int stats_err;
+	int dump_done;
+//sw2-6-1-RH-Wlan_Reset7-00+]
 	unsigned long		private[0] ____cacheline_aligned;
+
 };
 
 extern struct mmc_host *mmc_alloc_host(int extra, struct device *);

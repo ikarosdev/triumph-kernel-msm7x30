@@ -21,6 +21,9 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/slab.h>
+#include <linux/android_alarm.h>
+
 #include <linux/rtc.h>
 #include <linux/rtc-msm.h>
 #include <linux/msm_rpcrouter.h>
@@ -281,7 +284,13 @@ msmrtc_timeremote_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
+/* Div2-SW2-BSP-FBX-BATT { */
+#ifdef CONFIG_BATTERY_FIH_MSM
+int
+#else
 static int
+#endif
+/* } Div2-SW2-BSP-FBX-BATT */
 msmrtc_timeremote_read_time(struct device *dev, struct rtc_time *tm)
 {
 	int rc;
@@ -301,6 +310,11 @@ msmrtc_timeremote_read_time(struct device *dev, struct rtc_time *tm)
 
 	return 0;
 }
+/* Div2-SW2-BSP-FBX-BATT { */
+#ifdef CONFIG_BATTERY_FIH_MSM
+EXPORT_SYMBOL(msmrtc_timeremote_read_time);
+#endif
+/* } Div2-SW2-BSP-FBX-BATT */
 
 static int
 msmrtc_virtual_alarm_set(struct device *dev, struct rtc_wkalrm *a)
@@ -401,6 +415,7 @@ msmrtc_alarmtimer_expired(unsigned long _data)
 static void process_cb_request(void *buffer)
 {
 	struct rtc_cb_recv *rtc_cb = buffer;
+	struct timespec ts, tv;
 
 	rtc_cb->client_cb_id = be32_to_cpu(rtc_cb->client_cb_id);
 	rtc_cb->event = be32_to_cpu(rtc_cb->event);
@@ -419,8 +434,13 @@ static void process_cb_request(void *buffer)
 			rtc_cb->cb_info_data.tod_update.tick,
 			rtc_cb->cb_info_data.tod_update.stamp,
 			rtc_cb->cb_info_data.tod_update.freq);
-		/* Do an update of xtime */
+
+		getnstimeofday(&ts);
 		rtc_hctosys();
+		getnstimeofday(&tv);
+		/* Update the alarm information with the new time info. */
+		alarm_update_timedelta(ts, tv);
+
 	} else
 		pr_err("%s: Unknown event EVENT=%x\n",
 					__func__, rtc_cb->event);
@@ -622,6 +642,19 @@ fail_cb_setup:
 	return rc;
 }
 
+/* Div2-SW2-BSP-FBX-BATT { */
+#ifdef CONFIG_BATTERY_FIH_MSM
+static int RPC_wakeup_cycle_time = 0;
+
+void msmrtc_set_wakeup_cycle_time(int cycle_time)
+{
+    pr_info("%s, cycle time = %d\n", __func__, cycle_time);    
+    RPC_wakeup_cycle_time = cycle_time;
+}
+EXPORT_SYMBOL(msmrtc_set_wakeup_cycle_time);
+#endif
+/* } Div2-SW2-BSP-FBX-BATT */
+
 static int
 msmrtc_suspend(struct platform_device *dev, pm_message_t state)
 {
@@ -637,6 +670,14 @@ msmrtc_suspend(struct platform_device *dev, pm_message_t state)
 		}
 		rtc_tm_to_time(&tm, &now);
 		diff = rtcalarm_time - now;
+		
+/* Div2-SW2-BSP-FBX-BATT { */
+#ifdef CONFIG_BATTERY_FIH_MSM
+        if (diff > RPC_wakeup_cycle_time && RPC_wakeup_cycle_time != 0)
+            diff = RPC_wakeup_cycle_time;
+#endif
+/* } Div2-SW2-BSP-FBX-BATT */
+
 		if (diff <= 0) {
 			msmrtc_alarmtimer_expired(1);
 			msm_pm_set_max_sleep_time(0);
@@ -644,7 +685,14 @@ msmrtc_suspend(struct platform_device *dev, pm_message_t state)
 		}
 		msm_pm_set_max_sleep_time((int64_t) ((int64_t) diff * NSEC_PER_SEC));
 	} else
+/* Div2-SW2-BSP-FBX-BATT { */
+#ifdef CONFIG_BATTERY_FIH_MSM
+        msm_pm_set_max_sleep_time((int64_t) ((int64_t) RPC_wakeup_cycle_time * NSEC_PER_SEC));
+#else
 		msm_pm_set_max_sleep_time(0);
+#endif
+/* } Div2-SW2-BSP-FBX-BATT */
+
 	return 0;
 }
 

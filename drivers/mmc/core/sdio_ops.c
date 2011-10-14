@@ -115,6 +115,10 @@ int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
 	return 0;
 }
 
+//sw2-6-1-RH-Wlan_Reset7-00+[
+void msmsdcc_libra_recovery_helper(struct mmc_host *mmc);
+void debug_print_stats_mmc(struct mmc_host *mmc);
+//sw2-6-1-RH-Wlan_Reset7-00+]
 int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	unsigned addr, int incr_addr, u8 *buf, unsigned blocks, unsigned blksz)
 {
@@ -161,7 +165,15 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 
 	mmc_set_data_timeout(&data, card);
 
-	mmc_wait_for_req(card->host, &mrq);
+//sw2-6-1-RH-Wlan_Reset7-00+[
+//	mmc_wait_for_req(card->host, &mrq);
+	if (!mmc_wait_for_req(card->host, &mrq)) {
+        printk("**** ERROR:- CMD53 wait for complettion timeout!!!****\n");
+        debug_print_stats_mmc(card->host);
+        msmsdcc_libra_recovery_helper(card->host);
+        return -254;
+	}
+//sw2-6-1-RH-Wlan_Reset7-00+]
 
 	if (cmd.error)
 		return cmd.error;

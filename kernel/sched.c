@@ -6412,6 +6412,11 @@ int sched_setscheduler_nocheck(struct task_struct *p, int policy,
 {
 	return __sched_setscheduler(p, policy, param, false);
 }
+/* DIV5-KERNEL-DY-Export_For_D2-01*[ */
+#if defined(CONFIG_FIH_PROJECT_SF4Y6)
+EXPORT_SYMBOL(sched_setscheduler_nocheck);
+#endif
+/* DIV5-KERNEL-DY-Export_For_D2-01*] */
 
 static int
 do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)

@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/fih_hw_info.h> //SW252-rexer-hwid-01+
 
 struct smem_heap_info {
 	unsigned initialized;
@@ -217,11 +218,12 @@ enum {
 	SMEM_APPS_BOOT_MODE,
 	SMEM_VERSION_FIRST,
 	SMEM_VERSION_SMD = SMEM_VERSION_FIRST,
+  SMEM_VERSION_SMD_BRIDGE,	/*Div2-SW2-BSP, JOE HSU,sync modem*/
 	SMEM_VERSION_LAST = SMEM_VERSION_FIRST + 24,
 	SMEM_OSS_RRCASN1_BUF1,
 	SMEM_OSS_RRCASN1_BUF2,
-	SMEM_ID_VENDOR0,
-	SMEM_ID_VENDOR1,
+	SMEM_OEM_INFO,     //SMEM_ID_VENDOR0,sync modem
+	SMEM_OEM_CMD_DATA, //SMEM_ID_VENDOR1,sync modem
 	SMEM_ID_VENDOR2,
 	SMEM_HW_SW_BUILD_ID,
 	SMEM_SMD_BLOCK_PORT_BASE_ID,
@@ -254,7 +256,11 @@ enum {
 	SMEM_SEFS_INFO,
 	SMEM_RESET_LOG,
 	SMEM_RESET_LOG_SYMBOLS,
-	SMEM_MEM_LAST = SMEM_RESET_LOG_SYMBOLS,
+  SMEM_MODEM_SW_BUILD_ID,
+  SMEM_SMEM_LOG_MPROC_WRAP,
+  SMEM_BOOT_INFO_FOR_APPS,	
+  SMEM_FIH_SD_DL_INFO,
+  SMEM_MEM_LAST = SMEM_FIH_SD_DL_INFO,
 	SMEM_NUM_ITEMS,
 };
 
@@ -313,5 +319,61 @@ int smsm_check_for_modem_crash(void);
 void *smem_find(unsigned id, unsigned size);
 void *smem_get_entry(unsigned id, unsigned *size);
 void smd_diag(void);
+
+
+typedef enum 
+{
+    PROJECT_ID_PORT=1,
+    PHASE_ID_PORT,
+    BAND_ID_PORT,
+}fih_hardware_id_port_type;
+
+/* Div2-SW2-BSP-FB0-BATT { */
+typedef enum 
+{
+    MODE_NORMAL,
+    MODE_MODEM_DLOAD,
+    MODE_FAST_BOOT,
+    MODE_RECOVERY,
+    MODE_MASTER_RESET,
+    MODE_FTM,
+    MODE_EXIT_FTM,
+    MODE_ENABLE_DIAG,
+    MODE_ENABLE_KERNEL_LOG,
+    MODE_PWRKEY_LONG_PRESS,
+    MODE_POWER_DOWN,
+}key_def_e_type;
+
+//SW2-5-1-MP-HostOemInfo-00+[
+struct smem_host_oem_info
+{
+        unsigned int host_usb_id;
+        unsigned int host_log_from_uart;
+        unsigned int host_used3;
+        unsigned int host_used4;
+};
+
+void fih_get_host_oem_info(void);
+unsigned int fih_read_uart_switch_from_smem(void);
+unsigned int fih_read_usb_id_from_smem(void);
+unsigned int fih_read_boot_mode_from_smem(void); //SW-2-5-1-MP-DbgCfgTool-03+
+//SW2-5-1-MP-HostOemInfo-00+]
+
+unsigned int fih_get_keypad_info(void);
+/* } Div2-SW2-BSP-FB0-BATT */
+
+void fih_get_oem_info(void);
+unsigned int fih_get_product_id(void);
+unsigned int fih_get_product_phase(void);
+unsigned int fih_get_band_id(void);
+
+char *fih_get_emmc_info(void);
+unsigned int fih_get_dram_info(void);
+unsigned int fih_get_poweroncause_info(void);
+
+
+/* FIHTDC, Div2-SW2-BSP CHHsieh, { */
+unsigned int fih_ftm_get_hw_id(char* buf);
+/* } FIHTDC, Div2-SW2-BSP CHHsieh, */
 
 #endif

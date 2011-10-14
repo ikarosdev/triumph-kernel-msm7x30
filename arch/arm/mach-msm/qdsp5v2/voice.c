@@ -177,11 +177,15 @@ static void voice_auddev_cb_function(u32 evt_id,
 			}
 			if ((v->dev_rx.enabled == VOICE_DEV_ENABLED) &&
 				(v->dev_tx.enabled == VOICE_DEV_ENABLED)) {
-				mutex_lock(&voice.lock);
-				v->dev_event = DEV_CHANGE_READY;
-				mutex_unlock(&voice.lock);
-				complete(&v->complete);
 				v->dev_state = DEV_READY;
+				MM_DBG("dev state into ready\n");
+				wake_up(&v->dev_wait);
+				if (v->voc_state == VOICE_CHANGE) {
+					mutex_lock(&voice.lock);
+					v->dev_event = DEV_CHANGE_READY;
+					mutex_unlock(&voice.lock);
+					complete(&v->complete);
+				}
 			}
 		} else if ((v->dev_state == DEV_INIT) ||
 			(v->dev_state == DEV_REL_DONE)) {
@@ -251,10 +255,6 @@ static void voice_auddev_cb_function(u32 evt_id,
 				v->dev_state = DEV_REL_DONE;
 				wake_up(&v->dev_wait);
 			} else {
-				/* send mute and default volume value to MCAD */
-				v->dev_tx.mute = v->default_mute_val;
-				v->dev_rx.volume = v->default_vol_val;
-				voice_cmd_device_info(v);
 				/* send device change to modem */
 				voice_cmd_change();
 				rc = wait_event_interruptible(

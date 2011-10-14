@@ -30,6 +30,32 @@
 #ifndef DIAGFWD_H
 #define DIAGFWD_H
 
+//#define SLATE_DEBUG
+
+
+#define DIAG_MASK_CMD_SAVE                           0
+#define DIAG_MASK_CMD_RESTORE                        1
+#define DIAG_MASK_CMD_ADD_GET_RSSI                   2
+#define DIAG_MASK_CMD_ADD_GET_STATE_AND_CONN_ATT     3
+#define DIAG_MASK_CMD_ADD_GET_SEARCHER_DUMP          4
+
+/* Values for pending slate log commands */
+#define DIAG_LOG_CMD_TYPE_NONE                    0
+#define DIAG_LOG_CMD_TYPE_GET_RSSI                1
+#define DIAG_LOG_CMD_TYPE_GET_STATE_AND_CONN_ATT  2
+#define DIAG_LOG_CMD_TYPE_RESTORE_LOG_MASKS       3
+#define DIAG_LOG_CMD_TYPE_GET_1x_SEARCHER_DUMP 	  4
+
+/* Log Types */
+#define DIAG_LOG_TYPE_RSSI                        0
+#define DIAG_LOG_TYPE_STATE                       1
+#define DIAG_LOG_TYPE_CONN_ATT                    2
+//FXPCAYM-87
+#define DIAG_LOG_TYPE_SEARCHER_AND_FINGER         3
+#define DIAG_LOG_TYPE_INTERNAL_CORE_DUMP          4
+#define DIAG_LOG_TYPE_SRCH_TNG_SEARCHER_DUMP      5
+
+
 void diagfwd_init(void);
 void diagfwd_exit(void);
 void diag_process_hdlc(void *data, unsigned len);
@@ -39,6 +65,11 @@ int diag_device_write(void *buf, int proc_num, struct diag_request *write_ptr);
 int diagfwd_connect(void);
 int diagfwd_disconnect(void);
 int mask_request_validate(unsigned char mask_buf[]);
+
+/* Routines added for SLATE support */
+void diag_process_get_rssi_log(void);
+void diag_process_get_stateAndConnInfo_log(void);
+int  diag_log_is_enabled(unsigned char log_type);
 
 /* State for diag forwarding */
 extern int diag_debug_buf_idx;

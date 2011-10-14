@@ -41,6 +41,7 @@
 #include <linux/syscalls.h>
 #include <linux/kprobes.h>
 #include <linux/user_namespace.h>
+#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -76,6 +77,9 @@
 #ifndef SET_TSC_CTL
 # define SET_TSC_CTL(a)		(-EINVAL)
 #endif
+
+//Div2-SW2-BSP, JOE HSU ,rmt_sync
+extern int rmt_sync_call(void);
 
 /*
  * this is where the system-wide overflow UID and GID are defined, for
@@ -292,6 +296,16 @@ void kernel_restart_prepare(char *cmd)
 	sysdev_shutdown();
 }
 
+//Div6-D1-JL-UsbPorting-00+{
+extern void msm_pm_restart(char str, const char *cmd);
+void Restart_To_Download(void)
+{
+    msm_pm_restart('0', NULL);
+    emergency_restart();
+}
+EXPORT_SYMBOL_GPL(Restart_To_Download);
+//Div6-D1-JL-UsbPorting-00+}
+
 /**
  *	kernel_restart - reboot the system
  *	@cmd: pointer to buffer containing command to execute for restart
@@ -384,6 +398,10 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	lock_kernel();
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:
+    //Div2-SW2-BSP, JOE HSU ,rmt_sync
+    rmt_sync_call();
+    msleep(3000);  /* wait 3 seconds to final EFS sync*/
+    		
 		kernel_restart(NULL);
 		break;
 
@@ -396,18 +414,30 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		break;
 
 	case LINUX_REBOOT_CMD_HALT:
+    //Div2-SW2-BSP, JOE HSU ,rmt_sync
+    rmt_sync_call();
+    msleep(3000);  /* wait 3 seconds to final EFS sync*/
+    		
 		kernel_halt();
 		unlock_kernel();
 		do_exit(0);
 		panic("cannot halt");
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
+    //Div2-SW2-BSP, JOE HSU ,rmt_sync
+    rmt_sync_call();
+    msleep(3000);  /* wait 3 seconds to final EFS sync*/
+    
 		kernel_power_off();
 		unlock_kernel();
 		do_exit(0);
 		break;
 
 	case LINUX_REBOOT_CMD_RESTART2:
+    //Div2-SW2-BSP, JOE HSU ,rmt_sync
+    rmt_sync_call();
+    msleep(3000);  /* wait 3 seconds to final EFS sync*/		
+
 		if (strncpy_from_user(&buffer[0], arg, sizeof(buffer) - 1) < 0) {
 			unlock_kernel();
 			return -EFAULT;

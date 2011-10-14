@@ -104,6 +104,12 @@ static int led_suspend(struct device *dev, pm_message_t state)
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+    printk(KERN_INFO "led suspend(): %s\n", led_cdev->name);
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
+
 	if (led_cdev->flags & LED_CORE_SUSPENDRESUME)
 		led_classdev_suspend(led_cdev);
 

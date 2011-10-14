@@ -28,6 +28,11 @@
 #include <linux/mmc/sdio_ids.h>
 #endif
 
+#ifdef CONFIG_BROADCOM_BCM4329_WLAN
+/* define BCM4329 WLAN index = 1, slot = 3 */
+#define BCM4329_WLAN_INDEX 1 
+#endif
+
 static int sdio_read_fbr(struct sdio_func *func)
 {
 	int ret;
@@ -353,7 +358,18 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		 */
 		mmc_set_clock(host, 50000000);
 	} else {
+#if defined (CONFIG_BROADCOM_BCM4329_WLAN)
+		/* Broadcom Chip need reduce sdio clk to 25MHZ, default use slot 3 */
+		if (host->index == BCM4329_WLAN_INDEX)
+		{
+			printk("%s: Use Broadcom BCM4329 WIFI chip, set clock to 25MZ in index(%d)\r\n", __FUNCTION__, host->index);
+			mmc_set_clock(host, 25000000);
+		}
+		else
+			mmc_set_clock(host, card->cis.max_dtr);
+#else
 		mmc_set_clock(host, card->cis.max_dtr);
+#endif
 	}
 
 	/*
@@ -690,7 +706,18 @@ int sdio_reset_comm(struct mmc_card *card)
 		 */
 		mmc_set_clock(host, 50000000);
 	} else {
+#if defined (CONFIG_BROADCOM_BCM4329_WLAN)
+		/* Broadcom Chip need reduce sdio clk to 25MHZ, default use slot 3 */
+		if (host->index == BCM4329_WLAN_INDEX)
+		{
+			printk("%s: Use Broadcom BCM4329 WIFI chip, set clock to 25MZ in index(%d)\r\n", __FUNCTION__, host->index);
+			mmc_set_clock(host, 25000000);
+		}
+		else
+			mmc_set_clock(host, card->cis.max_dtr);
+#else
 		mmc_set_clock(host, card->cis.max_dtr);
+#endif
 	}
 
 	err = sdio_enable_wide(card);

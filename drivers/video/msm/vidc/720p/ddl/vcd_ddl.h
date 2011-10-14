@@ -74,10 +74,11 @@
 #define DDL_INVALID_CHANNEL_ID  ((u32)~0)
 #define DDL_INVALID_CODEC_TYPE ((u32)~0)
 
-#define DDL_ENC_REQ_IFRAME                      0x1
-#define DDL_ENC_CHANGE_IPERIOD                  0x2
-#define DDL_ENC_CHANGE_BITRATE                  0x4
-#define DDL_ENC_CHANGE_FRAMERATE                0x8
+#define DDL_ENC_REQ_IFRAME                      0x01
+#define DDL_ENC_CHANGE_IPERIOD                  0x02
+#define DDL_ENC_CHANGE_BITRATE                  0x04
+#define DDL_ENC_CHANGE_FRAMERATE                0x08
+#define DDL_ENC_CHANGE_CIR                      0x10
 
 #define DDL_DEC_REQ_OUTPUT_FLUSH                0x1
 
@@ -280,9 +281,10 @@ u32 ddl_decoder_ready_to_start(struct ddl_client_context *,
 			       struct vcd_sequence_hdr *);
 u32 ddl_get_yuv_buffer_size
     (struct vcd_property_frame_size *frame_size,
-     struct vcd_property_buffer_format *buf_format, u32 inter_lace);
+     struct vcd_property_buffer_format *buf_format, u32 inter_lace,
+     enum vcd_codec codec);
 void ddl_calculate_stride(struct vcd_property_frame_size *frame_size,
-						  u32 inter_lace);
+	u32 inter_lace, enum vcd_codec codec);
 void ddl_encode_dynamic_property(struct ddl_client_context *ddl,
 				 u32 enable);
 void ddl_decode_dynamic_property(struct ddl_client_context *ddl,

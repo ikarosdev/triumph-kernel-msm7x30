@@ -218,6 +218,14 @@ struct msm_handset {
 static struct msm_rpc_client *rpc_client;
 static struct msm_handset *hs;
 
+/* 
+//SW5-Kernel-JC-Workaround_timing-[
+#ifdef CONFIG_FIH_PROJECT_SF4Y6
+bool bDelay=false; //SW5-Kernel-JC-Workaround_timing+
+#endif
+//SW5-Kernel-JC-Workaround_timing-]
+*/
+
 static int hs_find_key(uint32_t hscode)
 {
 	int i, key;
@@ -251,7 +259,8 @@ report_headset_switch(struct input_dev *dev, int key, int value)
  * key-press = (key_code, 0)
  * key-release = (key_code, 0xff)
  */
-static void report_hs_key(uint32_t key_code, uint32_t key_parm)
+/* Div1-FW3-BSP-AUDIO */
+void report_hs_key(uint32_t key_code, uint32_t key_parm)
 {
 	int key, temp_key_code;
 
@@ -271,10 +280,40 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 	case KEY_MEDIA:
 	case KEY_VOLUMEUP:
 	case KEY_VOLUMEDOWN:
+//SW2-5-1-MP-Force_Ramdump-00+[
+		if (key==KEY_POWER||key==KEY_END) {
+
+			printk("%s key %s\n",(key==KEY_POWER?"POWER":"END"),(key_code!=HS_REL_K?"down":"up"));
+		}
+//SW2-5-1-MP-Force_Ramdump-00+]
+//SW5-Kernel-JC-Workaround_timing-[
+/*
+//SW5-Kernel-JC-Workaround_timing+[
+#ifdef CONFIG_FIH_PROJECT_SF4Y6
+               if((key==KEY_POWER) && (key_code!=HS_REL_K))
+                {
+                        msleep(50);
+                        bDelay = true;
+                }
+                if((bDelay)&&(key==KEY_POWER))
+                {
+                        msleep(50);
+                        bDelay = false;    
+                }
+
+#endif
+//SW5-Kernel-JC-Workaround_timing+]
+//SW5-Kernel-JC-Workaround_timing-]
+*/
 		input_report_key(hs->ipdev, key, (key_code != HS_REL_K));
 		break;
 	case SW_HEADPHONE_INSERT:
 		report_headset_switch(hs->ipdev, key, (key_code != HS_REL_K));
+		/* Div1-FW3-BSP-AUDIO */
+		if (key_code != HS_REL_K)
+			printk("headset plug in\n");
+		else
+			printk("headset plug out\n");
 		break;
 	case -1:
 		printk(KERN_ERR "%s: No mapping for remote handset event %d\n",

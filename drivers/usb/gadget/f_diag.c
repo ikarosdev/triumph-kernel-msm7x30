@@ -287,6 +287,16 @@ int diag_usb_unregister(void)
 }
 EXPORT_SYMBOL(diag_usb_unregister);
 
+//SW2-5-1-MP-DbgCfgTool-00*[
+#ifdef CONFIG_FIH_EFS2SD
+int diag_usb_configure(void)
+{
+    return _context.diag_configured;
+}
+EXPORT_SYMBOL(diag_usb_configure);
+#endif
+//SW2-5-1-MP-DbgCfgTool-00*]
+
 int diag_open(int num_req)
 {
 	struct diag_context *ctxt = &_context;

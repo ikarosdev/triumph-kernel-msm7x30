@@ -781,8 +781,8 @@ int64_t msm_timer_enter_idle(void)
 	delta = alarm - count;
 	if (delta <= -(int32_t)((clock->freq << clock->shift) >> 10)) {
 		/* timer should have triggered 1ms ago */
-		printk(KERN_ERR "msm_timer_enter_idle: timer late %d, "
-			"reprogram it\n", delta);
+		//printk(KERN_ERR "msm_timer_enter_idle: timer late %d, "
+		//	"reprogram it\n", delta);
 		msm_timer_reactivate_alarm(clock);
 	}
 	if (delta <= 0)

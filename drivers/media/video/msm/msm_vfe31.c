@@ -905,8 +905,21 @@ static int vfe31_start_recording(void){
 }
 
 static int vfe31_stop_recording(void){
+
 	vfe31_ctrl->req_stop_video_rec = TRUE;
 	update_axi_qos(MSM_AXI_QOS_PREVIEW);
+	/* Mask with 0x7 to extract the pixel pattern*/
+	switch (msm_io_r(vfe31_ctrl->vfebase + VFE_CFG_OFF) & 0x7) {
+	case VFE_YUV_YCbYCr:
+	case VFE_YUV_YCrYCb:
+	case VFE_YUV_CbYCrY:
+	case VFE_YUV_CrYCbY:
+		msm_io_w_mb(1,
+		vfe31_ctrl->vfebase + VFE_REG_UPDATE_CMD);
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -1726,14 +1739,18 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		(cmd->cmd_type == CMD_STATS_AEC_ENABLE)) {
 		struct axidata *axid;
 		axid = data;
-		if (!axid)
-			return -EFAULT;
+		if (!axid) {
+			rc = -EFAULT;
+			goto vfe31_config_done;
+		}
 
 		scfg =
 			kmalloc(sizeof(struct vfe_cmd_stats_buf),
 				GFP_ATOMIC);
-		if (!scfg)
-			return -ENOMEM;
+		if (!scfg) {
+			rc = -ENOMEM;
+			goto vfe31_config_done;
+		}
 		regptr = axid->region;
 		if (axid->bufnum1 > 0) {
 			for (i = 0; i < axid->bufnum1; i++) {
@@ -1772,8 +1789,10 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		struct msm_frame *b;
 		unsigned long p;
 		struct vfe31_free_buf *fbuf = NULL;
-		if (!data)
-			return -EFAULT;
+		if (!data) {
+			rc = -EFAULT;
+			break;
+		}
 
 		b = (struct msm_frame *)(cmd->value);
 		p = *(unsigned long *)data;
@@ -1787,8 +1806,10 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 			fbuf = &vfe31_ctrl->outpath.out1.free_buf;
 		} else if (b->path & OUTPUT_TYPE_V) {
 			fbuf = &vfe31_ctrl->outpath.out2.free_buf;
-		} else
-			return -EFAULT;
+		} else {
+			rc = -EFAULT;
+			break;
+		}
 
 		fbuf->paddr = p;
 		fbuf->y_off = b->y_off;
@@ -1824,18 +1845,23 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		struct axidata *axid;
 		uint32_t *axio = NULL;
 		axid = data;
-		if (!axid)
-			return -EFAULT;
+		if (!axid) {
+			rc = -EFAULT;
+			break;
+		}
 		axio =
 			kmalloc(vfe31_cmd[V31_AXI_OUT_CFG].length,
 				GFP_ATOMIC);
-		if (!axio)
-			return -ENOMEM;
+		if (!axio) {
+			rc = -ENOMEM;
+			break;
+		}
 
 		if (copy_from_user(axio, (void __user *)(vfecmd.value),
 				vfe31_cmd[V31_AXI_OUT_CFG].length)) {
 			kfree(axio);
-			return -EFAULT;
+			rc = -EFAULT;
+			break;
 		}
 		vfe31_config_axi(OUTPUT_2, axid, axio);
 		kfree(axio);
@@ -1846,18 +1872,23 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		struct axidata *axid;
 		uint32_t *axio = NULL;
 		axid = data;
-		if (!axid)
-			return -EFAULT;
+		if (!axid) {
+			rc = -EFAULT;
+			break;
+		}
 		axio =
 			kmalloc(vfe31_cmd[V31_AXI_OUT_CFG].length,
 				GFP_ATOMIC);
-		if (!axio)
-			return -ENOMEM;
+		if (!axio) {
+			rc = -ENOMEM;
+			break;
+		}
 
 		if (copy_from_user(axio, (void __user *)(vfecmd.value),
 				vfe31_cmd[V31_AXI_OUT_CFG].length)) {
 			kfree(axio);
-			return -EFAULT;
+			rc = -EFAULT;
+			break;
 		}
 		vfe31_config_axi(CAMIF_TO_AXI_VIA_OUTPUT_2, axid, axio);
 		kfree(axio);
@@ -1873,13 +1904,16 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		axio =
 			kmalloc(vfe31_cmd[V31_AXI_OUT_CFG].length,
 				GFP_ATOMIC);
-		if (!axio)
-			return -ENOMEM;
+		if (!axio) {
+			rc = -ENOMEM;
+			break;
+		}
 
 		if (copy_from_user(axio, (void __user *)(vfecmd.value),
 				vfe31_cmd[V31_AXI_OUT_CFG].length)) {
 			kfree(axio);
-			return -EFAULT;
+			rc = -EFAULT;
+			break;
 		}
 		vfe31_config_axi(OUTPUT_1_AND_2, axid, axio);
 		kfree(axio);
@@ -1890,18 +1924,24 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 		struct axidata *axid;
 		uint32_t *axio = NULL;
 		axid = data;
-		if (!axid)
-			return -EFAULT;
+		if (!axid) {
+			rc = -EFAULT;
+			break;
+		}
+
 		axio =
 			kmalloc(vfe31_cmd[V31_AXI_OUT_CFG].length,
 				GFP_ATOMIC);
-		if (!axio)
-			return -ENOMEM;
+		if (!axio) {
+			rc = -ENOMEM;
+			break;
+		}
 
 		if (copy_from_user(axio, (void __user *)(vfecmd.value),
 				vfe31_cmd[V31_AXI_OUT_CFG].length)) {
 			kfree(axio);
-			return -EFAULT;
+			rc = -EFAULT;
+			break;
 		}
 		vfe31_config_axi(OUTPUT_1_AND_3, axid, axio);
 		kfree(axio);
@@ -1910,6 +1950,7 @@ static int vfe31_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 	default:
 		break;
 	}
+vfe31_config_done:
 	kfree(scfg);
 	kfree(sack);
 	CDBG("%s done: rc = %d\n", __func__, (int) rc);
@@ -2990,3 +3031,4 @@ void msm_camvpe_fn_init(struct msm_camvpe_fn *fptr, void *data)
 	fptr->dis		= &(vpe_ctrl->dis_en);
 	vpe_ctrl->syncdata = data;
 }
+

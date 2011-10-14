@@ -392,9 +392,11 @@ static int __init afe_init(void)
 	init_waitqueue_head(&afe->wait);
 
 #ifdef CONFIG_DEBUG_FS
+//MM-SL-ModifyForGingerbread-00*{
 	debugfs_afelb = debugfs_create_file("afe_loopback",
-	S_IFREG | S_IWUGO, NULL, (void *) "afe_loopback",
+	0220, NULL, (void *) "afe_loopback", /*S_IFREG | S_IWUGO*/
 	&afe_debug_fops);
+//MM-SL-ModifyForGingerbread-00*}
 #endif
 
 	return 0;

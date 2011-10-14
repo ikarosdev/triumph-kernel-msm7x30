@@ -3,7 +3,7 @@ ifeq ($(GCC_VERSION),0404)
 CFLAGS_REMOVE_msm_vfe8x.o = -Wframe-larger-than=1024
 endif
 
-obj-$(CONFIG_MSM_CAMERA) += msm_camera.o msm_v4l2.o msm_axi_qos.o
+obj-$(CONFIG_MSM_CAMERA) += msm_camera.o msm_v4l2.o msm_axi_qos.o fih_camera_parameter.o fih_camera_power.o
 obj-$(CONFIG_MSM_CAMERA_FLASH) += flash.o
 obj-$(CONFIG_ARCH_MSM_ARM11) += msm_vfe7x.o msm_io7x.o
 obj-$(CONFIG_ARCH_MSM7X30) += msm_vfe31.o msm_io_vfe31.o msm_vpe1.o
@@ -11,6 +11,29 @@ obj-$(CONFIG_ARCH_QSD8X50) += msm_vfe8x.o msm_vfe8x_proc.o msm_io8x.o
 obj-$(CONFIG_ARCH_MSM8X60) += msm_vfe31.o msm_io_8x60.o msm_vpe1.o
 obj-$(CONFIG_MT9T013) += mt9t013.o mt9t013_reg.o
 obj-$(CONFIG_MT9D112) += mt9d112.o mt9d112_reg.o
+#Div2-SW6-MM-HL-Camera-BringUp-00+{
+ifeq ($(CONFIG_FIH_PROJECT_SF4Y6),y)
+obj-$(CONFIG_FIH_MT9P111) += mt9p111.o mt9p111_reg_sf6.o
+obj-$(CONFIG_FIH_HM0357) += hm0357.o hm0357_reg_sf6.o
+else
+ifeq ($(CONFIG_FIH_PROJECT_SF8),y)
+obj-$(CONFIG_FIH_MT9P111) += mt9p111.o mt9p111_reg_sf8.o
+obj-$(CONFIG_FIH_HM0357) += hm0357.o hm0357_reg.o
+else
+ifeq ($(CONFIG_FIH_PROJECT_SF4V5),y)
+obj-$(CONFIG_FIH_MT9P111) += mt9p111.o mt9p111_reg_sf5.o
+obj-$(CONFIG_FIH_HM0357) += hm0357.o hm0357_reg.o
+else
+obj-$(CONFIG_FIH_MT9P111) += mt9p111.o mt9p111_reg.o
+obj-$(CONFIG_FIH_HM0357) += hm0357.o hm0357_reg.o
+endif
+endif
+endif
+obj-$(CONFIG_FIH_HM0356) += hm0356.o hm0356_reg.o
+#Div2-SW6-MM-HL-Camera-BringUp-00+}
+#Div2-SW6-MM-MC-Camera-BringUpForSF5-00+{
+obj-$(CONFIG_FIH_TCM9001MD) += tcm9001md.o tcm9001md_reg.o
+#Div2-SW6-MM-MC-Camera-BringUpForSF5-00+}
 obj-$(CONFIG_SN12M0PZ) += sn12m0pz.o sn12m0pz_reg.o
 obj-$(CONFIG_MT9P012) += mt9p012_reg.o
 obj-$(CONFIG_MSM_CAMERA_AF_FOXCONN) += mt9p012_fox.o

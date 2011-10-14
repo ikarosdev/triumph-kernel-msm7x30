@@ -239,6 +239,17 @@ out:
 	return ret;
 }
 
+/* FIHTDC, Div2-SW2-BSP, Ming { */
+/* Android 2.2.1 (Froyo update)ashmem permission bypass  patch: Fix ASHMEM_SET_PROT_MASK */
+static inline unsigned long
+calc_vm_may_flags(unsigned long prot)
+{
+       return _calc_vm_trans(prot, PROT_READ,  VM_MAYREAD ) |
+              _calc_vm_trans(prot, PROT_WRITE, VM_MAYWRITE) |
+              _calc_vm_trans(prot, PROT_EXEC,  VM_MAYEXEC);
+}
+/* FIHTDC, Div2-SW2-BSP, Ming } */
+
 static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct ashmem_area *asma = file->private_data;
@@ -253,10 +264,17 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	/* requested protection bits must match our allowed protection mask */
-	if (unlikely((vma->vm_flags & ~asma->prot_mask) & PROT_MASK)) {
+/* Android 2.2.1 (Froyo update)ashmem permission bypass  patch: Fix ASHMEM_SET_PROT_MASK */	
+//	if (unlikely((vma->vm_flags & ~asma->prot_mask) & PROT_MASK)) {
+       if (unlikely((vma->vm_flags & ~calc_vm_prot_bits(asma->prot_mask)) &
+                                               calc_vm_prot_bits(PROT_MASK))) {
+
 		ret = -EPERM;
 		goto out;
 	}
+	
+/* Android 2.2.1 (Froyo update)ashmem permission bypass  patch: Fix ASHMEM_SET_PROT_MASK */
+  vma->vm_flags &= ~calc_vm_may_flags(~asma->prot_mask);
 
 	if (!asma->file) {
 		char *name = ASHMEM_NAME_DEF;

@@ -23,6 +23,10 @@
 #include "core.h"
 #include "host.h"
 
+#ifdef CONFIG_DEBUG_FS
+#undef CONFIG_DEBUG_FS
+#endif
+
 #define cls_dev_to_mmc_host(d)	container_of(d, struct mmc_host, class_dev)
 
 static void mmc_host_classdev_release(struct device *dev)

@@ -52,6 +52,10 @@
 #include <linux/mfd/marimba.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
+//@fihtdcCode@ 20101111 Godfrey 
+#include <linux/gpio.h>
+
+#define TAVARUA_DEFAULT_TH  -83
 
 /*
 regional parameters for radio device
@@ -145,6 +149,46 @@ static int tavarua_request_irq(struct tavarua_device *radio);
 static void start_pending_xfr(struct tavarua_device *radio);
 /* work function */
 static void read_int_stat(struct work_struct *work);
+
+
+/* FIHTDC, Div2-SW2-BSP Godfrey, FB0.B-396 */
+#define GPS_FM_LNA_2V8_GPIO   79
+int enableGPS_FM_LNA(int bEnable)
+{
+	static int		gps_fm_lna_refcnt = 0;
+	uint32_t 		irqcfg;
+	int 			rc;
+
+	if(bEnable) 
+	{
+		if (gps_fm_lna_refcnt == 0)
+		{
+		    irqcfg = GPIO_CFG(GPS_FM_LNA_2V8_GPIO, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,GPIO_CFG_2MA);
+			rc = gpio_tlmm_config(irqcfg, GPIO_CFG_ENABLE);
+			if (rc) {
+				printk(KERN_ERR "%s: gpio_tlmm_config(%#x)=%d\n",
+						__func__, irqcfg, rc);
+				rc = -EIO;
+				return  -1;
+			}
+			gpio_set_value(GPS_FM_LNA_2V8_GPIO,1);
+		}
+
+		if (gps_fm_lna_refcnt < INT_MAX)
+			gps_fm_lna_refcnt++;
+	}else{
+		if (!gps_fm_lna_refcnt)
+			return 0;
+
+		if (gps_fm_lna_refcnt == 1)
+			gpio_set_value(GPS_FM_LNA_2V8_GPIO,0);
+
+        gps_fm_lna_refcnt--;
+	}
+
+	return gps_fm_lna_refcnt;
+}
+
 
 /*=============================================================================
 FUNCTION:  tavarua_isr
@@ -436,8 +480,15 @@ FUNCTION:  write_to_xfr
 static int write_to_xfr(struct tavarua_device *radio, unsigned char mode,
 			char *buf, int len)
 {
-	char buffer[len+1];
-	memcpy(buffer+1, buf, len);
+    //fihtdc, FB3.B-410
+    char buffer[XFR_REG_NUM + 1];
+
+    if(len > XFR_REG_NUM){
+        printk(KERN_ERR "%s: buffer length error.\n",__func__);
+        return -1;
+    }      
+
+	memcpy(&buffer[1], buf, len);
 	/* buffer[0] corresponds to XFRCTRL register
 	   set the CTRL bit to 1 for write mode
 	*/
@@ -1163,7 +1214,8 @@ static int tavarua_set_region(struct tavarua_device *radio,
 		retval = sync_read_xfr(radio, RADIO_CONFIG, xfr_buf);
 		if (retval < 0) {
 			FMDERR("failed to get RADIO_CONFIG\n");
-			return retval;
+			/* FIHTDC, Div2-SW2-BSP Godfrey, FB0.B-655 */
+			//return retval;
 		}
 		band_low = (radio->region_params.band_low -
 					low_band_limit) / spacing;
@@ -1512,6 +1564,8 @@ static int tavarua_fops_open(struct file *file)
 	/* FM core bring up */
 	char buffer[] = {0x00, 0x48, 0x8A, 0x8E, 0x97, 0xB7};
 
+	FMDBG("In %s", __func__);
+
 	mutex_lock(&radio->lock);
 	if (radio->users) {
 		mutex_unlock(&radio->lock);
@@ -1620,6 +1674,9 @@ static int tavarua_fops_release(struct file *file)
 	int retval;
 	struct tavarua_device *radio = video_get_drvdata(video_devdata(file));
 	unsigned char value;
+    /* FM core bring up */
+    char buffer[] = {0x18, 0xB7, 0x48};
+
 	if (!radio)
 		return -ENODEV;
 	FMDBG("In %s", __func__);
@@ -1634,6 +1691,17 @@ static int tavarua_fops_release(struct file *file)
 		printk(KERN_ERR "%s: failed to disable irq\n", __func__);
 		return retval;
 	}
+
+	/*FM bring down Sequence*/
+    radio->marimba->mod_id = MARIMBA_SLAVE_ID_FM;
+    retval = tavarua_write_registers(radio, LEAKAGE_CNTRL+1,
+                                                buffer, 3);
+    if (retval < 0) {
+                printk(KERN_ERR "%s: failed to bring down the  FM Core\n",
+                                                __func__);
+                return retval;
+    }
+ 
 
 	/* disable fm core */
 	radio->marimba->mod_id = MARIMBA_SLAVE_ID_MARIMBA;
@@ -2139,7 +2207,21 @@ static int tavarua_vidioc_s_ctrl(struct file *file, void *priv,
 					FMDERR("Error in tavarua_set_audio_path"
 						" %d\n", retval);
 				}
+			 /* Enabling 'SoftMute' and 'SignalBlending' features */
+			value = (radio->registers[IOCTRL] |
+				    IOC_SFT_MUTE | IOC_SIG_BLND);
+			retval = tavarua_write_register(radio, IOCTRL, value);
+			if (retval < 0)
+				FMDBG("SMute and SBlending not enabled\n");
 			}
+
+            //@fihtdc, Godfrey set default threshold
+            if(sync_read_xfr(radio, RX_CONFIG, xfr_buf)) {
+                xfr_buf[0] = (unsigned char)TAVARUA_DEFAULT_TH;
+                xfr_buf[1] = (unsigned char)TAVARUA_DEFAULT_TH;
+                xfr_buf[4] = 0x01;
+                sync_write_xfr(radio, RX_CONFIG, xfr_buf);
+            }
 		}
 		/* check if off */
 		else if ((ctrl->value == FM_OFF) && radio->registers[RDCTRL]) {
@@ -2513,6 +2595,8 @@ static int tavarua_vidioc_dqbuf(struct file *file, void *priv,
 	struct kfifo *data_fifo;
 	unsigned char *buf = (unsigned char *)buffer->m.userptr;
 	unsigned int len = buffer->length;
+    unsigned int len0=0, len1=0;
+
 	FMDBG("%s: requesting buffer %d\n", __func__, buf_type);
 	/* check if we can access the user buffer */
 	if (!access_ok(VERIFY_WRITE, buf, len))
@@ -2529,8 +2613,18 @@ static int tavarua_vidioc_dqbuf(struct file *file, void *priv,
 		FMDERR("invalid buffer type\n");
 		return -EINVAL;
 	}
-	buffer->bytesused = kfifo_get(data_fifo, buf, len);
 
+    /* +++ AlbertYCFang, 2011.03.22 +++ */
+    len0 = min(len, data_fifo->in - data_fifo->out);
+    len1 = min(len0, data_fifo->size - (data_fifo->out & (data_fifo->size - 1)));
+
+    FMDBG("*FIFO: buffer addr = 0x%x, size = %u, in = %u, out = %u\n",
+          (unsigned int)data_fifo->buffer, data_fifo->size, data_fifo->in, data_fifo->out);
+    FMDBG("*Buf addr = 0x%x, len=%u, len0 = %u, len1 = %u\n",
+          (unsigned int)buf, len, len0, len1);
+    /* --- AlbertYCFang, 2011.03.22 ---*/
+
+	buffer->bytesused = kfifo_get(data_fifo, buf, len);
 	return 0;
 }
 
@@ -2781,7 +2875,7 @@ static int tavarua_suspend(struct platform_device *pdev, pm_message_t state)
 			if (retval < 0) {
 				printk(KERN_INFO DRIVER_NAME
 					"tavarua_suspend error %d\n", retval);
-				return -EIO;
+				//return -EIO;
 			}
 		}
 	}
@@ -2816,7 +2910,7 @@ static int tavarua_resume(struct platform_device *pdev)
 			if (retval < 0) {
 				printk(KERN_INFO DRIVER_NAME "Error in \
 					tavarua_resume %d\n", retval);
-				return -EIO;
+				//return -EIO;
 			}
 		}
 	}

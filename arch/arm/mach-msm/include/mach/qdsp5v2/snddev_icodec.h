@@ -52,4 +52,21 @@ struct snddev_icodec_data {
 	s32 min_voice_rx_vol[VOC_RX_VOL_ARRAY_NUM];
 	u32 dev_vol_type;
 };
+
+//MM-SL-AudioFTM-00+{
+typedef enum {
+	STEREO_SPEAKER_WITH_MIC1,
+	STEREO_SPEAKER_WITH_MICA,
+	STEREO_HEADSET_WITH_MIC1,
+	STEREO_HEADSET_WITH_MICA,
+	STEREO_HEADSET_WITH_MIC2,
+	RECEIVER_WITH_MIC1,
+	FM_speaker,
+	FM_headset
+}audio_device_type;
+
+extern void debugfs_adie_loopback(u32 loop, audio_device_type device);
+extern void fm_set_rx_path(bool enable, audio_device_type device);
+//MM-SL-AudioFTM-00+}
+
 #endif

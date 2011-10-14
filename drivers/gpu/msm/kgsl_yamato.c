@@ -486,7 +486,6 @@ kgsl_yamato_init(struct kgsl_device *device, struct kgsl_devconfig *config)
 								device;
 	int status = -EINVAL;
 	struct kgsl_memregion *regspace = &device->regspace;
-	unsigned int memflags = KGSL_MEMFLAGS_ALIGNPAGE | KGSL_MEMFLAGS_CONPHYS;
 
 	KGSL_DRV_VDBG("enter (device=%p, config=%p)\n", device, config);
 
@@ -565,8 +564,8 @@ kgsl_yamato_init(struct kgsl_device *device, struct kgsl_devconfig *config)
 		goto error_close_mmu;
 	}
 
-	status = kgsl_sharedmem_alloc(memflags, sizeof(device->memstore),
-				&device->memstore);
+	status = kgsl_sharedmem_alloc_coherent(&device->memstore,
+					       sizeof(device->memstore));
 	if (status != 0)  {
 		status = -ENODEV;
 		goto error_close_cmdstream;
@@ -749,8 +748,6 @@ static int kgsl_yamato_stop(struct kgsl_device *device)
 {
 	del_timer(&device->idle_timer);
 	if (device->flags & KGSL_FLAGS_STARTED) {
-		kgsl_pwrctrl(KGSL_PWRFLAGS_YAMATO_IRQ_OFF);
-
 		kgsl_yamato_regwrite(device, REG_RBBM_INT_CNTL, 0);
 
 		kgsl_yamato_regwrite(device, REG_SQ_INT_CNTL, 0);
@@ -763,6 +760,7 @@ static int kgsl_yamato_stop(struct kgsl_device *device)
 
 		kgsl_mmu_stop(device);
 
+		kgsl_pwrctrl(KGSL_PWRFLAGS_YAMATO_IRQ_OFF);
 		/* For some platforms, power needs to go off before clocks */
 		kgsl_pwrctrl(KGSL_PWRFLAGS_YAMATO_POWER_OFF);
 		kgsl_pwrctrl(KGSL_PWRFLAGS_YAMATO_CLK_OFF);

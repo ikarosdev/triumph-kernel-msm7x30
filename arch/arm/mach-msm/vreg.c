@@ -122,6 +122,26 @@ int vreg_enable(struct vreg *vreg)
 	return vreg->status;
 }
 EXPORT_SYMBOL(vreg_enable);
+//Div2-SW6-MM-MC-ImplementVregPullDownSwitchAPI-00+{
+int vreg_pull_down_switch(struct vreg *vreg, int enable)
+{
+    unsigned id = vreg->id;
+
+#if 0 //Enable for debug
+    printk(KERN_INFO "%s: vreg->id = %d . \n", __func__, vreg->id);
+    printk(KERN_INFO "%s: vreg->name = %s . \n", __func__, vreg->name);
+    printk(KERN_INFO "%s: vreg->status = %d . \n", __func__, vreg->status);
+    printk(KERN_INFO "%s: vreg->refcnt 1 = %d . \n", __func__, vreg->refcnt);
+    printk(KERN_INFO "%s: cmd = %d . \n", __func__, PCOM_VREG_PULLDOWN);
+#endif
+
+    vreg->status = msm_proc_comm(PCOM_VREG_PULLDOWN, &enable, &id);
+
+    printk(KERN_INFO "%s: vreg->name = %s, enable = %d. \n", __func__, vreg->name, enable);
+    return vreg->status;
+}
+EXPORT_SYMBOL(vreg_pull_down_switch);
+//Div2-SW6-MM-MC-ImplementVregPullDownSwitchAPI-00+{
 
 int vreg_disable(struct vreg *vreg)
 {

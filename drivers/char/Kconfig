@@ -1147,7 +1147,7 @@ config MSM_ROTATOR
 
 config MSM_ROTATOR_USE_IMEM
 	bool "Enable rotator driver to use iMem"
-	depends on ARCH_MSM7x30 && MSM_ROTATOR
+	depends on ARCH_MSM7X30 && MSM_ROTATOR
 	default y
 	help
 	  This option enables the msm_rotator driver to use the move efficient
@@ -1179,4 +1179,9 @@ config CSDIO_DEVICE_ID
 	  module parameters.
 .
 endmenu
+#---------------------------------------------
+# Provide a char type driver of smd for FTM to communicate with modem.
+# Added by Lo, Chien Chung (Paul Lo). 2009/06/16
+source "drivers/char/ftm_smd/Kconfig"
+#--------------------------------------------
 

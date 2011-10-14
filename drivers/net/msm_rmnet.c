@@ -43,7 +43,10 @@
 #define SMD_PORT_ETHER0 11
 
 /* allow larger frames */
-#define RMNET_DATA_LEN 2000
+/* FXPCAYM-218: Start - Change frame size from 2000 to 1472 */
+/* #define RMNET_DATA_LEN 2000 */
+#define RMNET_DATA_LEN 1472
+/* FXPCAYM-218: End */
 
 #define HEADROOM_FOR_QOS    8
 

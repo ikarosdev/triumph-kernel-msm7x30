@@ -28,6 +28,12 @@
 
 #include <asm/ioctls.h>
 
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+#include "mach/alog_ram_console.h" 
+#endif
+//SW2-5-1-MP-DbgCfgTool-00+]
+
 /*
  * struct logger_log - represents a specific log, such as 'main' or 'radio'
  *
@@ -289,6 +295,12 @@ static void do_write_log(struct logger_log *log, const void *buf, size_t count)
 
 }
 
+//SW2-5-1-MP-DbgCfgTool-00+[
+static struct logger_log log_main;
+static struct logger_log log_events;
+static struct logger_log log_radio;
+//SW2-5-1-MP-DbgCfgTool-00+]
+
 /*
  * do_write_log_user - writes 'len' bytes from the user-space buffer 'buf' to
  * the log 'log'
@@ -329,6 +341,15 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct timespec now;
 	ssize_t ret = 0;
 
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+	LogType log_type;
+	int overrun=0;
+	char *tag;
+	int need_print;
+#endif	
+//SW2-5-1-MP-DbgCfgTool-00+]
+
 	now = current_kernel_time();
 
 	header.pid = current->tgid;
@@ -351,6 +372,52 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	 */
 	fix_up_readers(log, sizeof(struct logger_entry) + header.len);
 
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+
+	/* Kernel log may also put into android log buffer, but we don't
+	 * want to see them in last_alog, so we need to wipe it out.
+	 */
+	/* This API is heavily dependent on a user space assumption
+	 * that the full log entry comprising 3 vectors will be passed
+	 * to it in the format:
+	 * (from user space logger file -
+	 * system/core/liblog/logd_write.c):
+	 *    vec[0].iov_base  = (unsigned char *) &prio;
+	 *    vec[0].iov_len    = 1;
+	 *    vec[1].iov_base   = (void *) tag;
+	 *    vec[1].iov_len    = strlen(tag) + 1;
+	 *    vec[2].iov_base   = (void *) msg;
+	 *    vec[2].iov_len    = strlen(msg) + 1;
+	 * Note: vec in userspace is "iov" here.
+	 * Since this driver supplies a function for aio_write, there
+	 * is no aio queueing or retry done. Once we are here we
+	 * consume all of what is passed to us, with or without error.
+	 * That means that no partial vector sets should ever be passed
+	 * in.
+	 */
+	tag = (iov+1)->iov_base; /* tag name */
+
+	need_print = strcmp(tag,"klogd");
+	
+	if (need_print)
+	{
+		if (log == &log_main) 
+			log_type = LOG_TYPE_MAIN;
+		else if (log == &log_radio)
+			log_type = LOG_TYPE_RADIO;
+		else if (log == &log_events)
+			log_type = LOG_TYPE_EVENTS;
+		else
+			log_type = LOG_TYPE_SYSTEM;
+
+		overrun += alog_ram_console_write_log(log_type, (char *)&header, (int)sizeof(struct logger_entry));
+	
+	}
+#endif
+
+//SW2-5-1-MP-DbgCfgTool-00+]
+
 	do_write_log(log, &header, sizeof(struct logger_entry));
 
 	while (nr_segs-- > 0) {
@@ -362,6 +429,14 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 		/* write out this segment's payload */
 		nr = do_write_log_from_user(log, iov->iov_base, len);
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+		if (need_print)
+		{
+			overrun += alog_ram_console_write_log(log_type, iov->iov_base, len);
+		}
+#endif
+//SW2-5-1-MP-DbgCfgTool-00+]
 		if (unlikely(nr < 0)) {
 			log->w_off = orig;
 			mutex_unlock(&log->mutex);
@@ -371,6 +446,13 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		iov++;
 		ret += nr;
 	}
+
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+	if (overrun && need_print)
+		alog_ram_console_sync_time(log_type, SYNC_AFTER);
+#endif
+//SW2-5-1-MP-DbgCfgTool-00+]
 
 	mutex_unlock(&log->mutex);
 

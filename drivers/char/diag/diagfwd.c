@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,10 +30,35 @@
 #include "diagfwd.h"
 #include "diagchar_hdlc.h"
 #include <linux/pm_runtime.h>
+#include "../../../arch/arm/mach-msm/proc_comm.h"    //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +
+//+{PS3-RR-ON_DEVICE_QXDM-01
+#include <mach/dbgcfgtool.h>
+//PS3-RR-ON_DEVICE_QXDM-01}+
+
+#include <mach/msm_smd.h>  //SW-2-5-1-MP-DbgCfgTool-03+
+
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 *[
+#include <linux/module.h>
+#include <linux/fs.h>
+#include <linux/kthread.h>
+#include <linux/delay.h>
+#include <linux/rtc.h>
+
 
 MODULE_DESCRIPTION("Diag Char Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
+static DEFINE_SPINLOCK(smd_lock);
+static DECLARE_WAIT_QUEUE_HEAD(diag_wait_queue);
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 *]
+
+
+//SW-2-5-1-MP-DbgCfgTool-03+[
+#define  APPS_MODE_ANDROID   0x1
+#define  APPS_MODE_RECOVERY  0x2
+#define  APPS_MODE_FTM       0x3
+#define  APPS_MODE_UNKNOWN   0xFF
+//SW-2-5-1-MP-DbgCfgTool-03+]
 
 int diag_debug_buf_idx;
 unsigned char diag_debug_buf[1024];
@@ -44,6 +69,61 @@ static unsigned int buf_tbl_size = 8; /*Number of entries in table of buffers */
 
 #define CHK_OVERFLOW(bufStart, start, end, length) \
 ((bufStart <= start) && (end - start >= length)) ? 1 : 0
+
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+#define WRITE_NV_4719_TO_ENTER_RECOVERY 1
+#ifdef WRITE_NV_4719_TO_ENTER_RECOVERY
+#define NV_FTM_MODE_BOOT_COUNT_I    4719
+
+unsigned int switch_efslog = 1;
+
+static ssize_t write_nv4179(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+    unsigned int nv_value = 0;
+    unsigned int NVdata[3] = {NV_FTM_MODE_BOOT_COUNT_I, 0x1, 0x0};	
+
+    sscanf(buf, "%u\n", &nv_value);
+	
+    printk("paul %s: %d %u\n", __func__, count, nv_value);
+    NVdata[1] = nv_value;
+    fih_write_nv4719((unsigned *) NVdata);
+
+    return count;
+}
+DEVICE_ATTR(boot2recovery, 0644, NULL, write_nv4179);
+#endif
+
+static ssize_t OnOffEFS(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+    unsigned int nv_value = 0;
+
+    sscanf(buf, "%u\n", &nv_value);
+    switch_efslog = nv_value;
+
+    printk("paul %s: %d %u\n", __func__, count, switch_efslog);
+    return count;
+}
+DEVICE_ATTR(turnonofffefslog, 0644, NULL, OnOffEFS);
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
+
+//FXPCAYM-87
+extern char *diag_rsp_0c;
+extern char *diag_rsp_63;
+extern char *diag_rsp_1a;
+extern char *diag_rsp_119a;
+extern char *diag_rsp_119b;
+extern unsigned char drop_0c_packet;
+extern unsigned char drop_63_packet;
+extern unsigned char drop_1a_packet;
+/* Routines added for SLATE support FXPCAYM81 */
+static int  diag_process_modem_pkt(unsigned char *buf, int len);
+static void diag_process_user_pkt(unsigned char *data, unsigned len);
+
+uint32_t diag_char_debug_mask = 0;
+module_param_named(
+    debug_mask, diag_char_debug_mask, uint, S_IRUGO | S_IWUSR | S_IWGRP
+);
+
 
 void __diag_smd_send_req(void)
 {
@@ -91,9 +171,52 @@ void __diag_smd_send_req(void)
 	}
 }
 
+void __clear_in_busy(struct diag_request *write_ptr)
+{
+	if (write_ptr->buf == (void *)driver->usb_buf_in_1) {
+		driver->in_busy_1 = 0;
+	} else if (write_ptr->buf == (void *)driver->usb_buf_in_2) {
+		driver->in_busy_2 = 0;
+	}
+}
+
 int diag_device_write(void *buf, int proc_num, struct diag_request *write_ptr)
 {
 	int i, err = 0;
+
+	if ((proc_num == MODEM_DATA) && ( *(char *)buf  == 0x0c) && (drop_0c_packet == 1) ) {
+		memset(diag_rsp_0c, 0, USB_MAX_OUT_BUF);
+		memcpy(diag_rsp_0c, buf, write_ptr->length); 
+		printk(KERN_INFO "0x0C Buffer copied over BufferLength=%d, driver->logging_mode=%d\n", 
+			   write_ptr->length, driver->logging_mode); 
+		err = 0;
+		__clear_in_busy(write_ptr);
+		drop_0c_packet = 0;
+		return err;
+	}
+
+	if ((proc_num == MODEM_DATA) && ( *(char *)buf  == 0x63) && (drop_63_packet == 1) ) {
+		memset(diag_rsp_63, 0, USB_MAX_OUT_BUF);
+		memcpy(diag_rsp_63, buf, write_ptr->length); 
+		printk(KERN_INFO "0x63 Buffer copied over BufferLength=%d, driver->logging_mode=%d\n", 
+			   write_ptr->length, driver->logging_mode); 
+		err = 0;
+        __clear_in_busy(write_ptr);
+		drop_63_packet = 0;
+		return err;
+	}
+
+	if ((proc_num == MODEM_DATA) && ( *(char *)buf  == 0x1a) && (drop_1a_packet == 1) ) {
+		memset(diag_rsp_1a, 0, USB_MAX_OUT_BUF);
+		memcpy(diag_rsp_1a, buf, write_ptr->length); 
+		printk(KERN_INFO "0x1a Buffer copied over BufferLength=%d, driver->logging_mode=%d\n", 
+			   write_ptr->length, driver->logging_mode); 
+		err = 0;
+        __clear_in_busy(write_ptr);
+		drop_1a_packet = 0;
+		return err;
+	}
+
 
 	if (driver->logging_mode == USB_MODE) {
 		if (proc_num == APPS_DATA) {
@@ -102,6 +225,19 @@ int diag_device_write(void *buf, int proc_num, struct diag_request *write_ptr)
 				 POOL_TYPE_USB_STRUCT));
 			driver->usb_write_ptr_svc->length = driver->used;
 			driver->usb_write_ptr_svc->buf = buf;
+#ifdef SLATE_DEBUG
+            printk(KERN_INFO "APPS_DATA writing data to USB," " pkt length %d \n", driver->usb_write_ptr_svc->length);
+            for (i=0; i < driver->usb_write_ptr_svc->length; i++)
+            {
+                printk(KERN_INFO " %02X", ((char*)buf)[i]);
+                if ( ((i+1) % 20) == 0 )
+                {
+                    printk(KERN_INFO "\n");
+                }
+            }
+            printk(KERN_INFO "\n");
+            i = 0;
+#endif
 			err = diag_write(driver->usb_write_ptr_svc);
 		} else if (proc_num == MODEM_DATA) {
 			write_ptr->buf = buf;
@@ -112,7 +248,17 @@ int diag_device_write(void *buf, int proc_num, struct diag_request *write_ptr)
 					   " USB: ", 16, 1, DUMP_PREFIX_ADDRESS,
 					    buf, write_ptr->length, 1);
 #endif
-			err = diag_write(write_ptr);
+			
+			if (diag_process_modem_pkt(buf, write_ptr->length))
+			{
+				err = diag_write(write_ptr);
+			}
+			else
+			{
+				/* Do not fwd modem packet to QXDM */
+				err = 0;
+				__clear_in_busy(write_ptr);
+			}
 		} else if (proc_num == QDSP_DATA) {
 			write_ptr->buf = buf;
 			err = diag_write(write_ptr);
@@ -330,6 +476,273 @@ static void diag_update_pkt_buffer(unsigned char *buf)
 		printk(KERN_CRIT " Not enough buffer space for PKT_RESP\n");
 	mutex_unlock(&driver->diagchar_mutex);
 }
+//Slate Added FXPCAYM81
+static void diag_cfg_log_mask(unsigned char cmd_type)
+{
+    unsigned len = 0;
+    unsigned char *ptr = driver->hdlc_buf;
+
+    printk(KERN_INFO "diag_cfg_log_mask cmd_type=%d\n", cmd_type);
+
+    switch(cmd_type)
+    {
+    case DIAG_MASK_CMD_ADD_GET_RSSI:
+        if (ptr)
+        {
+            len = 159; // 0x4F5 bits / 8 = 159 bytes
+            memset(ptr, 0, len+16);
+            *ptr = 0x73;
+            ptr += 4;
+            *(int *)ptr = 0x0003;
+            ptr += 4;
+            *(int *)ptr = 0x0001;
+            ptr += 4;
+            *(int *)ptr = 0x04F5;
+            ptr += 4;
+            memcpy(ptr, driver->log_masks, len);
+            ptr += 13;
+            *ptr |= 0x02; // Enable 0x1069 EVDO POWER log bit
+
+            diag_process_user_pkt(driver->hdlc_buf, len+16); // len param not used for 0x73
+        }
+        break;
+    case DIAG_MASK_CMD_ADD_GET_STATE_AND_CONN_ATT:
+        if (ptr)
+        {
+            len = 159; // 0x4F5 bits / 8 = 159 bytes
+            memset(ptr, 0, len+16);
+            *ptr = 0x73;
+            ptr += 4;
+            *(int *)ptr = 0x0003;
+            ptr += 4;
+            *(int *)ptr = 0x0001;
+            ptr += 4;
+            *(int *)ptr = 0x04F5;
+            ptr += 4;
+            memcpy(ptr, driver->log_masks, len);
+            ptr += 13;
+            *ptr |= 0x40; // Enable 0x106E EVDO CONN ATTEMPTS log bit
+            ptr += 2;
+            *ptr |= 0x40; // Enable 0x107E EVDO STATE log bit
+
+            diag_process_user_pkt(driver->hdlc_buf, len+16);  // len param not used for 0x73
+        }
+        break;
+	case DIAG_MASK_CMD_ADD_GET_SEARCHER_DUMP:
+		if (ptr)
+        {
+            len = 159; // 0x4F5 bits / 8 = 159 bytes
+            memset(ptr, 0, len+16);
+            *ptr = 0x73;
+            ptr += 4;
+            *(int *)ptr = 0x0003;
+            ptr += 4;
+            *(int *)ptr = 0x0001;
+            ptr += 4;
+            *(int *)ptr = 0x04F5;
+            ptr += 4;
+            memcpy(ptr, driver->log_masks, len);
+
+			ptr += 5;
+			*ptr |= 0x20; // 1020 (Searcher and Finger)
+
+			ptr += 38;
+			*ptr |= 0x01; // 1158 (Internal - Core Dump)
+
+			ptr += 8;
+			*ptr |= 0x08; // 119A, 119B (Srch TNG Finger Status and Srch TNG 1x Searcher Dump)
+
+            diag_process_user_pkt(driver->hdlc_buf, len+16);  // len param not used for 0x73
+        }
+		break;
+    case DIAG_MASK_CMD_SAVE:
+        memcpy(driver->saved_log_masks, driver->log_masks, LOG_MASK_SIZE);
+        break;
+    case DIAG_MASK_CMD_RESTORE:
+    default:
+        if (ptr)
+        {
+            len = 159; // 0x4F5 bits / 8 = 159 bytes
+            memset(ptr, 0, len+16);
+            *ptr = 0x73;
+            ptr += 4;
+            *(int *)ptr = 0x0003;
+            ptr += 4;
+            *(int *)ptr = 0x0001;
+            ptr += 4;
+            *(int *)ptr = 0x04F5;
+            ptr += 4;
+            memcpy(ptr, driver->saved_log_masks, len);
+
+            diag_process_user_pkt(driver->hdlc_buf, len+16);  // len param not used for 0x73
+        }
+        break;
+    }
+}
+
+void diag_init_log_cmd(unsigned char log_cmd)
+{
+	printk(KERN_INFO "diag_init_og_cmd log_cmd=%d\n", log_cmd);
+
+	switch(log_cmd)
+    {
+		case DIAG_LOG_CMD_TYPE_GET_1x_SEARCHER_DUMP:
+			diag_cfg_log_mask(DIAG_MASK_CMD_SAVE);
+			diag_cfg_log_mask(DIAG_MASK_CMD_ADD_GET_SEARCHER_DUMP);
+			break;
+		default:
+			printk(KERN_ERR "Invalid log_cmd=%d\n", log_cmd);
+			break;
+    }
+
+    /* Enable log capture for slate commands */
+    driver->log_count = 0;
+    driver->log_cmd = log_cmd;
+}
+
+void diag_init_slate_log_cmd(unsigned char cmd_type)
+{
+    printk(KERN_INFO "diag_init_slate_log_cmd cmd_type=%d\n", cmd_type);
+
+    switch(cmd_type)
+    {
+    case DIAG_LOG_CMD_TYPE_GET_RSSI:
+        diag_cfg_log_mask(DIAG_MASK_CMD_SAVE);
+        diag_cfg_log_mask(DIAG_MASK_CMD_ADD_GET_RSSI);
+        break;
+    case DIAG_LOG_CMD_TYPE_GET_STATE_AND_CONN_ATT:
+        diag_cfg_log_mask(DIAG_MASK_CMD_SAVE);
+        diag_cfg_log_mask(DIAG_MASK_CMD_ADD_GET_STATE_AND_CONN_ATT);
+        break;
+    default:
+        printk(KERN_ERR "Invalid SLATE log cmd_type %d\n", cmd_type);
+        break;
+    }
+
+    /* Enable log capture for slate commands */
+    driver->slate_log_count = 0;
+    driver->slate_cmd = cmd_type;
+}
+
+int diag_log_is_enabled(unsigned char log_type)
+{
+    int log_offset = 0;
+    uint8_t log_mask = 0;
+    int ret = 0;
+
+    switch (log_type)
+    {
+    case DIAG_LOG_TYPE_RSSI:
+        log_offset = 13;
+        log_mask = 0x02;
+        break;
+    case DIAG_LOG_TYPE_STATE:
+        log_offset = 15;
+        log_mask = 0x40;
+        break;
+    case DIAG_LOG_TYPE_CONN_ATT:
+        log_offset = 13;
+        log_mask = 0x40;
+        break;
+	case DIAG_LOG_TYPE_SEARCHER_AND_FINGER:
+		log_offset = 5;
+        log_mask = 0x20;
+		break;
+	case DIAG_LOG_TYPE_INTERNAL_CORE_DUMP:
+		log_offset = 43;
+        log_mask = 0x01;
+		break;
+	case DIAG_LOG_TYPE_SRCH_TNG_SEARCHER_DUMP:
+		log_offset = 51;
+        log_mask = 0x08;
+		break;
+
+    default:
+        printk(KERN_ERR "diag_log_is_enabled INVALID log_type = %d\n", log_type);
+        break;
+    }
+
+#ifdef SLATE_DEBUG
+    {
+        int i;
+
+        printk(KERN_INFO "SAVED LOG MASK\n");
+        for (i = 0; i < 16; i++)
+        {
+            printk(KERN_INFO " %02X", ((char*)driver->saved_log_masks)[i]);
+            if ( ((i+1) % 20) == 0 )
+            {
+                printk(KERN_INFO "\n");
+            }
+        }
+        printk(KERN_INFO "\n");
+    }
+#endif
+
+    if ((driver->saved_log_masks[log_offset] & log_mask) == log_mask)
+    {
+        ret = 1;
+    }
+
+    printk(KERN_INFO "diag_log_is_enabled log_type=%d ret=%d\n", log_type, ret);
+    return ret;
+}
+
+void diag_restore_log_masks(void)
+{
+    printk(KERN_INFO "diag_restore_log_masks\n");
+
+    driver->log_cmd = DIAG_LOG_CMD_TYPE_RESTORE_LOG_MASKS;
+
+    /* This restores the log masks to the state before the Slate cmd was executed */
+    /* If all logs were disabled, this will disable the logs. */
+    /* If some logs were enabled, then those will be restored. */
+    diag_cfg_log_mask(DIAG_MASK_CMD_RESTORE);
+}
+
+static void diag_slate_restore_log_masks(void)
+{
+    printk(KERN_INFO "diag_slate_restore_log_masks\n");
+
+    driver->slate_cmd = DIAG_LOG_CMD_TYPE_RESTORE_LOG_MASKS;
+
+    /* This restores the log masks to the state before the Slate cmd was executed */
+    /* If all logs were disabled, this will disable the logs. */
+    /* If some logs were enabled, then those will be restored. */
+    diag_cfg_log_mask(DIAG_MASK_CMD_RESTORE);
+
+}
+
+static void diag_log_cmd_complete(void)
+{
+    printk(KERN_INFO "diag_log_cmd_complete\n");
+
+    /* Make sure we clear slate status variables */
+    driver->log_cmd = DIAG_LOG_CMD_TYPE_NONE;
+    driver->log_count = 0;
+}
+
+static void diag_slate_log_cmd_complete(void)
+{
+    printk(KERN_INFO "diag_slate_log_cmd_complete\n");
+
+    /* Make sure we clear slate status variables */
+    driver->slate_cmd = DIAG_LOG_CMD_TYPE_NONE;
+    driver->slate_log_count = 0;
+}
+
+void diag_process_get_rssi_log(void)
+{
+    printk(KERN_INFO "diag_process_get_rssi_log\n");
+    diag_init_slate_log_cmd(DIAG_LOG_CMD_TYPE_GET_RSSI);
+}
+
+void diag_process_get_stateAndConnInfo_log(void)
+{
+    printk(KERN_INFO "diag_process_get_stateAndConnInfo_log\n");
+    diag_init_slate_log_cmd(DIAG_LOG_CMD_TYPE_GET_STATE_AND_CONN_ATT);
+}
+//Slate Added FXPCAYM81 ends
 
 void diag_update_userspace_clients(unsigned int type)
 {
@@ -460,7 +873,239 @@ static int diag_process_apps_pkt(unsigned char *buf, int len)
 	} /* else */
 		return packet_type;
 }
+//Slate added FXPCAYM81 start here
+static int diag_process_modem_pkt(unsigned char *buf, int len)
+{
+    int ret = 1; // 1 - pkt needs to be forwarded to QXDM; 0 - drop packet
 
+#ifdef SLATE_DEBUG
+    print_hex_dump(KERN_DEBUG, "MODEM_DATA writing data to USB ", 16, 1,
+							   DUMP_PREFIX_ADDRESS, buf, len, 1);
+#endif
+
+    if( (((char*)buf)[0] == 0x10) && (((char*)buf)[6] == 0x69) && (((char*)buf)[7] == 0x10) )
+    {
+#ifdef SLATE_DEBUG
+        printk(KERN_INFO "MODEM_DATA **** EVDO POWER PKT ***** slate_cmd=%d\n", driver->slate_cmd);
+#endif
+
+        switch(driver->slate_cmd)
+        {
+        case DIAG_LOG_CMD_TYPE_GET_RSSI:
+            /* Restore log masks */
+            diag_slate_restore_log_masks();
+
+            /* Fwd packet to DIAG Daemon */
+            diag_process_apps_pkt(buf, len);
+
+            // fwd pkt if saved_log_mask has this log enabled
+            if (diag_log_is_enabled(DIAG_LOG_TYPE_RSSI) == 0)
+            {
+                /* Do not fwd modem packet to QXDM if it was not enabled before we received the slate command */
+                ret = 0;
+#ifdef SLATE_DEBUG
+        printk(KERN_INFO "SLATE EVDO POWER LOG PACKET DROPPED!!!!!\n");
+#endif
+            }
+            break;
+        case DIAG_LOG_CMD_TYPE_GET_STATE_AND_CONN_ATT:
+        default:
+            // log may have been enabled before we received the slate cmd
+            break;
+        }
+
+    }
+    else if( (((char*)buf)[0] == 0x10) && (((char*)buf)[6] == 0x6E) && (((char*)buf)[7] == 0x10) )
+    {
+#ifdef SLATE_DEBUG
+        printk(KERN_INFO "MODEM_DATA **** EVDO CONN ATT ***** slate_cmd=%d\n", driver->slate_cmd);
+#endif
+
+        switch(driver->slate_cmd)
+        {
+        case DIAG_LOG_CMD_TYPE_GET_STATE_AND_CONN_ATT:
+            if ((driver->slate_log_count & 0x02) == 0x00)
+            {
+                /* We haven't sent this log to the diag daemon, send it now. */
+                driver->slate_log_count |= 2;
+                if (driver->slate_log_count == 3)
+                {
+                    /* If we also sent the other log, we're done with this cmd */
+                    /* Restore log masks */
+                    diag_slate_restore_log_masks();
+                }
+                /* Fwd packet to DIAG Daemon */
+                diag_process_apps_pkt(buf, len);
+            }
+            /* else - we already sent this log */
+
+            // fwd pkt if saved_log_mask has this log enabled
+            if (diag_log_is_enabled(DIAG_LOG_TYPE_CONN_ATT) == 0)
+            {
+                /* Do not fwd modem packet to QXDM if it was not enabled before we received the slate command */
+                ret = 0;
+#ifdef SLATE_DEBUG
+        printk(KERN_INFO "SLATE EVDO CONN ATT LOG PACKET DROPPED!!!!!\n");
+#endif
+            }
+            break;
+        case DIAG_LOG_CMD_TYPE_GET_RSSI:
+        default:
+            // log may have been enabled before we received the slate cmd
+            break;
+        }
+
+    } // the byte 0x7E is transmitted as 0x7D followed by 0x5E
+    else if( (((char*)buf)[0] == 0x10) && (((char*)buf)[6]  == 0x7D) && (((char*)buf)[7]  == 0x5E) && (((char*)buf)[8]  == 0x10) )
+    {
+#ifdef SLATE_DEBUG
+        printk(KERN_INFO "MODEM_DATA **** EVDO STATE ***** slate_cmd=%d\n", driver->slate_cmd);
+#endif
+
+        switch(driver->slate_cmd)
+        {
+        case DIAG_LOG_CMD_TYPE_GET_STATE_AND_CONN_ATT:
+            if ((driver->slate_log_count & 0x01) == 0x00)
+            {
+                /* We haven't sent this log to the diag daemon, send it now. */
+                driver->slate_log_count |= 1;
+                if (driver->slate_log_count == 3)
+                {
+                    /* If we also sent the other log, we're done with this cmd */
+                    /* Restore log masks */
+                    diag_slate_restore_log_masks();
+                }
+                /* Fwd packet to DIAG Daemon */
+                diag_process_apps_pkt(buf, len);
+            }
+            /* else - we already sent this log */
+
+            // fwd pkt if saved_log_mask has this log enabled
+            if (diag_log_is_enabled(DIAG_LOG_TYPE_STATE) == 0)
+            {
+                /* Do not fwd modem packet to QXDM if it was not enabled before we received the slate command */
+                ret = 0;
+#ifdef SLATE_DEBUG
+        printk(KERN_INFO "SLATE EVDO STATE LOG PACKET DROPPED!!!!!\n");
+#endif
+            }
+            break;
+        case DIAG_LOG_CMD_TYPE_GET_RSSI:
+        default:
+            // log may have been enabled before we received the slate cmd
+            break;
+        }
+
+    }
+	else if ( (((char*)buf)[0] == 0x10) &&  ( (((char*)buf)[6]  == 0x9A) || (((char*)buf)[6]  == 0x9B) ) 
+			  && (((char*)buf)[7]  == 0x11) ) {
+
+        // Process 0x119A and 0x119B log packets in here
+
+		if (((char*)buf)[6]  == 0x9A) 
+		{
+			printk(KERN_INFO "MODEM_DATA **** 119A ***** log_cmd=%d\n", driver->log_cmd);
+		} 
+		else if (((char*)buf)[6]  == 0x9B) 
+		{
+			printk(KERN_INFO "MODEM_DATA **** 119B ***** log_cmd=%d\n", driver->log_cmd);
+		}
+		
+
+		switch(driver->log_cmd)
+		{
+			case DIAG_LOG_CMD_TYPE_GET_1x_SEARCHER_DUMP:
+				// We have enabled the log and got the log so take care of it in here.
+				// Save the data in our local buffer 
+				if (((char*)buf)[6]  == 0x9A)
+				{
+					memset(diag_rsp_119a, 0, USB_MAX_OUT_BUF);
+					printk("Copied %x bytes of data\n", len);
+					memcpy(diag_rsp_119a, buf, len);
+				} 
+				else if (((char*)buf)[6]  == 0x9B) 
+				{
+					memset(diag_rsp_119b, 0, USB_MAX_OUT_BUF);
+					printk("Copied %x bytes of data\n", len);
+					memcpy(diag_rsp_119b, buf, len);
+				}
+	
+				// fwd pkt if saved_log_mask has this log enabled
+				if (diag_log_is_enabled(DIAG_LOG_TYPE_SRCH_TNG_SEARCHER_DUMP) == 0)
+				{
+					/* Do not fwd modem packet to QXDM if it was not enabled before we received the slate command */
+					ret = 0;
+#ifdef SLATE_DEBUG
+					printk(KERN_INFO "DIAG_LOG_TYPE_SRCH_TNG_SEARCHER_DUMP 119A/119B LOG PACKET DROPPED!!!!!\n");
+#endif
+				}
+				break;
+			case DIAG_LOG_CMD_TYPE_RESTORE_LOG_MASKS:
+				ret = 0;
+				// This is the extra packet that is received before the log mask is disabled for this log
+				// hence discarding it as we don't need it.
+				printk(KERN_INFO "Dropping the packet as we are not looking for one\n");
+				break;
+			default:
+				// Some other task may have enabled this log, don't do anything, let that task handle the message.
+				break;
+		}
+	}
+	else if( (((char*)buf)[0] == 0x73) && ( (driver->log_cmd != DIAG_LOG_CMD_TYPE_NONE) || (driver->slate_cmd != DIAG_LOG_CMD_TYPE_NONE)) )
+    {
+#ifdef SLATE_DEBUG
+		if (driver->log_cmd != DIAG_LOG_CMD_TYPE_NONE) 
+		{
+			printk(KERN_INFO "MODEM_DATA **** THIS MUST BE RSP for LOG MASK REQ ***** log_cmd=%d\n", driver->log_cmd);
+		}
+		else
+		{
+        printk(KERN_INFO "MODEM_DATA **** THIS MUST BE RSP for SLATE MASK REQ ***** slate_cmd=%d\n", driver->slate_cmd);
+		}
+#endif
+        // After processing slate log commands, the mask is always restored.
+        // This is where the response from the modem side is handled for the log mask restore.
+        if (driver->slate_cmd  == DIAG_LOG_CMD_TYPE_RESTORE_LOG_MASKS)
+        {
+            diag_slate_log_cmd_complete();
+        }
+
+		if (driver->log_cmd == DIAG_LOG_CMD_TYPE_RESTORE_LOG_MASKS) 
+		{
+			diag_log_cmd_complete();
+		}
+
+        /* Do not fwd modem packet to QXDM */
+        ret = 0;
+    }
+
+    return ret;
+}
+
+static void diag_process_user_pkt(unsigned char *data, unsigned len)
+{
+	int type = 0;
+
+#ifdef SLATE_DEBUG
+    print_hex_dump(KERN_DEBUG, "diag_process_user_pkt ", 16, 1,
+							   DUMP_PREFIX_ADDRESS, data, len, 1);
+#endif
+
+    type = diag_process_apps_pkt(data, len);
+
+	if ((driver->ch) && (type))
+    {
+        /* Fwd pkt to modem */
+		smd_write(driver->ch, data, len);
+	}
+    else
+    {
+        printk(KERN_ERR "DIAG User Packet not written to SMD (MODEM) type=%d\n", type);
+    }
+
+}
+
+//FXPCAYM81 ends here
 void diag_process_hdlc(void *data, unsigned len)
 {
 	struct diag_hdlc_decode_type hdlc;
@@ -605,6 +1250,77 @@ static struct diag_operations diagfwdops = {
 	.diag_char_read_complete = diagfwd_read_complete
 };
 
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+#define DIAG_READ_RETRY_COUNT    100  //100 * 5 ms = 500ms
+int diag_read_from_smd(uint8_t * res_buf, int16_t* res_size)
+{
+    unsigned long flags;
+
+    int sz;
+    int gg = 0;
+    int retry = 0;
+    int rc = -1;
+
+    for(retry = 0; retry < DIAG_READ_RETRY_COUNT; )
+    {
+        sz = smd_cur_packet_size(driver->ch);
+
+        if (sz == 0)
+        {
+            msleep(5);
+            retry++;
+            continue;
+        }
+        gg = smd_read_avail(driver->ch);
+
+        if (sz > gg)
+        {
+            continue;
+        }
+        //if (sz > 535) {
+        //	smd_read(driver->ch, 0, sz);
+        //	continue;
+        //}
+
+        spin_lock_irqsave(&smd_lock, flags);//mutex_lock(&nmea_rx_buf_lock);
+        if (smd_read(driver->ch, res_buf, sz) == sz) {
+            spin_unlock_irqrestore(&smd_lock, flags);//mutex_unlock(&nmea_rx_buf_lock);
+            break;
+        }
+        //nmea_devp->bytes_read = sz;
+        spin_unlock_irqrestore(&smd_lock, flags);//mutex_unlock(&nmea_rx_buf_lock);
+    }
+    *res_size = sz;
+    if (retry >= DIAG_READ_RETRY_COUNT)
+    {
+        rc = -2;
+        goto lbExit;
+    }
+    rc = 0;
+lbExit:
+    return rc;
+}
+EXPORT_SYMBOL(diag_read_from_smd);
+
+void diag_write_to_smd(uint8_t * cmd_buf, int cmd_size)
+{
+	unsigned long flags;
+	int need;
+	//paul// need = sizeof(cmd_buf);
+	need = cmd_size;
+
+	spin_lock_irqsave(&smd_lock, flags);
+	while (smd_write_avail(driver->ch) < need) {
+		spin_unlock_irqrestore(&smd_lock, flags);
+		msleep(10);
+		spin_lock_irqsave(&smd_lock, flags);
+	}
+       smd_write(driver->ch, cmd_buf, cmd_size);
+       spin_unlock_irqrestore(&smd_lock, flags);
+}
+EXPORT_SYMBOL(diag_write_to_smd);
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
+
 static void diag_smd_notify(void *ctxt, unsigned event)
 {
 	queue_work(driver->diag_wq, &(driver->diag_read_smd_work));
@@ -621,26 +1337,66 @@ static int diag_smd_probe(struct platform_device *pdev)
 {
 	int r = 0;
 
-	if (pdev->id == 0) {
-		if (driver->usb_buf_in_1 == NULL ||
-					 driver->usb_buf_in_2 == NULL) {
-			if (driver->usb_buf_in_1 == NULL)
-				driver->usb_buf_in_1 = kzalloc(USB_MAX_IN_BUF,
-								GFP_KERNEL);
-			if (driver->usb_buf_in_2 == NULL)
-				driver->usb_buf_in_2 = kzalloc(USB_MAX_IN_BUF,
-								GFP_KERNEL);
+//SW2-5-1-MP-DbgCfgTool-03*[
+//+{PS3-RR-ON_DEVICE_QXDM-01
+	int cfg_val;
+	int boot_mode;
+	
+	boot_mode = fih_read_boot_mode_from_smem();
+	if(boot_mode != APPS_MODE_FTM) {
+		r = DbgCfgGetByBit(DEBUG_MODEM_LOGGER_CFG, (int*)&cfg_val);
+		if ((r == 0) && (cfg_val == 1) && (boot_mode != APPS_MODE_RECOVERY)) {
+			printk(KERN_INFO "FIH:Embedded QXDM Enabled. %s", __FUNCTION__);
+		} else {
+			printk(KERN_ERR "FIH:Fail to call DbgCfgGetByBit(), ret=%d or Embedded QxDM disabled, cfg_val=%d.", r, cfg_val);
+			printk(KERN_ERR "FIH:Default: Embedded QXDM Disabled.\n");
+			if (pdev->id == 0) {
+				if (driver->usb_buf_in_1 == NULL ||
+							 driver->usb_buf_in_2 == NULL) {
+					if (driver->usb_buf_in_1 == NULL)
+						driver->usb_buf_in_1 = kzalloc(USB_MAX_IN_BUF,
+										GFP_KERNEL);
+					if (driver->usb_buf_in_2 == NULL)
+						driver->usb_buf_in_2 = kzalloc(USB_MAX_IN_BUF,
+										GFP_KERNEL);
+					if (driver->usb_buf_in_1 == NULL ||
+						 driver->usb_buf_in_2 == NULL)
+						goto err;
+					else
+						r = smd_open("DIAG", &driver->ch, driver,
+								 diag_smd_notify);
+				}
+				else
+					r = smd_open("DIAG", &driver->ch, driver,
+								 diag_smd_notify);
+			}
+		}
+	}
+	else {
+		if (pdev->id == 0) {
 			if (driver->usb_buf_in_1 == NULL ||
-				 driver->usb_buf_in_2 == NULL)
-				goto err;
+						 driver->usb_buf_in_2 == NULL) {
+				if (driver->usb_buf_in_1 == NULL)
+					driver->usb_buf_in_1 = kzalloc(USB_MAX_IN_BUF,
+									GFP_KERNEL);
+				if (driver->usb_buf_in_2 == NULL)
+					driver->usb_buf_in_2 = kzalloc(USB_MAX_IN_BUF,
+									GFP_KERNEL);
+				if (driver->usb_buf_in_1 == NULL ||
+					 driver->usb_buf_in_2 == NULL)
+					goto err;
+				else
+					r = smd_open("DIAG", &driver->ch, driver,
+							 diag_smd_notify);
+			}
 			else
 				r = smd_open("DIAG", &driver->ch, driver,
-						 diag_smd_notify);
+							 diag_smd_notify);
 		}
-		else
-			r = smd_open("DIAG", &driver->ch, driver,
-						 diag_smd_notify);
 	}
+//PS3-RR-ON_DEVICE_QXDM-01}+
+//SW2-5-1-MP-DbgCfgTool-03*]
+
 #if defined(CONFIG_MSM_N_WAY_SMD)
 	if (pdev->id == 1) {
 		if (driver->usb_buf_in_qdsp_1 == NULL ||
@@ -669,6 +1425,23 @@ static int diag_smd_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "diag opened SMD port ; r = %d\n", r);
 
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+#ifdef WRITE_NV_4719_TO_ENTER_RECOVERY
+	r = device_create_file(&pdev->dev, &dev_attr_boot2recovery);
+
+	if (r < 0)
+	{
+		dev_err(&pdev->dev, "%s: Create nv4719 attribute failed!! <%d>", __func__, r);
+	}
+#endif
+
+	r = device_create_file(&pdev->dev, &dev_attr_turnonofffefslog);
+
+	if (r < 0)
+	{
+		dev_err(&pdev->dev, "%s: Create turnonofffefslog attribute failed!! <%d>", __func__, r);
+	}
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
 err:
 	return 0;
 }
@@ -730,6 +1503,11 @@ void diagfwd_init(void)
 	if (driver->log_masks == NULL &&
 	    (driver->log_masks = kzalloc(LOG_MASK_SIZE, GFP_KERNEL)) == NULL)
 		goto err;
+//Slate code FXPCAYM81 Start here		
+    if (driver->saved_log_masks == NULL &&
+        (driver->saved_log_masks = kzalloc(LOG_MASK_SIZE, GFP_KERNEL)) == NULL)
+        goto err;
+//Slate code FXPCAYM81 ends here				
 	if (driver->event_masks == NULL &&
 	    (driver->event_masks = kzalloc(EVENT_MASK_SIZE,
 					    GFP_KERNEL)) == NULL)
@@ -783,6 +1561,13 @@ void diagfwd_init(void)
 			 GFP_KERNEL)) == NULL)
 		goto err;
 
+//Slate support added FXPCAYM81
+    driver->slate_cmd = 0;
+    driver->slate_log_count = 0;
+//FXPCAYM81 ends here	
+	driver->log_cmd = 0;
+	driver->log_count = 0;
+
 	driver->diag_wq = create_singlethread_workqueue("diag_wq");
 	INIT_WORK(&(driver->diag_read_work), diag_read_work_fn);
 
@@ -797,6 +1582,9 @@ err:
 		kfree(driver->hdlc_buf);
 		kfree(driver->msg_masks);
 		kfree(driver->log_masks);
+		//Slate FXPCAYM81 start Here
+        kfree(driver->saved_log_masks);
+		//Slate FXPCAYM81 End
 		kfree(driver->event_masks);
 		kfree(driver->client_map);
 		kfree(driver->buf_tbl);
@@ -832,6 +1620,9 @@ void diagfwd_exit(void)
 	kfree(driver->hdlc_buf);
 	kfree(driver->msg_masks);
 	kfree(driver->log_masks);
+	//Slate FXPCAYM81 start Here
+    kfree(driver->saved_log_masks);
+	//Slate FXPCAYM81 End
 	kfree(driver->event_masks);
 	kfree(driver->client_map);
 	kfree(driver->buf_tbl);

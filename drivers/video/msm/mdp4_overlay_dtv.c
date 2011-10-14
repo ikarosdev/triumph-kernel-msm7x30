@@ -37,7 +37,7 @@
 #include "mdp4.h"
 
 #define DTV_BASE	0xD0000
-
+bool hdmi_online = FALSE;
 /*#define DEBUG*/
 #ifdef DEBUG
 static void __mdp_outp(uint32 port, uint32 value)
@@ -99,7 +99,8 @@ int mdp4_dtv_on(struct platform_device *pdev)
 	struct msm_fb_data_type *mfd;
 	struct mdp4_overlay_pipe *pipe;
 	int ret;
-
+	
+    hdmi_online = TRUE;
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
 	if (!mfd)
@@ -136,6 +137,7 @@ int mdp4_dtv_on(struct platform_device *pdev)
 		pipe->mixer_stage  = MDP4_MIXER_STAGE_BASE;
 		pipe->mixer_num  = MDP4_MIXER1;
 		pipe->src_format = format;
+		mdp4_overlay_panel_mode(pipe->mixer_num, MDP4_PANEL_DTV);
 		ret = mdp4_overlay_format2pipe(pipe);
 		if (ret < 0)
 			printk(KERN_INFO "%s: format2type failed\n", __func__);
@@ -285,7 +287,7 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	/* dis-engage rgb2 from mixer1 */
 	if (dtv_pipe)
 		mdp4_mixer_stage_down(dtv_pipe);
-
+    hdmi_online = FALSE;
 	return ret;
 }
 

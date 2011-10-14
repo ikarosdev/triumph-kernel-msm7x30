@@ -61,6 +61,11 @@
 #include "pm.h"
 #include "spm.h"
 #include "sirc.h"
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+#include "mach/alog_ram_console.h"
+#endif 
+//SW2-5-1-MP-DbgCfgTool-00+]
 
 /******************************************************************************
  * Debug Definitions
@@ -74,12 +79,17 @@ enum {
 	MSM_PM_DEBUG_RESET_VECTOR = 1U << 4,
 	MSM_PM_DEBUG_SMSM_STATE = 1U << 5,
 	MSM_PM_DEBUG_IDLE = 1U << 6,
+//[+++] Add for fast dormancy
+	MSM_PM_DEBUG_FIH_MODULE = 1U << 7,	// for fast dormancy, packet filter, wakeup irq
+//[---] Add for fast dormancy
 };
 
-static int msm_pm_debug_mask;
+int msm_pm_debug_mask;
 module_param_named(
 	debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
 );
+
+#include "linux/pmlog.h"
 
 #define MSM_PM_DPRINTK(mask, level, message, ...) \
 	do { \
@@ -110,6 +120,30 @@ module_param_named(
 				msm_pm_smem_data->wakeup_reason, \
 				msm_pm_smem_data->pending_irqs); \
 	} while (0)
+
+//[+++] Add for fast dormancy
+#ifdef CONFIG_FIH_FXX
+#include <linux/fs.h>
+
+static struct file * g_dorm_fifo = NULL;
+void open_dorm_fifo(void)
+{
+	if (g_dorm_fifo == NULL) {
+		g_dorm_fifo = filp_open("/data/radio/dorm_fifo", O_RDWR, 0);
+		if (IS_ERR(g_dorm_fifo)) {
+			MSM_PM_DPRINTK(MSM_PM_DEBUG_FIH_MODULE, KERN_INFO,
+				"open_dorm_fifo() : dorm_fifo doesn't exist!!!\n");
+			g_dorm_fifo = NULL;
+		}
+		else {
+			MSM_PM_DPRINTK(MSM_PM_DEBUG_FIH_MODULE, KERN_INFO,
+				"open_dorm_fifo() : Open dorm_fifo success : %x\n", (unsigned int)g_dorm_fifo);
+			g_dorm_fifo->f_path.dentry->d_inode->i_flags |= S_NOCMTIME;
+		}
+	}
+}
+#endif	// CONFIG_FIH_FXX
+//[---] Add for fast dormancy
 
 
 /******************************************************************************
@@ -924,7 +958,11 @@ struct msm_pm_smem_t {
 	uint32_t rpc_prog;
 	uint32_t rpc_proc;
 	char     smd_port_name[DEM_MAX_PORT_NAME_LEN];
+#if defined(CONFIG_FIH_POWER_LOG)
+	uint32_t gpioInfo;
+#else
 	uint32_t reserved2;
+#endif
 };
 
 
@@ -946,6 +984,103 @@ static int msm_pm_modem_busy(void)
 	return 0;
 }
 
+//Div251-PK-SUSPEND_LOG-00+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+void show_smem_sleep_info(void);
+
+static const char* str_reason[] =
+{
+    "SMD",
+    "INT",
+    "GPIO",
+    "TIMER",
+    "ALARM",
+    "RESET",
+    "OTHER",
+    "REMOTE",
+};
+
+static void show_wakeup_info(struct msm_pm_smem_t *demData)
+{
+	int i = 0;
+
+
+	show_smem_sleep_info();
+	printk(KERN_EMERG "[PM] sleep_time=0x%08X, limit_sleep=0x%08X, wakeup_reason=0x%08X, interrupts_pendding=0x%08X, en_mask=0x%08X.\n", 
+							demData->sleep_time, 
+							demData->resources_used, 
+							demData->wakeup_reason, 
+							demData->pending_irqs, 
+							demData->irq_mask		);
+
+	for (i = 0; i < ARRAY_SIZE(str_reason); i++)
+	{
+		if(demData->wakeup_reason & (1<<i))
+		{
+			if (i == 0)  //SMD
+			{
+				if(!strcmp(demData->smd_port_name, "RPCCALL"))
+				{
+					printk(KERN_INFO "wakeup reason = %s, port = %s, prog = 0x%x, proc = 0x%x\n", 
+						str_reason[i],
+						demData->smd_port_name,
+						demData->rpc_prog,
+						demData->rpc_proc);
+					continue;
+				}
+				printk(KERN_INFO "wakeup reason = %s, port = %s\n", 
+					str_reason[i],
+					demData->smd_port_name);
+				continue;
+			}
+			printk(KERN_INFO "wakeup reason = %s\n", str_reason[i]);
+		}
+	}
+
+	if (demData->wakeup_reason&0x80000000) {
+		printk(KERN_INFO "wakeup reason = early exit\n");
+	}
+}
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-00+]
+
+//Div2-SW2-BSP-pmlog, HenryMCWang +
+#if defined(CONFIG_FIH_POWER_LOG)
+#ifdef CONFIG_FIH_FTM
+#define PM_LOG(msg...) printk(msg)
+#else	// CONFIG_FIH_FTM
+#define PM_LOG(msg...) {printk(msg); pmlog(msg);}
+#endif	// CONFIG_FIH_FTM
+
+#define convert_sec(x) (int)((ulong)x * 100 / 3276862)
+
+/*
+ * Print pmlog information on shared memory sleep variables
+ */
+void smsm_pmlog_sleep_info(void)
+{
+	uint32_t wr = msm_pm_smem_data->wakeup_reason;
+
+	PM_LOG("WR(%x):%4ds, wakeup by", wr, convert_sec(msm_pm_smem_data->sleep_time));
+	if(wr & SMSM_WKUP_REASON_RPC)
+		PM_LOG(" RPC[%s-%pF-%d]", msm_pm_smem_data->smd_port_name, (void *)msm_pm_smem_data->rpc_prog, msm_pm_smem_data->rpc_proc);
+	if(wr & SMSM_WKUP_REASON_INT)
+		PM_LOG(" INT");
+	if(wr & SMSM_WKUP_REASON_TIMER)
+		PM_LOG(" TIMER");
+	if(wr & SMSM_WKUP_REASON_ALARM)
+		PM_LOG(" ALARM");    
+	if(wr & SMSM_WKUP_REASON_RESET)
+		PM_LOG(" RESET");
+	if(wr & SMSM_WKUP_REASON_GPIO)
+	{
+		PM_LOG(" GPIO%d", msm_pm_smem_data->gpioInfo);
+	}
+	PM_LOG("\n");
+}
+#endif
+//Div2-SW2-BSP-pmlog, HenryMCWang -
+
 /*
  * Power collapse the Apps processor.  This function executes the handshake
  * protocol with Modem.
@@ -964,15 +1099,27 @@ static int msm_pm_power_collapse
 	uint32_t saved_vector[2];
 	int collapsed = 0;
 	int ret;
+#if defined(CONFIG_FIH_POWER_LOG)
+	int exeCollapse = 0;
+#endif	// defined(CONFIG_FIH_POWER_LOG)
 
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
 		KERN_INFO, "%s(): idle %d, delay %u, limit %u\n", __func__,
 		(int)from_idle, sleep_delay, sleep_limit);
 
 	if (!(smsm_get_state(SMSM_POWER_MASTER_DEM) & DEM_MASTER_SMSM_READY)) {
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+		if (unlikely(!from_idle))
+		{
+			printk(KERN_ERR	"%s: master not ready\n",	__func__);
+		}
+#else
 		MSM_PM_DPRINTK(
 			MSM_PM_DEBUG_SUSPEND | MSM_PM_DEBUG_POWER_COLLAPSE,
 			KERN_INFO, "%s(): master not ready\n", __func__);
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 		ret = -EBUSY;
 		goto power_collapse_bail;
 	}
@@ -1013,11 +1160,20 @@ static int msm_pm_power_collapse
 	}
 
 	if (ret == 1) {
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+		if (unlikely(!from_idle))
+		{
+			printk(KERN_ERR	"%s: msm_pm_poll_state detected Modem reset\n",	__func__);
+		}
+#else
 		MSM_PM_DPRINTK(
 			MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
 			KERN_INFO,
 			"%s(): msm_pm_poll_state detected Modem reset\n",
 			__func__);
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 		goto power_collapse_early_exit;
 	}
 
@@ -1027,11 +1183,20 @@ static int msm_pm_power_collapse
 
 	ret = msm_irq_enter_sleep2(true, from_idle);
 	if (ret < 0) {
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+		if (unlikely(!from_idle))
+		{
+			printk(KERN_ERR	"%s: msm_irq_enter_sleep2 aborted, %d\n",	__func__, ret);
+		}
+#else
 		MSM_PM_DPRINTK(
 			MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
 			KERN_INFO,
 			"%s(): msm_irq_enter_sleep2 aborted, %d\n", __func__,
 			ret);
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 		goto power_collapse_early_exit;
 	}
 
@@ -1044,6 +1209,17 @@ static int msm_pm_power_collapse
 		saved_acpuclk_rate);
 
 	if (saved_acpuclk_rate == 0) {
+#if defined(CONFIG_FIH_POWER_LOG)
+		pmlog("%s(): saved_acpuclk_rate == 0 aborted\n", __func__);
+#endif	// defined(CONFIG_FIH_POWER_LOG)
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+		if (unlikely(!from_idle))
+		{
+			printk(KERN_ERR	"%s: saved_acpuclk_rate == 0 aborted\n",	__func__);
+		}
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 		msm_pm_config_hw_after_power_up();
 		goto power_collapse_early_exit;
 	}
@@ -1069,6 +1245,10 @@ static int msm_pm_power_collapse
 
 	collapsed = msm_pm_collapse();
 
+#if defined(CONFIG_FIH_POWER_LOG)
+	exeCollapse = 1;
+#endif	// defined(CONFIG_FIH_POWER_LOG)
+
 #ifdef CONFIG_CACHE_L2X0
 	l2x0_resume(collapsed);
 #endif
@@ -1085,9 +1265,18 @@ static int msm_pm_power_collapse
 		local_fiq_enable();
 	}
 
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+	if (unlikely(!from_idle))
+	{
+		printk(KERN_INFO "msm_pm_collapse returned %d\n", collapsed);
+	}
+#else
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND | MSM_PM_DEBUG_POWER_COLLAPSE,
 		KERN_INFO,
 		"%s(): msm_pm_collapse returned %d\n", __func__, collapsed);
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_CLOCK, KERN_INFO,
 		"%s(): restore clock rate to %lu\n", __func__,
@@ -1120,11 +1309,20 @@ static int msm_pm_power_collapse
 	}
 
 	if (ret == 1) {
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+		if (unlikely(!from_idle))
+		{
+			printk(KERN_ERR	"%s: msm_pm_poll_state detected Modem reset\n",	__func__);
+		}
+#else
 		MSM_PM_DPRINTK(
 			MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
 			KERN_INFO,
 			"%s(): msm_pm_poll_state detected Modem reset\n",
 			__func__);
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 		goto power_collapse_early_exit;
 	}
 
@@ -1134,6 +1332,14 @@ static int msm_pm_power_collapse
 	} else {
 		BUG_ON(!(state_grps[0].value_read &
 			DEM_MASTER_SMSM_PWRC_EARLY_EXIT));
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+		if (unlikely(!from_idle))
+		{
+			printk(KERN_ERR	"%s: Sanity check fail\n",	__func__);
+		}
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 		goto power_collapse_early_exit;
 	}
 
@@ -1160,11 +1366,20 @@ static int msm_pm_power_collapse
 	}
 
 	if (ret == 1) {
+//Div251-PK-SUSPEND_LOG-01+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+		if (unlikely(!from_idle))
+		{
+			printk(KERN_ERR	"%s: \n",	__func__);
+		}
+#else
 		MSM_PM_DPRINTK(
 			MSM_PM_DEBUG_SUSPEND|MSM_PM_DEBUG_POWER_COLLAPSE,
 			KERN_INFO,
 			"%s(): msm_pm_poll_state detected Modem reset\n",
 			__func__);
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-01+]
 		ret = -EAGAIN;
 		goto power_collapse_restore_gpio_bail;
 	}
@@ -1173,6 +1388,15 @@ static int msm_pm_power_collapse
 
 	MSM_PM_DEBUG_PRINT_STATE("msm_pm_power_collapse(): WFPI RUN");
 	MSM_PM_DEBUG_PRINT_SLEEP_INFO();
+
+//Div251-PK-SUSPEND_LOG-00+[
+#ifdef CONFIG_FIH_MODEM_SUSPEND_LOG
+	if (unlikely(!from_idle))
+	{
+		show_wakeup_info(msm_pm_smem_data);
+	}
+#endif /* CONFIG_FIH_MODEM_SUSPEND_LOG */
+//Div251-PK-SUSPEND_LOG-00+]
 
 	msm_irq_exit_sleep2(msm_pm_smem_data->irq_mask,
 		msm_pm_smem_data->wakeup_reason,
@@ -1189,6 +1413,11 @@ static int msm_pm_power_collapse
 	MSM_PM_DEBUG_PRINT_STATE("msm_pm_power_collapse(): RUN");
 
 	smd_sleep_exit();
+	
+#if defined(CONFIG_FIH_POWER_LOG)
+	smsm_pmlog_sleep_info();
+#endif	// defined(CONFIG_FIH_POWER_LOG)
+	
 	return 0;
 
 power_collapse_early_exit:
@@ -1240,6 +1469,13 @@ power_collapse_restore_gpio_bail:
 
 	if (collapsed)
 		smd_sleep_exit();
+		
+#if defined(CONFIG_FIH_POWER_LOG)
+	if (exeCollapse)
+	{
+		smsm_pmlog_sleep_info();
+	}
+#endif	// defined(CONFIG_FIH_POWER_LOG)
 
 power_collapse_bail:
 	return ret;
@@ -1301,6 +1537,10 @@ static int msm_pm_power_collapse_standalone(void)
 	MSM_PM_DPRINTK(MSM_PM_DEBUG_SUSPEND | MSM_PM_DEBUG_POWER_COLLAPSE,
 		KERN_INFO,
 		"%s(): msm_pm_collapse returned %d\n", __func__, collapsed);
+
+#if defined(CONFIG_FIH_POWER_LOG)
+	smsm_pmlog_sleep_info();
+#endif	// defined(CONFIG_FIH_POWER_LOG)
 
 	ret = msm_spm_set_low_power_mode(MSM_SPM_MODE_CLOCK_GATING, false);
 	WARN_ON(ret);
@@ -1432,7 +1672,7 @@ void arch_idle(void)
 #ifdef CONFIG_HAS_WAKELOCK
 		has_wake_lock(WAKE_LOCK_IDLE) ||
 #endif
-		!msm_irq_idle_sleep_allowed() || msm_pm_modem_busy()) {
+		!msm_irq_idle_sleep_allowed()) {
 		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] = false;
 		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN] = false;
 		allow[MSM_PM_SLEEP_MODE_APPS_SLEEP] = false;
@@ -1444,6 +1684,26 @@ void arch_idle(void)
 			mode->latency >= latency_qos ||
 			mode->residency * 1000ULL >= timer_expiration)
 			allow[i] = false;
+	}
+
+	if (allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] ||
+		allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]) {
+		uint32_t wait_us = CONFIG_MSM_IDLE_WAIT_ON_MODEM;
+		while (msm_pm_modem_busy() && wait_us) {
+			if (wait_us > 100) {
+				udelay(100);
+				wait_us -= 100;
+			} else {
+				udelay(wait_us);
+				wait_us = 0;
+			}
+		}
+
+		if (msm_pm_modem_busy()) {
+			allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE] = false;
+			allow[MSM_PM_SLEEP_MODE_POWER_COLLAPSE_NO_XO_SHUTDOWN]
+				= false;
+		}
 	}
 
 #ifdef CONFIG_MSM_IDLE_STATS
@@ -1654,6 +1914,18 @@ static int msm_pm_enter(suspend_state_t state)
 			sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
 #endif
 
+//[+++] Add for fast dormancy
+#ifdef CONFIG_FIH_FXX
+		if (g_dorm_fifo) {
+			char dorm_input[1] = {'1'};
+			MSM_PM_DPRINTK(MSM_PM_DEBUG_FIH_MODULE, KERN_INFO,
+				"%s() : dorm_fifo ready to Enter Fast Dormancy.\n", __func__);
+			g_dorm_fifo->f_op->llseek(g_dorm_fifo, 0, 0);
+			g_dorm_fifo->f_op->write(g_dorm_fifo, dorm_input, 1, &g_dorm_fifo->f_pos);
+		}
+#endif	// CONFIG_FIH_FXX
+//[---] Add for fast dormancy
+
 		for (i = 0; i < 30 && msm_pm_modem_busy(); i++)
 			udelay(500);
 
@@ -1711,37 +1983,136 @@ static struct platform_suspend_ops msm_pm_ops = {
 
 static uint32_t restart_reason = 0x776655AA;
 
+/* Div2-SW2-BSP-FBX-BATT { */
+#ifdef CONFIG_BATTERY_BQ275X0
+#ifdef CONFIG_FIH_CONFIG_GROUP
+#include "smd_private.h"
+#endif
+extern int bq275x0_battery_snooze_mode(bool set);
+#endif
+/* } Div2-SW2-BSP-FBX-BATT */
+
 static void msm_pm_power_off(void)
 {
-	msm_rpcrouter_close();
-	msm_proc_comm(PCOM_POWER_DOWN, 0, 0);
+	// FIHTDC, HenryMCWang, give oem shared memory command to modem {
+	uint32_t oem_cmd = SMEM_PROC_COMM_OEM_POWER_OFF;
+	uint32_t smem_response = 0;
+	char buf[128];
+	// } FIHTDC, HenryMCWang, give oem shared memory command to modem
+	
+/* Div2-SW2-BSP-FBX-BATT { */
+#ifdef CONFIG_BATTERY_BQ275X0
+#ifdef CONFIG_FIH_CONFIG_GROUP
+    int product_id = fih_get_product_id();
+    int product_phase = fih_get_product_phase();
+	
+    if (product_id == Product_FB0 || product_id == Product_FD1) {
+        if (!((product_phase >= Product_PR1 && product_phase <= Product_PR230) ||
+			(product_phase == Product_EVB))) { 
+			bq275x0_battery_snooze_mode(false);
+		}
+	} else
+#endif
+		bq275x0_battery_snooze_mode(false);
+#endif
+/* } Div2-SW2-BSP-FBX-BATT */
+
+	// FIHTDC, HenryMCWang, give oem shared memory command to modem {
+	msm_proc_comm_oem(PCOM_CUSTOMER_CMD1, &oem_cmd, &smem_response, (unsigned *)buf);
+
 	for (;;)
 		;
+	// } FIHTDC, HenryMCWang, give oem shared memory command to modem
 }
 
-static void msm_pm_restart(char str, const char *cmd)
+//Div6-D1-JL-UsbPorting-00+{
+extern uint32_t Download_Enter;
+//static void msm_pm_restart(char str, const char *cmd)
+void msm_pm_restart(char str, const char *cmd)
+//Div6-D1-JL-UsbPorting-00+}
 {
-	msm_rpcrouter_close();
-	msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
+	// FIHTDC, HenryMCWang, give oem shared memory command to modem {
+	uint32_t oem_cmd = SMEM_PROC_COMM_OEM_RESET_CHIP_EBOOT;
+	uint32_t smem_response = 0;
+	// } FIHTDC, HenryMCWang, give oem shared memory command to modem
 
+    //Div6-D1-JL-UsbPorting-00+{
+    //For SUT download on OS.
+    if(Download_Enter != 0)
+    {
+        Download_Enter = 0;
+        restart_reason = 0x46544444;
+    }
+    //Div6-D1-JL-UsbPorting-00+}
+	
+
+	//SW2-5-1-MP-DbgCfgTool-00+[
+	#ifdef CONFIG_FIH_LAST_ALOG	
+	     alog_ram_console_sync_time(LOG_TYPE_ALL, SYNC_BEFORE);
+	#endif	
+	//SW2-5-1-MP-DbgCfgTool-00+]
+
+	// FIHTDC, HenryMCWang, give oem shared memory command to modem {	
+	msm_proc_comm_oem(PCOM_CUSTOMER_CMD1, &oem_cmd, &smem_response, &restart_reason);
+	
 	for (;;)
 		;
+	// } FIHTDC, HenryMCWang, give oem shared memory command to modem
 }
 
 static int msm_reboot_call
 	(struct notifier_block *this, unsigned long code, void *_cmd)
 {
+
+       //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+       unsigned long POWERON_CAUSE_ENTER_DL = 0x46494801;    
+       unsigned long POWERON_CAUSE_LOAD_RECOVERY = 0x46494802;
+       //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
+       
+       unsigned long POWERON_CAUSE_SWITCH_FTM_OR_ANDROID = 0x46494803;    //Div2D5-LC-BSP-Porting_Reboot_FTM_to_Android-00 +
+
 	if ((code == SYS_RESTART) && _cmd) {
 		char *cmd = _cmd;
 		if (!strcmp(cmd, "bootloader")) {
 			restart_reason = 0x77665500;
 		} else if (!strcmp(cmd, "recovery")) {
 			restart_reason = 0x77665502;
+			memcpy((unsigned int *)(MSM_SHARED_RAM_BASE + 0x10), &POWERON_CAUSE_LOAD_RECOVERY, sizeof(uint32_t));    //Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +
 		} else if (!strcmp(cmd, "eraseflash")) {
 			restart_reason = 0x776655EF;
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned code = simple_strtoul(cmd + 4, 0, 16) & 0xff;
 			restart_reason = 0x6f656d00 | code;
+		//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+		} else if (!strncmp(cmd, "SDL1", 4)) {
+			restart_reason = 0x53444C31;    //ASCII code of "SDL1"
+			memcpy((unsigned int *)(MSM_SHARED_RAM_BASE + 0x10), &POWERON_CAUSE_ENTER_DL, sizeof(uint32_t));
+		} else if (!strncmp(cmd, "SDL2", 4)) {
+			restart_reason = 0x53444C32;    //ASCII code of "SDL2"
+			memcpy((unsigned int *)(MSM_SHARED_RAM_BASE + 0x10), &POWERON_CAUSE_ENTER_DL, sizeof(uint32_t));
+		//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
+		//Div2D5-LC-BSP-Two_OTA_Path_for_ULI-00 +[
+		} else if (!strncmp(cmd, "SDL3", 4)) {
+			restart_reason = 0x53444C33;    //ASCII code of "SDL3"
+			memcpy((unsigned int *)(MSM_SHARED_RAM_BASE + 0x10), &POWERON_CAUSE_ENTER_DL, sizeof(uint32_t));
+		//Div2D5-LC-BSP-Two_OTA_Path_for_ULI-00 +]
+		// FIH-Div2-SW2-BSP, Ming, Reset_PRL {
+		} else if (!strncmp(cmd, "WIPE", 4)) {
+			restart_reason = 0x57495045;    //ASCII code of "WIPE"
+		// } FIH-Div2-SW2-BSP, Ming, Reset_PRL
+		// FIHTDC, HenryMCWang, give restart reason = 0x46544443 when kernel panic reboot {
+		} else if (!strcmp(cmd, "panic")) {
+			restart_reason = 0x46544443;
+		// } FIHTDC, HenryMCWang, give restart reason = 0x46544443 when kernel panic reboot
+		//Div2D5-LC-BSP-Porting_Reboot_FTM_to_Android-00 +[
+		} else if (!strcmp(cmd,"switch")) {
+			restart_reason = 0x78364497;
+			memcpy((unsigned int *)(MSM_SHARED_RAM_BASE + 0x10), &POWERON_CAUSE_SWITCH_FTM_OR_ANDROID, sizeof(uint32_t));
+		//Div2D5-LC-BSP-Porting_Reboot_FTM_to_Android-00 +]
+		//Div2-5-3-Peripheral-LL-SCSI_FTM-00+{
+		} else if (!strcmp(cmd,"ftmonce")) {
+			restart_reason = 0x78364498;
+		//Div2-5-3-Peripheral-LL-SCSI_FTM-00+}
 		} else {
 			restart_reason = 0x77665501;
 		}

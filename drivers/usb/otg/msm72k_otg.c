@@ -43,6 +43,7 @@
 
 static void otg_reset(struct otg_transceiver *xceiv, int phy_reset);
 static void msm_otg_set_vbus_state(int online);
+extern void cable_status(bool status);    //Div6-D1-JL-UsbPorting-00+
 
 struct msm_otg *the_msm_otg;
 
@@ -575,21 +576,53 @@ static int msm_otg_suspend(struct msm_otg *dev)
 	unsigned long timeout;
 	int vbus = 0;
 	unsigned ret;
+	enum chg_type chg_type = atomic_read(&dev->chg_type);
+	unsigned long flags;
 
 	disable_irq(dev->irq);
 	if (atomic_read(&dev->in_lpm))
 		goto out;
 #ifdef CONFIG_USB_MSM_ACA
-	if ((test_bit(ID, &dev->inputs) &&
-			test_bit(B_SESS_VLD, &dev->inputs)) ||
+	/*
+	 * ACA interrupts are disabled before entering into LPM.
+	 * If LPM is allowed in host mode with accessory charger
+	 * connected or only accessory charger is connected,
+	 * there is a chance that charger is removed and we will
+	 * not know about it.
+	 *
+	 * REVISIT
+	 *
+	 * Allowing LPM in case of gadget bus suspend is tricky.
+	 * Bus suspend can happen in two states.
+	 * 1. ID_float:  Allowing LPM has pros and cons. If LPM is allowed
+	 * and accessory charger is connected, we miss ID_float --> ID_C
+	 * transition where we could draw large amount of current
+	 * compared to the suspend current.
+	 * 2. ID_C: We can not allow LPM. If accessory charger is removed
+	 * we should not draw more than what host could supply which will
+	 * be less compared to accessory charger.
+	 *
+	 * For simplicity, LPM is not allowed in bus suspend.
+	 */
+	if ((test_bit(ID, &dev->inputs) && test_bit(B_SESS_VLD, &dev->inputs) &&
+			chg_type != USB_CHG_TYPE__WALLCHARGER) ||
 			test_bit(ID_A, &dev->inputs))
 		goto out;
 	/* Disable ID_abc interrupts else it causes spurious interrupt */
 	disable_idabc(dev);
 #endif
 	ulpi_read(dev, 0x14);/* clear PHY interrupt latch register */
-	/* If there is no pmic notify support turn on phy comparators. */
-	if (!dev->pmic_notif_supp)
+	/*
+	 * Turn on PHY comparators if PMIC notifications are not available.
+	 *
+	 * PMIC notifications are designed to receive VBUS high only. We
+	 * should rely on PHY comparators for VBUS low interrupt. This does
+	 * not matter if we are connected to host. Because bus suspend is
+	 * not implemented. But if we don't enable PHY comparators and allow
+	 * LPM when wall charger is connected, we will not detect charger
+	 * disconnection.
+	 */
+	if (chg_type == USB_CHG_TYPE__WALLCHARGER || !dev->pmic_notif_supp)
 		ulpi_write(dev, 0x01, 0x30);
 	ulpi_write(dev, 0x08, 0x09);/* turn off PLL on integrated phy */
 
@@ -598,8 +631,14 @@ static int msm_otg_suspend(struct msm_otg *dev)
 	while (!is_phy_clk_disabled()) {
 		if (time_after(jiffies, timeout)) {
 			pr_err("%s: Unable to suspend phy\n", __func__);
-			/* Reset both phy and link */
-			otg_reset(&dev->otg, 1);
+			/*
+			 * Start otg state machine in default state upon
+			 * phy suspend failure
+			 */
+			spin_lock_irqsave(&dev->lock, flags);
+			dev->otg.state = OTG_STATE_UNDEFINED;
+			spin_unlock_irqrestore(&dev->lock, flags);
+			queue_work(dev->wq, &dev->sm_work);
 			goto out;
 		}
 		msleep(1);
@@ -680,12 +719,6 @@ static int msm_otg_resume(struct msm_otg *dev)
 	temp &= ~ULPI_STP_CTRL;
 	writel(temp, USB_USBCMD);
 
-	/* If resume signalling finishes before lpm exit, PCD is not set in
-	 * USBSTS register. Drive resume signal to the downstream device now
-	 * so that host driver can process the upcoming port change interrupt.*/
-	if (is_host() || test_bit(ID_A, &dev->inputs))
-		writel(readl(USB_PORTSC) | PORTSC_FPR, USB_PORTSC);
-
 	if (device_may_wakeup(dev->otg.dev)) {
 		disable_irq_wake(dev->irq);
 		if (dev->vbus_on_irq)
@@ -726,6 +759,12 @@ static void msm_otg_resume_w(struct work_struct *w)
 
 	/* Enable Idabc interrupts as these were disabled before entering LPM */
 	enable_idabc(dev);
+
+	/* If resume signalling finishes before lpm exit, PCD is not set in
+	 * USBSTS register. Drive resume signal to the downstream device now
+	 * so that host driver can process the upcoming port change interrupt.*/
+	if (is_host() || test_bit(ID_A, &dev->inputs))
+		writel(readl(USB_PORTSC) | PORTSC_FPR, USB_PORTSC);
 
 	/* Enable irq which was disabled before scheduling this work.
 	 * But don't release wake_lock, as we got async interrupt and
@@ -887,7 +926,7 @@ static int usbdev_notify(struct notifier_block *self,
 			if (udev->actconfig) {
 				set_aca_bmaxpower(dev,
 					udev->actconfig->desc.bMaxPower * 2);
-				goto out;
+				goto do_work;
 			}
 			if (udev->portnum == udev->bus->otg_port)
 				set_aca_bmaxpower(dev, USB_IB_UNCFG);
@@ -906,7 +945,7 @@ static int usbdev_notify(struct notifier_block *self,
 		work = 0;
 		break;
 	}
-
+do_work:
 	if (work) {
 		wake_lock(&dev->wlock);
 		queue_work(dev->wq, &dev->sm_work);
@@ -999,22 +1038,18 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 	pr_debug("IRQ state: %s\n", state_string(state));
 	pr_debug("otgsc = %x\n", otgsc);
 
-	if (otgsc & OTGSC_IDIS) {
-		if (otgsc & OTGSC_ID) {
-			pr_debug("Id set\n");
-			set_bit(ID, &dev->inputs);
-		} else {
-			pr_debug("Id clear\n");
-			/* Assert a_bus_req to supply power on
-			 * VBUS when Micro/Mini-A cable is connected
-			 * with out user intervention.
-			 */
-			set_bit(A_BUS_REQ, &dev->inputs);
-			clear_bit(ID, &dev->inputs);
-		}
-		writel(otgsc, USB_OTGSC);
-		work = 1;
-	} else if (otgsc & OTGSC_BSVIS) {
+    if (otgsc & OTGSC_BSVIS) {
+	
+	    //Div6-D1-JL-UsbPorting-00+{
+	    if(otgsc & OTGSC_BSVIE)
+        {
+            if(otgsc & OTGSC_BSV)
+    			cable_status(true);
+    		else
+    			cable_status(false);
+        }
+	    //Div6-D1-JL-UsbPorting-00+{
+	    
 		writel(otgsc, USB_OTGSC);
 		/* BSV interrupt comes when operating as an A-device
 		 * (VBUS on/off).
@@ -1071,6 +1106,24 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 			work = 0;
 			break;
 		}
+	} else if (otgsc & OTGSC_IDIS) {
+		if (otgsc & OTGSC_ID) {
+			pr_debug("Id set\n");
+			set_bit(ID, &dev->inputs);
+		} else {
+			pr_debug("Id clear\n");
+			/* Assert a_bus_req to supply power on
+			 * VBUS when Micro/Mini-A cable is connected
+			 * with out user intervention.
+			 */
+			//FXPCAYM-259: Start - Comment out two lines to fix some charger issue
+			//set_bit(A_BUS_REQ, &dev->inputs);
+			//clear_bit(ID, &dev->inputs);
+			//FXPCAYM-259: End - Comment out two lines to fix some charger issue
+		}
+		writel(otgsc, USB_OTGSC);
+		//For special AC charger that will interrupt ID pin, ignore it
+		//work = 1;
 	}
 	if (work) {
 #ifdef CONFIG_USB_MSM_ACA
@@ -1312,7 +1365,8 @@ reset_link:
 	writel(0x00, USB_AHB_MODE);
 	clk_disable(dev->hs_clk);
 
-	if (test_bit(ID, &dev->inputs))
+	if ((xceiv->gadget && xceiv->gadget->is_a_peripheral) ||
+			test_bit(ID, &dev->inputs))
 		mode = USBMODE_SDIS | USBMODE_DEVICE;
 	else
 		mode = USBMODE_SDIS | USBMODE_HOST;
@@ -1485,9 +1539,16 @@ static void msm_otg_sm_work(struct work_struct *w)
 			atomic_set(&dev->chg_type, USB_CHG_TYPE__SDP);
 			msm_otg_set_power(&dev->otg, USB_IDCHG_MAX);
 		} else if (chg_type == USB_CHG_TYPE__WALLCHARGER) {
+#ifdef CONFIG_USB_MSM_ACA
+			del_timer_sync(&dev->id_timer);
+#endif
 			/* Workaround: Reset PHY in SE1 state */
 			otg_reset(&dev->otg, 1);
-
+			if (!is_b_sess_vld()) {
+				clear_bit(B_SESS_VLD, &dev->inputs);
+				work = 1;
+				break;
+			}
 			pr_debug("entering into lpm with wall-charger\n");
 			msm_otg_put_suspend(dev);
 			/* Allow idle power collapse */
@@ -1929,7 +1990,8 @@ static void msm_otg_sm_work(struct work_struct *w)
 #ifdef CONFIG_USB_MSM_ACA
 	/* Start id_polling if (ID_FLOAT&BSV) || ID_A/B/C */
 	if ((test_bit(ID, &dev->inputs) &&
-			test_bit(B_SESS_VLD, &dev->inputs)) ||
+			test_bit(B_SESS_VLD, &dev->inputs) &&
+			chg_type != USB_CHG_TYPE__WALLCHARGER) ||
 			test_bit(ID_A, &dev->inputs)) {
 		mod_timer(&dev->id_timer, jiffies +
 				 msecs_to_jiffies(OTG_ID_POLL_MS));
@@ -2115,7 +2177,7 @@ static int otg_debugfs_init(struct msm_otg *dev)
 	if (!otg_debug_root)
 		return -ENOENT;
 
-	otg_debug_mode = debugfs_create_file("mode", 0222,
+	otg_debug_mode = debugfs_create_file("mode", 0220,
 						otg_debug_root, dev,
 						&otgfs_fops);
 	if (!otg_debug_mode) {

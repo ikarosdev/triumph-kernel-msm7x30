@@ -38,7 +38,12 @@
 #include <asm/mach-types.h>
 #include <mach/qdsp5v2/audio_dev_ctl.h>
 #include <mach/debug_mm.h>
-
+//MM-SL-OPControl-00*{
+//SW5-MM-DL-AudioPorting-00+{
+#include <linux/gpio.h>
+#include <linux/delay.h>
+//SW5-MM-DL-AudioPorting-00+}
+//MM-SL-OPControl-00*}
 static struct platform_device *msm_audio_snd_device;
 struct audio_locks the_locks;
 EXPORT_SYMBOL(the_locks);
@@ -50,6 +55,27 @@ char snddev_name[AUDIO_DEV_CTL_MAX_DEV][44];
 #define MSM_MAX_VOLUME 0x2000
 #define MSM_VOLUME_STEP ((MSM_MAX_VOLUME+17)/100) /* 17 added to avoid
 						      more deviation */
+//SW5-MM-DL-AudioPorting-00+{
+#if defined(CONFIG_FIH_PROJECT_SF4V5) ||defined(CONFIG_FIH_PROJECT_SF8)//SW2-6-MM-RC-Porting 4H8 audio FTM-00*
+#define SPK1_AMP 36
+#elif defined(CONFIG_FIH_PROJECT_SF4Y6)
+#define SPK1_AMP 37
+#else
+#define SPK1_AMP 36
+#define SPK2_AMP 37
+#endif
+//SW5-MM-DL-AudioPorting-00+}
+
+//MM-RC-OPControl-00+{
+extern bool m_HsAmpOn;
+extern bool m_SpkAmpOn;
+//MM-RC-OPControl-00+}
+//MM-SL-OPControl-03+{
+#ifdef CONFIG_FIH_FTM
+bool m_speaker_mono_left = false;
+bool m_speaker_mono_right = false;
+#endif
+//MM-SL-OPControl-03+}
 static int device_index; /* Count of Device controls */
 static int simple_control; /* Count of simple controls*/
 
@@ -325,6 +351,54 @@ static int msm_device_put(struct snd_kcontrol *kcontrol,
 		return rc;
 	}
 	MM_INFO("device %s set %d\n", dev_info->name, set);
+	//MM-SL-OPControl-03+{
+	#ifdef CONFIG_FIH_FTM
+	if ((strcmp((char*)dev_info->name,"speaker_mono_rx_left") == 0 && set == 1) || 
+		(strcmp((char*)dev_info->name,"speaker_stereo_rx") == 0 && set == 1) ||
+		( strcmp((char*)dev_info->name,"headset_stereo_speaker_stereo_rx") == 0 && set == 1)){
+		m_speaker_mono_left = true;
+		printk(KERN_ERR " m_speaker_mono_left = true\n" );
+	}
+	
+	if ((strcmp((char*)dev_info->name,"speaker_mono_rx_right") == 0 && set == 1) || 
+		(strcmp((char*)dev_info->name,"speaker_stereo_rx") == 0 && set == 1) ||
+		( strcmp((char*)dev_info->name,"headset_stereo_speaker_stereo_rx") == 0 && set == 1)){
+		m_speaker_mono_right = true;
+		printk(KERN_ERR " speaker_mono_rx_right = true\n" );
+	}
+	#endif
+	//MM-SL-OPControl-03+}
+	//MM-RC-OPControl-01-{
+	//MM-RC-OPControl-00*{
+	//SW5-MM-DL-AudioPorting-00+{
+#if 0
+	#if defined(CONFIG_FIH_PROJECT_SFX)
+		if(!m_SpkAmpOn)
+		{
+			if ((strcmp((char*)dev_info->name,"speaker_stereo_rx") == 0 && set == 0) ||( strcmp((char*)dev_info->name,"headset_stereo_speaker_stereo_rx") == 0 && set == 0))
+			{
+				gpio_set_value(SPK1_AMP, 0);    /* disable spkr poweramp 1*/
+				printk(KERN_ERR "Delay 0.1 sec to close SPK OP: GPIO%d=%d \n",SPK1_AMP,gpio_get_value(SPK1_AMP) );
+				msleep(100);
+			}
+		}
+	#endif
+	//SW5-MM-DL-AudioPorting-00+}
+	
+	//MM-SL-OPControl-00+{
+		if(!m_HsAmpOn){
+			if ((strcmp((char*)dev_info->name,"headset_stereo_rx") == 0 && set == 0) ||( strcmp((char*)dev_info->name,"headset_stereo_speaker_stereo_rx") == 0 && set == 0))
+			{
+				gpio_set_value(55,0);    /* disable hs poweramp */
+				printk(KERN_ERR "Delay 0.1 sec to close hs OP=%d \n",gpio_get_value(55) );
+				msleep(100);
+			}
+		}
+#endif
+	//MM-SL-OPControl-00+}
+	//MM-RC-OPControl-00*}
+	//MM-RC-OPControl-01-}
+
 
 	if (set) {
 		if (!dev_info->opened) {

@@ -38,6 +38,15 @@
 #include <mach/msm_serial_pdata.h>
 #include "msm_serial.h"
 
+ //SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_REMOVE_SERIAL_DYNAMICALLY
+#include <mach/msm_smd.h>  
+#include <../devices.h>
+#include <mach/gpio.h>
+#endif
+
+extern int console_suspend_enabled; //SW2-5-2-MP-DbgCfgTool-08+
+ //SW2-5-1-MP-DbgCfgTool-00+]
 
 #ifdef CONFIG_SERIAL_MSM_CLOCK_CONTROL
 enum msm_clk_states_e {
@@ -858,6 +867,28 @@ static inline struct uart_port * get_port_from_line(unsigned int line)
 	return &msm_uart_ports[line].uart;
 }
 
+// Vincent
+void ftm_init_clock(int on)
+{
+	struct uart_port *port = get_port_from_line(1);
+	
+	if (on == 1) {
+		/* clock must be TCXO/4 */
+		printk(KERN_INFO "msm_serial: FTM change baud rate to 460800\n");
+		msm_write(port, 0x18, UART_MREG);
+		msm_write(port, 0xF6, UART_NREG);
+		msm_write(port, 0x0F, UART_DREG);
+		msm_write(port, 0x0A, UART_MNDREG);
+	} else {
+		/* clock is TCXO (19.2MHz) */
+		printk(KERN_INFO "msm_serial: FTM change baud rate to 115200\n");
+		msm_write(port, 0x06, UART_MREG);
+		msm_write(port, 0xF1, UART_NREG);
+		msm_write(port, 0x0F, UART_DREG);
+		msm_write(port, 0x1A, UART_MNDREG);
+	}
+}
+
 #ifdef CONFIG_SERIAL_MSM_CONSOLE
 
 /*
@@ -897,6 +928,10 @@ static inline void wait_for_xmitr(struct uart_port *port, int bits)
 
 static void msm_console_putchar(struct uart_port *port, int c)
 {
+#ifdef CONFIG_FIH_FTM
+	// bypass the TX of UART console.
+	return;
+#endif	// CONFIG_FIH_FTM
 	/* This call can incur significant delay if CTS flowcontrol is enabled
 	 * on port and no serial cable is attached.
 	 */
@@ -967,6 +1002,18 @@ static int __init msm_console_setup(struct console *co, char *options)
 	msm_set_baud_rate(port, baud);
 
 	msm_reset(port);
+
+//Div251-PK-DisableUARTWakeup-00+[
+#ifdef CONFIG_FIH_MODEM_REMOVE_UART2_CLK
+//   Do not let system wake-up from suspend by console serial port.
+	if (is_console(port)) {
+		printk(KERN_INFO "msm_serial: port #%d is console disable irq wake\n", port->line);
+		if (unlikely(set_irq_wake(port->irq, 0))) {
+			printk(KERN_INFO "msm_serial: port #%d is console disable irq wake failed\n", port->line);
+		}
+	}
+#endif
+//Div251-PK-DisableUARTWakeup-00+]
 
 	printk(KERN_INFO "msm_serial: console setup on port #%d\n", port->line);
 
@@ -1105,7 +1152,6 @@ static int msm_serial_resume(struct platform_device *pdev)
 #define msm_serial_suspend NULL
 #define msm_serial_resume NULL
 #endif
-
 static int msm_serial_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1132,7 +1178,6 @@ static struct dev_pm_ops msm_serial_dev_pm_ops = {
 	.runtime_suspend = msm_serial_runtime_suspend,
 	.runtime_resume = msm_serial_runtime_resume,
 };
-
 static struct platform_driver msm_platform_driver = {
 	.probe = msm_serial_probe,
 	.remove = msm_serial_remove,
@@ -1149,9 +1194,36 @@ static int __init msm_serial_init(void)
 {
 	int ret;
 
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_REMOVE_SERIAL_DYNAMICALLY
+    struct clk *uart2_clk;
+    if(!fih_read_uart_switch_from_smem()) {
+	printk(KERN_INFO "msm_serial: Disable UART clock\n");
+	gpio_tlmm_config(GPIO_CFG(51, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_DISABLE);
+	gpio_tlmm_config(GPIO_CFG(52, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_DISABLE);
+	uart2_clk = clk_get(&msm_device_uart2.dev, "uart_clk");        
+	if(!IS_ERR(uart2_clk)){            
+		clk_enable(uart2_clk);   //If clk_enable is not called, calling clk_disable will enter ram dump.            
+		clk_disable(uart2_clk);        
+	}
+	#ifndef CONFIG_FIH_MODEM_REMOVE_UART2_CLK
+	  /* Disable console suspend to guarantee there's no buffer copy delay after resume */
+	  console_suspend_enabled = 0; //SW2-5-2-MP-DbgCfgTool-08+
+	#endif /* CONFIG_FIH_MODEM_REMOVE_UART2_CLK */
+	return 0; 
+    }
+    #ifndef CONFIG_FIH_MODEM_REMOVE_UART2_CLK
+    /* Enable suspend console when UART clock is enable, it will buffer the kernel log, and emit it after resume
+     * This can make sure DUT can enter suspend mode without interrupt */
+    console_suspend_enabled = 1; //SW2-5-2-MP-DbgCfgTool-08+
+    #endif /* CONFIG_FIH_MODEM_REMOVE_UART2_CLK */
+#endif
+//SW2-5-1-MP-DbgCftTool-00+]    
+
 	ret = uart_register_driver(&msm_uart_driver);
 	if (unlikely(ret))
 		return ret;
+	msm_platform_driver.driver.pm = NULL;//TCXO shutdown for work arround  added by VinceCCTsai
 
 	ret = platform_driver_probe(&msm_platform_driver, msm_serial_probe);
 	if (unlikely(ret))

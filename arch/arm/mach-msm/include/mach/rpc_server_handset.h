@@ -36,5 +36,6 @@ struct msm_handset_platform_data {
 };
 
 void report_headset_status(bool connected);
-
+/* Div1-FW3-BSP-AUDIO */
+extern void report_hs_key(uint32_t key_code, uint32_t key_parm);
 #endif

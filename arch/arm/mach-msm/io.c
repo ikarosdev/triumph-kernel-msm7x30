@@ -181,6 +181,14 @@ static struct map_desc msm7x30_io_desc[] __initdata = {
 		.length =   MSM_SHARED_RAM_SIZE,
 		.type =     MT_DEVICE,
 	},
+#if defined(CONFIG_FIH_MLOG)
+	{
+		.virtual =  (unsigned long) MSM_MLOG_BASE,
+		.pfn =      __phys_to_pfn(MSM_MLOG_PHYS),
+		.length =   MSM_MLOG_SIZE,
+		.type =     MT_DEVICE,
+	},
+#endif
 };
 
 void __init msm_map_msm7x30_io(void)

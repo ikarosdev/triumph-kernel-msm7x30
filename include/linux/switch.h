@@ -43,6 +43,9 @@ struct gpio_switch_platform_data {
 extern int switch_dev_register(struct switch_dev *sdev);
 extern void switch_dev_unregister(struct switch_dev *sdev);
 
+extern void switch_set_MassStorage_state(struct switch_dev *sdev, int state);    //Div6-D1-JL-UsbPorting-00+
+
+
 static inline int switch_get_state(struct switch_dev *sdev)
 {
 	return sdev->state;

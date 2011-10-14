@@ -2045,8 +2045,59 @@ static struct tcp_seq_afinfo tcp6_seq_afinfo = {
 	},
 };
 
+/* FIH; Tiger; 2010/9/1 { */
+#ifdef CONFIG_FIH_FXX
+int tcpFilter6_seq_show(struct seq_file *seq, void *v)
+{
+	struct tcp_iter_state *st;
+
+	if (v == SEQ_START_TOKEN) {
+		goto out;
+	}
+	st = seq->private;
+
+	switch (st->state) {
+	case TCP_SEQ_STATE_LISTENING:
+	case TCP_SEQ_STATE_ESTABLISHED: 
+		{
+			struct sock *sk = (struct sock *)v;
+			struct inet_sock *inet = inet_sk(sk);
+			__u16 srcp = ntohs(inet->sport);
+
+			seq_printf(seq, "%04X", srcp);
+		}
+
+		break;
+	case TCP_SEQ_STATE_OPENREQ:
+		break;
+	case TCP_SEQ_STATE_TIME_WAIT:
+		break;
+	}
+out:
+	return 0;
+}
+
+static struct tcp_seq_afinfo tcpFilter6_seq_afinfo = {
+	.name		= "tcpFilter6",
+	.family		= AF_INET6,
+	.seq_fops	= {
+		.owner		= THIS_MODULE,
+	},
+	.seq_ops	= {
+		.show		= tcpFilter6_seq_show,
+	},
+};
+#endif
+/* } FIH; Tiger; 2010/9/1 */
+
 int tcp6_proc_init(struct net *net)
 {
+/* FIH; Tiger; 2010/9/1 { */
+#ifdef CONFIG_FIH_FXX
+	tcp_proc_register(net, &tcpFilter6_seq_afinfo);
+#endif
+/* } FIH; Tiger; 2010/9/1 */
+
 	return tcp_proc_register(net, &tcp6_seq_afinfo);
 }
 

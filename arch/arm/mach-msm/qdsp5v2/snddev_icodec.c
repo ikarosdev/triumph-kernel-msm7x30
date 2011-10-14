@@ -35,6 +35,45 @@
 #include <mach/debug_mm.h>
 #include <mach/rpc_pmapp.h>
 #include <mach/qdsp5v2/audio_acdb_def.h>
+//MM-RC-OPControl-04+{
+#include <mach/board.h>
+#include <mach/msm_smd.h>
+#include <mach/vreg.h>
+#include "../../../arch/arm/mach-msm/smd_private.h"
+#include "../../../arch/arm/mach-msm/proc_comm.h"
+#include <linux/gpio.h>
+#include <linux/delay.h>
+//MM-RC-OPControl-04+}
+//MM-RC-OPControl-04-{
+#if 0
+/* Div1-FW3-BSP-AUDIO */
+#include <mach/board.h>
+
+/* Div1-FW3-BSP-AUDIO */
+#ifdef CONFIG_FIH_FBX_AUDIO
+#include <mach/vreg.h>
+#endif
+
+//SW5-MM-DL-AudioPorting-00+{
+#if defined(CONFIG_FIH_PROJECT_SFX)
+#include <mach/msm_smd.h>
+#include <mach/vreg.h>
+#include "../../../arch/arm/mach-msm/smd_private.h"
+#include "../../../arch/arm/mach-msm/proc_comm.h"
+#endif
+//SW5-MM-DL-AudioPorting-00+}
+#endif
+//MM-RC-OPControl-04-}
+
+//MM-RC-ChangeCodingStyle-00*{
+//MM-SL-OPControl-00+{
+extern int SPK1_AMP;
+extern int SPK2_AMP;
+extern int HS_AMP;
+#define ASWISH_CTL 37 	//for SFH L:ext. mic H:TV
+//MM-SL-OPControl-00+}
+//MM-RC-ChangeCodingStyle-00*{
+
 
 #define SMPS_AUDIO_PLAYBACK_ID	"AUPB"
 #define SMPS_AUDIO_RECORD_ID	"AURC"
@@ -44,11 +83,268 @@
 #define SNDDEV_ICODEC_CLK_RATE(freq) \
 	(((freq) * (SNDDEV_ICODEC_PCM_SZ)) << (SNDDEV_ICODEC_MUL_FACTOR))
 
-#ifdef CONFIG_DEBUG_FS
-static struct adie_codec_action_unit debug_rx_actions[] =
-		HANDSET_RX_8000_OSR_256;
+//MM-SL-OPControl-00+{
+extern bool m_HsAmpOn;
+extern bool m_SpkAmpOn;
+//MM-SL-OPControl-00+}
 
-static struct adie_codec_action_unit debug_tx_lb_actions[] = {
+//MM-SL-OPControl-03+{
+#ifdef CONFIG_FIH_FTM
+extern bool m_speaker_mono_left;
+extern bool m_speaker_mono_right;
+#endif
+//MM-SL-OPControl-03+}
+//MM-RC-OPControl-04+{
+static struct vreg *vreg_gp4; /*VREG_L10_V2P2*/
+static struct vreg *snddev_vreg_ncp;
+#ifndef CONFIG_FIH_FBX_AUDIO
+static struct vreg *vreg_rf2;  /*VREG_S4_V2P2*/
+#endif
+//MM-RC-OPControl-04+}
+//MM-RC-OPControl-04-{
+#if 0
+//MM-RC-Audio-FXX-SXX-Codec-Power-00*{
+//MM-SL-AudioFTM-00+{
+static struct vreg *vreg_gp4; /*VREG_L10_V2P2*/
+static struct vreg *snddev_vreg_ncp;
+//MM-SL-AudioFTM-00+}
+
+//SW5-MM-DL-AudioPorting-00+(
+#ifdef CONFIG_FIH_PROJECT_SF4Y6
+   static struct vreg *vreg_rf2;  /*VREG_S4_V2P2*/
+#endif
+//SW5-MM-DL-AudioPorting-00+}
+//MM-RC-Audio-FXX-SXX-Codec-Power-00*}
+#endif
+//MM-RC-OPControl-04-}
+
+//MM-SL-AudioFTM-00*{
+#ifdef CONFIG_DEBUG_FS
+static struct adie_codec_action_unit debug_rx_actions[] = {
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF},
+	{ ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x02)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x00)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x24, 0x6F, 0x44)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x04, 0x5F, 0xBC)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x81, 0xFF, 0x4E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x25, 0x0F, 0x0E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x26, 0xfc, 0xfc)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x36, 0xc0, 0x80)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x3A, 0xFF, 0x2B)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x3d, 0xFF, 0xD5)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x83, 0x21, 0x21)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x80)},
+	{ ADIE_CODEC_ACTION_DELAY_WAIT,  0x2710},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x33, 0x40, 0x40)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x84, 0xff, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0x05, 0x04)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8a, 0x01, 0x01)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x36, 0xc0, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x33, 0x40, 0x00)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED,  ADIE_CODEC_ANALOG_OFF},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x00)}
+};
+
+static struct adie_codec_action_unit debug_handset_rx_actions[] = {
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF}, \
+	{ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x02)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x24, 0x6F, 0x44)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x04, 0xfF, 0x8C)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x81, 0xFF, 0x4e)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x25, 0x0F, 0x0b)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x26, 0xfc, 0xfc)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x36, 0xc0, 0x80)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3A, 0xFF, 0x2B)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x23, 0xff, 0x20)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3d, 0xFF, 0x55)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x83, 0x21, 0x21)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x80)}, \
+	{ADIE_CODEC_ACTION_DELAY_WAIT, 0x2710}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x40, 0x40)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x84, 0xff, 0x13)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8A, 0x05, 0x04)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8a, 0x01, 0x01)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x36, 0xc0, 0x00)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x40, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x00)}
+};
+
+static struct adie_codec_action_unit debug_fm_rx_spk_actions[] = {
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF}, \
+    {ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x02)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x00)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x81, 0xFF, 0x92)}, \
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x24, 0x6F, 0x67)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x25, 0x0F, 0x0E)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x26, 0xfc, 0xfc)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x37, 0xe2, 0xa2)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3A, 0xFF, 0x2B)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x23, 0xff, 0x20)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3d, 0xFF, 0x55)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x83, 0x23, 0x23)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x8a, 0x8a)}, \
+    {ADIE_CODEC_ACTION_DELAY_WAIT, 0x2710}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x05, 0x05)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x85, 0xff, 0x00)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x84, 0xff, 0x00)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8A, 0x05, 0x04)}, \
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8a, 0x01, 0x01)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x40, 0x00)}, \
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x00)}
+};
+static struct adie_codec_action_unit debug_fm_rx_hs_actions[] = {
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF}, \
+    {ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x02)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x00)}, \
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x81, 0xFF, 0x92)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x04, 0xff, 0xBC)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x24, 0x6F, 0x67)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x25, 0x0F, 0x0b)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x26, 0xfc, 0xfc)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x38, 0xff, 0x82)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3A, 0xFF, 0xeb)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x83, 0x23, 0x23)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x80)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x34, 0xf0, 0xa0)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x34, 0xf0, 0xf0)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x23, 0xff, 0x20)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3B, 0xFF, 0x04)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3c, 0xFF, 0x04)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x84, 0xff, 0x00)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x85, 0xff, 0x00)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8A, 0x0f, 0x0c)}, \
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8a, 0x03, 0x03)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3b, 0xFF, 0xAC)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3c, 0xFF, 0xAC)}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x34, 0xf0, 0x00)}, \
+    {ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF}, \
+    {ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x00)}
+};
+//MM-RC-OPControl-04*{
+//SW2-6-MM-RC-tuning speaker gain for FTM loopback-00*{
+#ifndef CONFIG_FIH_FBX_AUDIO
+static struct adie_codec_action_unit debug_speaker_rx_actions[] = {
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF}, \
+	{ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x02)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x24, 0x6F, 0x64)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x25, 0x0F, 0x0B)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x26, 0xfc, 0xfc)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x37, 0xe6, 0xA2)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3A, 0xFF, 0x2B)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3d, 0xFF, 0x55)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x83, 0x23, 0x23)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x23, 0xff, 0x20)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x8a, 0x8a)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x05, 0x05)}, \
+	{ADIE_CODEC_ACTION_DELAY_WAIT, 0x7530}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x84, 0xff, 0x00)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x85, 0xff, 0x00)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8A, 0x0f, 0x0c)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8a, 0x0f, 0x03)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x40, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x00)} 
+};
+#else
+static struct adie_codec_action_unit debug_speaker_rx_actions[] = {
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF}, \
+	{ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x02)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x24, 0x6F, 0x64)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x25, 0x0F, 0x0B)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x26, 0xfc, 0xfc)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x37, 0xe6, 0x80)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3A, 0xFF, 0x2B)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3d, 0xFF, 0x55)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x83, 0x23, 0x23)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x23, 0xff, 0x20)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x8a, 0x8a)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x05, 0x05)}, \
+	{ADIE_CODEC_ACTION_DELAY_WAIT, 0x7530}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x84, 0xff, 0x14)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x85, 0xff, 0x14)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8A, 0x0f, 0x0c)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8a, 0x0f, 0x03)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x40, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x00)} 
+};
+#endif
+//SW2-6-MM-RC-tuning speaker gain for FTM loopback-00*}
+//MM-RC-OPControl-04*}
+static struct adie_codec_action_unit debug_headset_rx_actions[] = {
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF}, \
+	{ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x02)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x80, 0x02, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x81, 0xFF, 0x4e)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x04, 0xff, 0xBC)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x24, 0x6F, 0x64)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x25, 0x0F, 0x0B)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x26, 0xfc, 0xfc)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x38, 0xff, 0x82)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3A, 0xFF, 0xab)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x83, 0x23, 0x23)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x82)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x34, 0xf0, 0xf0)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x23, 0xff, 0x20)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3B, 0xFF, 0x04)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3c, 0xFF, 0x04)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x84, 0xff, 0x02)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x85, 0xff, 0x02)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8A, 0x0f, 0x0c)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x8a, 0x03, 0x03)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3b, 0xFF, 0xAC)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x3c, 0xFF, 0xAC)}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x34, 0xf0, 0x00)}, \
+	{ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF}, \
+	{ADIE_CODEC_ACTION_ENTRY, ADIE_CODEC_PACK_ENTRY(0x33, 0x80, 0x00)} 
+};
+
+static struct adie_codec_action_unit debug_tx_actions[] = {
 	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF },
 	{ ADIE_CODEC_ACTION_ENTRY,
 	ADIE_CODEC_PACK_ENTRY(0x80, 0x01, 0x01)},
@@ -68,16 +364,14 @@ static struct adie_codec_action_unit debug_tx_lb_actions[] = {
 	ADIE_CODEC_PACK_ENTRY(0x82, 0xff, 0x5C)},
 	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY },
 	{ ADIE_CODEC_ACTION_ENTRY,
-	ADIE_CODEC_PACK_ENTRY(0x0D, 0xF0, 0xd0)},
+	ADIE_CODEC_PACK_ENTRY(0x0D, 0xFF, 0xD0)},
 	{ ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8},
 	{ ADIE_CODEC_ACTION_ENTRY,
 	ADIE_CODEC_PACK_ENTRY(0x83, 0x14, 0x14)},
 	{ ADIE_CODEC_ACTION_ENTRY,
-	ADIE_CODEC_PACK_ENTRY(0x86, 0xff, 0x00)},
+	ADIE_CODEC_PACK_ENTRY(0x86, 0xff, 0x1E)},
 	{ ADIE_CODEC_ACTION_ENTRY,
 	ADIE_CODEC_PACK_ENTRY(0x8A, 0x50, 0x40)},
-	{ ADIE_CODEC_ACTION_ENTRY,
-	ADIE_CODEC_PACK_ENTRY(0x91, 0xFF, 0x01)}, /* Start loop back */
 	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY},
 	{ ADIE_CODEC_ACTION_ENTRY,
 	ADIE_CODEC_PACK_ENTRY(0x8A, 0x10, 0x30)},
@@ -90,8 +384,161 @@ static struct adie_codec_action_unit debug_tx_lb_actions[] = {
 	ADIE_CODEC_PACK_ENTRY(0x11, 0xff, 0x00)}
 };
 
-static struct adie_codec_action_unit debug_tx_actions[] =
-		HANDSET_TX_8000_OSR_256;
+static struct adie_codec_action_unit debug_tx_mic1_lb_actions[] = {
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x01, 0x01)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x01, 0x00) },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0x30, 0x30)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x11, 0xfc, 0xfc)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x12, 0xfc, 0xfc)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x13, 0xfc, 0x58)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x14, 0xff, 0x65)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x15, 0xff, 0x64)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x82, 0xff, 0x5C)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0D, 0xFF, 0xD0)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0E, 0xFF, 0xD0)},
+	{ ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x83, 0x1C, 0x1C)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x84, 0x14, 0x14)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x86, 0xff, 0x1E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x87, 0xff, 0x1E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0xF0, 0xF0)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x91, 0xFF, 0x01)}, /* Start loop back */
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0x10, 0x30)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0D, 0xFF, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0E, 0xFF, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x83, 0x3C, 0x00)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x11, 0xff, 0x00)}
+};
+
+static struct adie_codec_action_unit debug_tx_mica_lb_actions[] = {
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x01, 0x01)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x01, 0x00) },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0x30, 0x30)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x11, 0xfc, 0xfc)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x12, 0xfc, 0xfc)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x13, 0xfc, 0x58)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x14, 0xff, 0x65)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x15, 0xff, 0x64)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x82, 0xff, 0x5C)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0D, 0xFF, 0xC1)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0E, 0xFF, 0xC1)},
+	{ ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x83, 0x1C, 0x1C)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x84, 0x14, 0x14)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x86, 0xff, 0x1E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x87, 0xff, 0x1E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0xF0, 0xF0)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x91, 0xFF, 0x01)}, /* Start loop back */
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0x10, 0x30)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0D, 0xFF, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0E, 0xFF, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x83, 0x3C, 0x00)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x11, 0xff, 0x00)}
+};
+
+static struct adie_codec_action_unit debug_tx_mic2_lb_actions[] = {
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_OFF },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x01, 0x01)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x80, 0x01, 0x00) },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0x30, 0x30)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x11, 0xfc, 0xfc)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x12, 0xfc, 0xfc)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x13, 0xfc, 0x58)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x14, 0xff, 0x65)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x15, 0xff, 0x64)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x82, 0xff, 0x5C)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_READY },
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0D, 0xFF, 0xC8)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0E, 0xFF, 0xC8)},
+	{ ADIE_CODEC_ACTION_DELAY_WAIT, 0xbb8},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x83, 0x1C, 0x1C)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x84, 0x14, 0x14)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x86, 0xff, 0x1E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x87, 0xff, 0x1E)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0xF0, 0xF0)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x91, 0xFF, 0x01)}, /* Start loop back */
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_DIGITAL_ANALOG_READY},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x8A, 0x10, 0x30)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0D, 0xFF, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x0E, 0xFF, 0x00)},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x83, 0x3C, 0x00)},
+	{ ADIE_CODEC_ACTION_STAGE_REACHED, ADIE_CODEC_ANALOG_OFF},
+	{ ADIE_CODEC_ACTION_ENTRY,
+	ADIE_CODEC_PACK_ENTRY(0x11, 0xff, 0x00)}
+};
 
 static struct adie_codec_hwsetting_entry debug_rx_settings[] = {
 	{
@@ -99,6 +546,77 @@ static struct adie_codec_hwsetting_entry debug_rx_settings[] = {
 		.osr = 256,
 		.actions = debug_rx_actions,
 		.action_sz = ARRAY_SIZE(debug_rx_actions),
+	}
+};
+
+static struct adie_codec_hwsetting_entry debug_handset_rx_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_handset_rx_actions,
+		.action_sz = ARRAY_SIZE(debug_handset_rx_actions),
+	}
+};
+
+static struct adie_codec_hwsetting_entry debug_fm_rx_spk_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_fm_rx_spk_actions,
+		.action_sz = ARRAY_SIZE(debug_fm_rx_spk_actions),
+	}
+};
+static struct adie_codec_hwsetting_entry debug_fm_rx_hs_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_fm_rx_hs_actions,
+		.action_sz = ARRAY_SIZE(debug_fm_rx_hs_actions),
+	}
+};
+
+static struct adie_codec_hwsetting_entry debug_speaker_rx_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_speaker_rx_actions,
+		.action_sz = ARRAY_SIZE(debug_speaker_rx_actions),
+	}
+};
+
+static struct adie_codec_hwsetting_entry debug_headset_rx_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_headset_rx_actions,
+		.action_sz = ARRAY_SIZE(debug_headset_rx_actions),
+	}
+};
+
+static struct adie_codec_hwsetting_entry debug_tx_mic1_lb_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_tx_mic1_lb_actions,
+		.action_sz = ARRAY_SIZE(debug_tx_mic2_lb_actions),
+	}
+};
+
+static struct adie_codec_hwsetting_entry debug_tx_mic2_lb_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_tx_mic2_lb_actions,
+		.action_sz = ARRAY_SIZE(debug_tx_mic2_lb_actions),
+	}
+};
+
+static struct adie_codec_hwsetting_entry debug_tx_mica_lb_settings[] = {
+	{
+		.freq_plan = 8000,
+		.osr = 256,
+		.actions = debug_tx_mica_lb_actions,
+		.action_sz = ARRAY_SIZE(debug_tx_mica_lb_actions),
 	}
 };
 
@@ -111,19 +629,39 @@ static struct adie_codec_hwsetting_entry debug_tx_settings[] = {
 	}
 };
 
-static struct adie_codec_hwsetting_entry debug_tx_lb_settings[] = {
-	{
-		.freq_plan = 8000,
-		.osr = 256,
-		.actions = debug_tx_lb_actions,
-		.action_sz = ARRAY_SIZE(debug_tx_lb_actions),
-	}
-};
-
 static struct adie_codec_dev_profile debug_rx_profile = {
 	.path_type = ADIE_CODEC_RX,
 	.settings = debug_rx_settings,
 	.setting_sz = ARRAY_SIZE(debug_rx_settings),
+};
+
+static struct adie_codec_dev_profile debug_handset_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = debug_handset_rx_settings,
+	.setting_sz = ARRAY_SIZE(debug_handset_rx_settings),
+};
+
+static struct adie_codec_dev_profile debug_fm_rx_spk_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = debug_fm_rx_spk_settings,
+	.setting_sz = ARRAY_SIZE(debug_fm_rx_spk_settings),
+};
+static struct adie_codec_dev_profile debug_fm_rx_hs_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = debug_fm_rx_hs_settings,
+	.setting_sz = ARRAY_SIZE(debug_fm_rx_hs_settings),
+};
+
+static struct adie_codec_dev_profile debug_speaker_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = debug_speaker_rx_settings,
+	.setting_sz = ARRAY_SIZE(debug_speaker_rx_settings),
+};
+
+static struct adie_codec_dev_profile debug_headset_rx_profile = {
+	.path_type = ADIE_CODEC_RX,
+	.settings = debug_headset_rx_settings,
+	.setting_sz = ARRAY_SIZE(debug_headset_rx_settings),
 };
 
 static struct adie_codec_dev_profile debug_tx_profile = {
@@ -132,11 +670,24 @@ static struct adie_codec_dev_profile debug_tx_profile = {
 	.setting_sz = ARRAY_SIZE(debug_tx_settings),
 };
 
-static struct adie_codec_dev_profile debug_tx_lb_profile = {
+static struct adie_codec_dev_profile debug_tx_mic1_lb_profile = {
 	.path_type = ADIE_CODEC_TX,
-	.settings = debug_tx_lb_settings,
-	.setting_sz = ARRAY_SIZE(debug_tx_lb_settings),
+	.settings = debug_tx_mic1_lb_settings,
+	.setting_sz = ARRAY_SIZE(debug_tx_mic1_lb_settings),
 };
+
+static struct adie_codec_dev_profile debug_tx_mic2_lb_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = debug_tx_mic2_lb_settings,
+	.setting_sz = ARRAY_SIZE(debug_tx_mic2_lb_settings),
+};
+
+static struct adie_codec_dev_profile debug_tx_mica_lb_profile = {
+	.path_type = ADIE_CODEC_TX,
+	.settings = debug_tx_mica_lb_settings,
+	.setting_sz = ARRAY_SIZE(debug_tx_mica_lb_settings),
+};
+//MM-SL-AudioFTM-00*}
 #endif /* CONFIG_DEBUG_FS */
 
 /* Context for each internal codec sound device */
@@ -309,8 +860,11 @@ static int snddev_icodec_open_tx(struct snddev_icodec_state *icodec)
 	clk_enable(drv->tx_sclk);
 
 	/* Set MI2S */
-	mi2s_set_codec_input_path((icodec->data->channel_mode == 2 ?
-	MI2S_CHAN_STEREO : MI2S_CHAN_MONO_RAW), WT_16_BIT);
+	mi2s_set_codec_input_path((icodec->data->channel_mode ==
+				REAL_STEREO_CHANNEL_MODE ? MI2S_CHAN_STEREO :
+				(icodec->data->channel_mode == 2 ?
+				 MI2S_CHAN_STEREO : MI2S_CHAN_MONO_RAW)),
+				WT_16_BIT);
 	/* Configure ADIE */
 	trc = adie_codec_open(icodec->data->profile, &icodec->adie_path);
 	if (IS_ERR_VALUE(trc))
@@ -464,7 +1018,9 @@ static int snddev_icodec_set_device_volume_impl(
 	if (icodec->data->dev_vol_type & SNDDEV_DEV_VOL_DIGITAL) {
 
 		rc = adie_codec_set_device_digital_volume(icodec->adie_path,
-				icodec->data->channel_mode, volume);
+				icodec->data->channel_mode ==
+						REAL_STEREO_CHANNEL_MODE ?
+					2 : icodec->data->channel_mode, volume);
 		if (rc < 0) {
 			MM_ERR("unable to set_device_digital_volume for"
 				"%s volume in percentage = %u\n",
@@ -474,7 +1030,9 @@ static int snddev_icodec_set_device_volume_impl(
 
 	} else if (icodec->data->dev_vol_type & SNDDEV_DEV_VOL_ANALOG) {
 		rc = adie_codec_set_device_analog_volume(icodec->adie_path,
-				icodec->data->channel_mode, volume);
+				icodec->data->channel_mode ==
+						REAL_STEREO_CHANNEL_MODE ?
+					2 : icodec->data->channel_mode, volume);
 		if (rc < 0) {
 			MM_ERR("unable to set_device_analog_volume for"
 				"%s volume in percentage = %u\n",
@@ -500,6 +1058,30 @@ static int snddev_icodec_close(struct msm_snddev_info *dev_info)
 	}
 
 	icodec = dev_info->private_data;
+	//MM-RC-OPControl-03*{
+	if (icodec->data->capability & SNDDEV_CAP_RX) {
+		//MM-RC-OPControl-01+{
+		gpio_set_value(HS_AMP, 0);  /* enable hs poweramp GPIO_55*///MM-RC-OPControl-04*
+		printk(KERN_ERR "close op GPIO%d:%d \n",HS_AMP,gpio_get_value(HS_AMP) );//MM-RC-OPControl-04*
+
+		gpio_set_value(SPK1_AMP, 0);    /* enable spkr poweramp 1*/
+		printk(KERN_ERR "close op GPIO%d:%d \n",SPK1_AMP,gpio_get_value(SPK1_AMP) );
+
+		//MM-RC-OPControl-02*{
+		#ifdef CONFIG_FIH_FBX_AUDIO
+			gpio_set_value(SPK2_AMP, 0);    /* enable spkr poweramp 2*/
+			printk(KERN_ERR "close op GPIO%d:%d \n",SPK2_AMP,gpio_get_value(SPK2_AMP) );
+		//SW5-MM-DL-FixBoSound-00+{
+			//msleep(20);
+		#endif
+		msleep(20);
+		//SW5-MM-DL-FixBoSound-00+}
+		//MM-RC-OPControl-02*}
+		//MM-RC-OPControl-01+}
+	}
+	//MM-RC-OPControl-03*}
+
+
 
 	if (icodec->data->capability & SNDDEV_CAP_RX) {
 		mutex_lock(&drv->rx_lock);
@@ -525,6 +1107,17 @@ static int snddev_icodec_close(struct msm_snddev_info *dev_info)
 		mutex_unlock(&drv->tx_lock);
 	}
 
+	//MM-RC-OPControl-04*{
+	//MM-RC-OPControl-02+{
+	#ifndef CONFIG_FIH_FBX_AUDIO
+	if ((fih_get_product_id() == Product_SF6) && (fih_get_product_phase() == Product_PR1)) {
+		vreg_disable(vreg_rf2); /*VREG_S4_V2P2*/
+	} else {
+		vreg_disable(vreg_gp4); /*VREG_L10_V2P2*/ 
+	}
+	#endif
+	//MM-RC-OPControl-02+}
+	//MM-RC-OPControl-04*}
 error:
 	return rc;
 }
@@ -535,6 +1128,21 @@ static int snddev_icodec_open(struct msm_snddev_info *dev_info)
 	struct snddev_icodec_state *icodec;
 	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
 
+	//MM-RC-OPControl-04*{
+	//SW5-MM-DL-AudioPorting-00+{
+	#ifndef CONFIG_FIH_FBX_AUDIO
+	if ((fih_get_product_id() == Product_SF6) && (fih_get_product_phase() == Product_PR1)) {
+		vreg_set_level(vreg_rf2, 2200); /*VREG_S4_V2P2*/
+		vreg_enable(vreg_rf2);
+	} else {
+		vreg_set_level(vreg_gp4, 2200); /*VREG_L10_V2P2*/
+		vreg_enable(vreg_gp4);
+	}
+	#endif 	
+	//SW5-MM-DL-AudioPorting-00+}
+	//MM-RC-OPControl-04*}
+	printk(KERN_ERR "snddev_icodec_open\n" );//MM-SL-OPControl-00+
+	
 	if (!dev_info) {
 		rc = -EINVAL;
 		goto error;
@@ -550,6 +1158,7 @@ static int snddev_icodec_open(struct msm_snddev_info *dev_info)
 			goto error;
 		}
 		rc = snddev_icodec_open_rx(icodec);
+		printk(KERN_ERR "[snddev_icodec_open] snddev_icodec_open_rx\n" );//MM-SL-OPControl-00+
 
 		if (!IS_ERR_VALUE(rc)) {
 			drv->rx_active = 1;
@@ -567,6 +1176,53 @@ static int snddev_icodec_open(struct msm_snddev_info *dev_info)
 				}
 		}
 		mutex_unlock(&drv->rx_lock);
+		//MM-SL-OPControl-03*{
+		#ifndef CONFIG_FIH_FTM
+		//MM-SL-OPControl-00+{
+		if (m_HsAmpOn){
+			//MM-RC-OPControl-02+{
+			#ifndef CONFIG_FIH_FBX_AUDIO
+				msleep(65);
+			#endif
+			//MM-RC-OPControl-02+}
+			gpio_set_value(HS_AMP, 1);  /* enable hs poweramp GPIO_55*///MM-RC-OPControl-04*
+			printk(KERN_ERR "GPIO%d:%d \n",HS_AMP,gpio_get_value(HS_AMP) );//MM-RC-OPControl-04*
+		}
+		if (m_SpkAmpOn){
+			gpio_set_value(SPK1_AMP, 1);    /* enable spkr poweramp 1*/
+			printk(KERN_ERR "GPIO%d:%d \n",SPK1_AMP,gpio_get_value(SPK1_AMP) );
+			#ifdef CONFIG_FIH_FBX_AUDIO
+			gpio_set_value(SPK2_AMP, 1);    /* enable spkr poweramp 2*/
+			printk(KERN_ERR "GPIO%d:%d \n",SPK2_AMP,gpio_get_value(SPK2_AMP) );
+			#endif
+		}
+		//MM-SL-OPControl-00+}
+		#else
+		if (m_HsAmpOn){
+			//MM-RC-OPControl-02+{
+			#ifndef CONFIG_FIH_FBX_AUDIO
+				msleep(65);
+			#endif
+			//MM-RC-OPControl-02+}
+			gpio_set_value(HS_AMP, 1);  /* enable hs poweramp GPIO_55*///MM-RC-OPControl-04*
+			printk(KERN_ERR "GPIO%d:%d \n",HS_AMP,gpio_get_value(HS_AMP) );//MM-RC-OPControl-04*
+		}
+		if (m_SpkAmpOn){
+			if (m_speaker_mono_right){ //MM-SL-OPControl-04*
+				gpio_set_value(SPK1_AMP, 1);    /* enable spkr poweramp 2*/
+				printk(KERN_ERR "GPIO%d:%d \n",SPK1_AMP,gpio_get_value(SPK1_AMP) ); 
+				m_speaker_mono_right= false; //MM-SL-OPControl-04*
+			}
+			#ifdef CONFIG_FIH_FBX_AUDIO
+			if (m_speaker_mono_left){ //MM-SL-OPControl-04*
+				gpio_set_value(SPK2_AMP, 1);    /* enable spkr poweramp 1*/ 
+				printk(KERN_ERR "GPIO%d:%d \n",SPK2_AMP,gpio_get_value(SPK2_AMP) ); 
+				m_speaker_mono_left= false; //MM-SL-OPControl-04*
+			}
+			#endif
+		}
+		#endif
+		//MM-SL-OPControl-03*}
 	} else {
 		mutex_lock(&drv->tx_lock);
 		if (drv->tx_active) {
@@ -805,63 +1461,257 @@ static int snddev_icodec_debug_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static void debugfs_adie_loopback(u32 loop)
-{
-	struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
-
-	if (loop) {
-
-		/* enable MI2S RX master block */
-		/* enable MI2S RX bit clock */
-		clk_set_rate(drv->rx_mclk,
+//MM-SL-AudioFTM-00*{
+void debugfs_adie_loopback(u32 loop, audio_device_type device)
+	{
+		struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
+	
+		if (loop) {
+	
+			/* enable MI2S RX master block */
+			/* enable MI2S RX bit clock */
+			clk_set_rate(drv->rx_mclk,
 			SNDDEV_ICODEC_CLK_RATE(8000));
-		clk_enable(drv->rx_mclk);
-		clk_enable(drv->rx_sclk);
+			clk_enable(drv->rx_mclk);
+			clk_enable(drv->rx_sclk);
 
-		MM_INFO("configure ADIE RX path\n");
-		/* Configure ADIE */
-		adie_codec_open(&debug_rx_profile, &debugfs_rx_adie);
-		adie_codec_setpath(debugfs_rx_adie, 8000, 256);
-		adie_codec_proceed_stage(debugfs_rx_adie,
-		ADIE_CODEC_DIGITAL_ANALOG_READY);
-
-		MM_INFO("Enable Handset Mic bias\n");
-		pmic_hsed_enable(PM_HSED_CONTROLLER_0, PM_HSED_ENABLE_PWM_TCXO);
-		/* enable MI2S TX master block */
-		/* enable MI2S TX bit clock */
-		clk_set_rate(drv->tx_mclk,
-			SNDDEV_ICODEC_CLK_RATE(8000));
-		clk_enable(drv->tx_mclk);
-		clk_enable(drv->tx_sclk);
-
-		MM_INFO("configure ADIE TX path\n");
-		/* Configure ADIE */
-		adie_codec_open(&debug_tx_lb_profile, &debugfs_tx_adie);
-		adie_codec_setpath(debugfs_tx_adie, 8000, 256);
-		adie_codec_proceed_stage(debugfs_tx_adie,
-		ADIE_CODEC_DIGITAL_ANALOG_READY);
-	} else {
-		/* Disable ADIE */
-		adie_codec_proceed_stage(debugfs_rx_adie,
-		ADIE_CODEC_DIGITAL_OFF);
-		adie_codec_close(debugfs_rx_adie);
-		adie_codec_proceed_stage(debugfs_tx_adie,
-		ADIE_CODEC_DIGITAL_OFF);
-		adie_codec_close(debugfs_tx_adie);
-
-		pmic_hsed_enable(PM_HSED_CONTROLLER_0, PM_HSED_ENABLE_OFF);
-
-		/* Disable MI2S RX master block */
-		/* Disable MI2S RX bit clock */
-		clk_disable(drv->rx_sclk);
-		clk_disable(drv->rx_mclk);
-
-		/* Disable MI2S TX master block */
-		/* Disable MI2S TX bit clock */
-		clk_disable(drv->tx_sclk);
-		clk_disable(drv->tx_mclk);
+			//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-02+{
+			#ifndef CONFIG_FIH_FBX_AUDIO //SW5-MM-DL-OpenCodecPowerForLoopBackTest-00 //MM-RC-OPControl-04*
+				vreg_gp4 = vreg_get(NULL, "gp4");
+				snddev_vreg_ncp = vreg_get(NULL, "ncp");
+				vreg_set_level(vreg_gp4, 2200); /*VREG_L10_V2P2*/
+				vreg_enable(vreg_gp4); 
+				vreg_enable(snddev_vreg_ncp);
+			#endif
+			//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-02+}
+			
+			MM_INFO("%s: configure ADIE RX path\n", __func__);
+			/* Configure ADIE */
+			if (( device == STEREO_SPEAKER_WITH_MIC1 ) ||
+				( device == STEREO_SPEAKER_WITH_MICA )	 ){
+				adie_codec_open(&debug_speaker_rx_profile, &debugfs_rx_adie);
+				//MM-SL-AudioFTM-01*{
+				/*msm_snddev_poweramp_on is no more used to open skp op*/
+				//msm_snddev_poweramp_on();
+				gpio_set_value(SPK1_AMP, 1);    /* enable spkr poweramp 1*/
+				#ifdef CONFIG_FIH_FBX_AUDIO
+				gpio_set_value(SPK2_AMP, 1);    /* enable spkr poweramp 2*/
+				#endif
+				//MM-SL-AudioFTM-01*}
+			}else if(device == RECEIVER_WITH_MIC1 ){
+				adie_codec_open(&debug_handset_rx_profile, &debugfs_rx_adie);
+			}else{
+				//MM-SL-EnableCodecPowerForHSLoopback-00*{
+				/* Div1-FW3-BSP-AUDIO */
+				//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-02*{
+				#ifdef CONFIG_FIH_FBX_AUDIO //SW5-MM-DL-FixFB0FtmLoopBackTest-00//MM-RC-OPControl-04*
+				vreg_gp4 = vreg_get(NULL, "gp4");
+				snddev_vreg_ncp = vreg_get(NULL, "ncp");
+				vreg_set_level(vreg_gp4, 2200); /*VREG_L10_V2P2*/
+				vreg_enable(vreg_gp4); 
+				vreg_enable(snddev_vreg_ncp);
+				#endif
+				//MM-RC-ChangeCodingStyle-00+{
+				//ASWISH_CTL: for switching ext.mic and TV in SFH
+				//SFH need to enable VREG_L12_V3 for ext. mic, and the power is always opened.
+				if(fih_get_product_id()==Product_SFH){
+					gpio_set_value(ASWISH_CTL, 0); 
+				}
+				//MM-RC-ChangeCodingStyle-00+}
+				//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-02*}
+				//MM-SL-EnableCodecPowerForHSLoopback-00*}
+				adie_codec_open(&debug_headset_rx_profile, &debugfs_rx_adie);
+				//MM-SL-AudioFTM-01*{
+				/*msm_snddev_hsed_voltage_on is no more used to open hs op*/
+				//msm_snddev_hsed_voltage_on();
+				gpio_set_value(HS_AMP, 1);    /* enable hs poweramp 1*///MM-RC-OPControl-04*
+				//MM-SL-AudioFTM-01*}				
+			}
+			adie_codec_setpath(debugfs_rx_adie, 8000, 256);
+			adie_codec_proceed_stage(debugfs_rx_adie,
+			ADIE_CODEC_DIGITAL_ANALOG_READY);
+	
+			MM_INFO("%s: Enable Handset Mic bias\n", __func__);
+			if ( device == STEREO_HEADSET_WITH_MIC2 )
+				pmic_hsed_enable(PM_HSED_CONTROLLER_1, PM_HSED_ENABLE_PWM_TCXO);
+			else
+				pmic_hsed_enable(PM_HSED_CONTROLLER_0, PM_HSED_ENABLE_PWM_TCXO);
+	
+			/* enable MI2S TX master block */
+			/* enable MI2S TX bit clock */
+			clk_set_rate(drv->tx_mclk,
+				SNDDEV_ICODEC_CLK_RATE(8000));
+			clk_enable(drv->tx_mclk);
+			clk_enable(drv->tx_sclk);
+	
+			MM_INFO("%s: configure ADIE TX path\n", __func__);
+			/* Configure ADIE */
+			if ( device == STEREO_HEADSET_WITH_MIC2 ){
+				adie_codec_open(&debug_tx_mic2_lb_profile, &debugfs_tx_adie);
+			}else if((device == STEREO_SPEAKER_WITH_MICA) ||
+					 (device == STEREO_HEADSET_WITH_MICA)	){
+				adie_codec_open(&debug_tx_mica_lb_profile, &debugfs_tx_adie);
+			}else{
+				adie_codec_open(&debug_tx_mic1_lb_profile, &debugfs_tx_adie);
+			}
+	
+			adie_codec_setpath(debugfs_tx_adie, 8000, 256);
+			adie_codec_proceed_stage(debugfs_tx_adie,
+			ADIE_CODEC_DIGITAL_ANALOG_READY);
+		} else {
+			/* Disable ADIE */
+			adie_codec_proceed_stage(debugfs_rx_adie,
+			ADIE_CODEC_DIGITAL_OFF);
+			adie_codec_close(debugfs_rx_adie);
+			adie_codec_proceed_stage(debugfs_tx_adie,
+			ADIE_CODEC_DIGITAL_OFF);
+			adie_codec_close(debugfs_tx_adie);
+	
+			if ( device == STEREO_HEADSET_WITH_MIC2 )
+				pmic_hsed_enable(PM_HSED_CONTROLLER_1, PM_HSED_ENABLE_OFF);
+			else
+				pmic_hsed_enable(PM_HSED_CONTROLLER_0, PM_HSED_ENABLE_OFF);
+			
+			/* Disable MI2S RX master block */
+			/* Disable MI2S RX bit clock */
+			clk_disable(drv->rx_sclk);
+			clk_disable(drv->rx_mclk);
+	
+			/* Disable MI2S TX master block */
+			/* Disable MI2S TX bit clock */
+			clk_disable(drv->tx_sclk);
+			clk_disable(drv->tx_mclk);
+			if (( device == STEREO_SPEAKER_WITH_MIC1 ) ||
+				( device == STEREO_SPEAKER_WITH_MICA )	 ){
+				//MM-SL-AudioFTM-01*{
+				/*msm_snddev_poweramp_off is no more used to close skp op*/
+				//msm_snddev_poweramp_off();
+				gpio_set_value(SPK1_AMP, 0);    /* enable spkr poweramp 1*/
+				#ifdef CONFIG_FIH_FBX_AUDIO
+				gpio_set_value(SPK2_AMP, 0);    /* enable spkr poweramp 2*/
+				#endif
+				//MM-SL-AudioFTM-01*}
+			}else{
+				//MM-SL-EnableCodecPowerForHSLoopback-00*{
+				/* Div1-FW3-BSP-AUDIO */
+				//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03*{
+				//SW5-MM-DL-FixFtmLoopBackTest-00+{
+				#ifdef CONFIG_FIH_FBX_AUDIO//MM-RC-OPControl-04*
+				//SW5-MM-DL-FixFtmLoopBackTest-00+}
+				vreg_disable(vreg_gp4);
+				vreg_disable(snddev_vreg_ncp);
+				vreg_put(snddev_vreg_ncp);
+				#endif
+				//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03*}
+				//MM-SL-EnableCodecPowerForHSLoopback-00*}
+				//MM-SL-AudioFTM-01*{
+				/*msm_snddev_hsed_voltage_off is no more used to close hs op*/
+				//msm_snddev_hsed_voltage_off();
+				gpio_set_value(HS_AMP, 0);  /* enable hs poweramp GPIO_55*///MM-RC-OPControl-04*
+				//MM-SL-AudioFTM-01*}
+			}
+			//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03+{
+			//SW5-MM-DL-FixFtmLoopBackTest-00+{
+			#ifndef CONFIG_FIH_FBX_AUDIO//MM-RC-OPControl-04*
+			//SW5-MM-DL-FixFtmLoopBackTest-00+}
+				vreg_disable(vreg_gp4);
+				vreg_disable(snddev_vreg_ncp);
+				vreg_put(snddev_vreg_ncp);
+			#endif
+			//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03+}
+		}
 	}
+
+
+void fm_set_rx_path(bool enable, audio_device_type device)
+{
+    struct snddev_icodec_drv_state *drv = &snddev_icodec_drv;
+
+    if (enable) {
+        /* enable MI2S RX master block */
+        /* enable MI2S RX bit clock */
+        clk_set_rate(drv->rx_mclk,
+        SNDDEV_ICODEC_CLK_RATE(8000));
+        clk_enable(drv->rx_mclk);
+        clk_enable(drv->rx_sclk);
+			//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03+{
+			//SW5-MM-DL-FixFtmLoopBackTest-00+{
+			#ifndef CONFIG_FIH_FBX_AUDIO//MM-RC-OPControl-04*
+			//SW5-MM-DL-FixFtmLoopBackTest-00+}
+				vreg_gp4 = vreg_get(NULL, "gp4");
+				snddev_vreg_ncp = vreg_get(NULL, "ncp");
+				vreg_set_level(vreg_gp4, 2200); /*VREG_L10_V2P2*/
+				vreg_enable(vreg_gp4); 
+				vreg_enable(snddev_vreg_ncp);
+			#endif
+			//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03+}
+        MM_INFO("%s: configure ADIE RX path\n", __func__);
+        /* Configure ADIE */
+        if ( device == FM_speaker )
+            adie_codec_open(&debug_fm_rx_spk_profile, &debugfs_rx_adie);
+        else if (device ==FM_headset)
+            adie_codec_open(&debug_fm_rx_hs_profile, &debugfs_rx_adie);
+        
+        adie_codec_setpath(debugfs_rx_adie, 8000, 256);
+        adie_codec_proceed_stage(debugfs_rx_adie,ADIE_CODEC_DIGITAL_ANALOG_READY);
+        /* Configure ADIE */
+        if ( device == FM_speaker ){
+            //MM-SL-AudioFTM-01*{
+            /*msm_snddev_poweramp_on is no more used to open skp op*/
+            //msm_snddev_poweramp_on();
+            gpio_set_value(SPK1_AMP, 1);    /* enable spkr poweramp 1*/
+            #ifdef CONFIG_FIH_FBX_AUDIO
+            gpio_set_value(SPK2_AMP, 1);    /* enable spkr poweramp 2*/
+            #endif
+            //MM-SL-AudioFTM-01*}			
+        }
+        else if (device ==FM_headset){
+            //MM-SL-AudioFTM-01*{
+            /*msm_snddev_hsed_voltage_on is no more used to open hs op*/
+            //msm_snddev_hsed_voltage_on();
+            gpio_set_value(HS_AMP, 1);  /* enable hs poweramp GPIO_55*///MM-RC-OPControl-04*
+            //MM-SL-AudioFTM-01*}		
+        }
+
+        MM_INFO("%s: Enable Handset Mic bias\n", __func__);
+
+    } else {
+    /* Disable ADIE */
+        if ( device == FM_speaker ){
+            //MM-SL-AudioFTM-01*{
+            /*msm_snddev_poweramp_off is no more used to close skp op*/
+            //msm_snddev_poweramp_off();
+            gpio_set_value(SPK1_AMP, 0);    /* enable spkr poweramp 1*/
+            #ifdef CONFIG_FIH_FBX_AUDIO
+            gpio_set_value(SPK2_AMP, 0);    /* enable spkr poweramp 2*/
+            #endif
+            //MM-SL-AudioFTM-01*}		
+        }
+        else if (device ==FM_headset){
+            //MM-SL-AudioFTM-01*{
+            /*msm_snddev_hsed_voltage_off is no more used to close hs op*/
+            //msm_snddev_hsed_voltage_off();
+            gpio_set_value(HS_AMP, 0);  /* enable hs poweramp GPIO_55*///MM-RC-OPControl-04*
+            //MM-SL-AudioFTM-01*}			
+        }
+        adie_codec_proceed_stage(debugfs_rx_adie,ADIE_CODEC_DIGITAL_OFF);
+        adie_codec_close(debugfs_rx_adie);
+	//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03+{
+        //SW5-MM-DL-FixFtmLoopBackTest-00+{
+        #ifndef CONFIG_FIH_FBX_AUDIO//MM-RC-OPControl-04*
+        //SW5-MM-DL-FixFtmLoopBackTest-00+}
+        vreg_disable(vreg_gp4);
+	 vreg_disable(snddev_vreg_ncp);
+	 vreg_put(snddev_vreg_ncp);
+	#endif
+	//SW2-6-MM-RC-SF5-2030-AUDIO-PORTING-03+}
+        /* Disable MI2S RX master block */
+        /* Disable MI2S RX bit clock */
+        clk_disable(drv->rx_sclk);
+        clk_disable(drv->rx_mclk);
+    }
 }
+//MM-SL-AudioFTM-00*}
 
 static void debugfs_afe_loopback(u32 loop)
 {
@@ -1015,12 +1865,14 @@ static ssize_t snddev_icodec_debug_write(struct file *filp,
 
 	if (!strcmp(lb_str, "adie_loopback")) {
 		switch (cmd) {
-		case '1':
-			debugfs_adie_loopback(1);
-			break;
-		case '0':
-			debugfs_adie_loopback(0);
-			break;
+			//MM-SL-AudioFTM-00+{
+			case '1':
+				debugfs_adie_loopback(1,STEREO_SPEAKER_WITH_MIC1);
+				break;
+			case '0':
+				debugfs_adie_loopback(0,STEREO_SPEAKER_WITH_MIC1);
+				break;
+			//MM-SL-AudioFTM-00+}
 		}
 	} else if (!strcmp(lb_str, "afe_loopback")) {
 		switch (cmd) {
@@ -1047,6 +1899,36 @@ static int __init snddev_icodec_init(void)
 	s32 rc;
 	struct snddev_icodec_drv_state *icodec_drv = &snddev_icodec_drv;
 
+	//MM-RC-OPControl-04+{
+	#ifndef CONFIG_FIH_FBX_AUDIO
+	if ((fih_get_product_id() == Product_SF6) && (fih_get_product_phase() == Product_PR1)) {
+		vreg_rf2 = vreg_get(NULL, "s4"); /*VREG_S4_V2P2*/
+	} else {
+		vreg_gp4 = vreg_get(NULL, "gp4"); /*VREG_L10_V2P2*/ 
+	}
+	#endif
+	//MM-RC-OPControl-04+}
+	//MM-RC-OPControl-04-{
+	#if 0
+	//SW5-MM-DL-AudioPorting-00+{
+	/*In PR1 of SF4Y6, VREG_S4_V2P2 is used for codec power*/
+	/*After PR1 of SF4Y6, it will use the same cpdec power with SF4V5*/
+	#ifndef CONFIG_FIH_PROJECT_FB400
+	if (Product_PR1 == fih_get_product_id()) {
+		#if defined(CONFIG_FIH_PROJECT_SF4V5) ||defined(CONFIG_FIH_PROJECT_SF8)//SW2-6-MM-RC-Porting 4H8 audio FTM-00*
+		vreg_gp4 = vreg_get(NULL, "gp4");
+		#endif
+		
+		#ifdef CONFIG_FIH_PROJECT_SF4Y6
+		vreg_rf2 = vreg_get(NULL, "s4");
+		#endif
+	} else {
+		vreg_gp4 = vreg_get(NULL, "gp4");
+	}
+	#endif	
+	//SW5-MM-DL-AudioPorting-00+}
+	#endif
+	//MM-RC-OPControl-04-}
 	rc = platform_driver_register(&snddev_icodec_driver);
 	if (IS_ERR_VALUE(rc))
 		goto error_platform_driver;
@@ -1073,15 +1955,17 @@ static int __init snddev_icodec_init(void)
 		goto error_lpa_p_clk;
 
 #ifdef CONFIG_DEBUG_FS
+//MM-SL-ModifyForGingerbread-00*{
 	debugfs_sdev_dent = debugfs_create_dir("snddev_icodec", 0);
 	if (debugfs_sdev_dent) {
 		debugfs_afelb = debugfs_create_file("afe_loopback",
-		S_IFREG | S_IWUGO, debugfs_sdev_dent,
+		0220, debugfs_sdev_dent, /*S_IFREG | S_IWUGO*/
 		(void *) "afe_loopback", &snddev_icodec_debug_fops);
 		debugfs_adielb = debugfs_create_file("adie_loopback",
-		S_IFREG | S_IWUGO, debugfs_sdev_dent,
+		0220, debugfs_sdev_dent,  /*S_IFREG | S_IWUGO*/
 		(void *) "adie_loopback", &snddev_icodec_debug_fops);
 	}
+//MM-SL-ModifyForGingerbread-00*}	
 #endif
 	mutex_init(&icodec_drv->rx_lock);
 	mutex_init(&icodec_drv->tx_lock);

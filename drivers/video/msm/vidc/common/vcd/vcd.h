@@ -341,8 +341,7 @@ u32 vcd_enable_clock(struct vcd_dev_ctxt *dev_ctxt,
 
 u32 vcd_disable_clock(struct vcd_dev_ctxt *dev_ctxt);
 
-u32 vcd_set_perf_level(struct vcd_dev_ctxt *dev_ctxt,
-	u32 perf_lvl, struct vcd_clnt_ctxt *cctxt);
+u32 vcd_set_perf_level(struct vcd_dev_ctxt *dev_ctxt, u32 perf_lvl);
 
 u32 vcd_update_clnt_perf_lvl
     (struct vcd_clnt_ctxt *cctxt,
@@ -396,5 +395,10 @@ u32 vcd_sched_suspend_resume_clnt(
 u32 vcd_sched_get_client_frame(struct list_head *sched_clnt_list,
 	struct vcd_clnt_ctxt **cctxt,
 	struct vcd_buffer_entry **buffer);
+
+void vcd_handle_clnt_fatal(struct vcd_clnt_ctxt *cctxt, u32 trans_end);
+
+void vcd_handle_clnt_fatal_input_done(struct vcd_clnt_ctxt *cctxt,
+	u32 trans_end);
 
 #endif

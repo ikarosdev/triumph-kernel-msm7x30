@@ -52,6 +52,17 @@ struct msm_hsusb_rpc_ids {
 static struct msm_hsusb_rpc_ids usb_rpc_ids;
 static struct msm_chg_rpc_ids chg_rpc_ids;
 
+/* Div2-SW2-BSP-FBX-CHG { */
+#ifdef CONFIG_BATTERY_FIH_MSM
+#include <linux/mutex.h>
+
+DEFINE_MUTEX(OT_flag_lock);
+static bool g_OT_flag = false;
+static unsigned chg_current = 0;
+extern void msm_batt_update_charger_type(enum chg_type charger_type);
+#endif
+/* } Div2-SW2-BSP-FBX-CHG */
+
 static int msm_hsusb_init_rpc_ids(unsigned long vers)
 {
 	if (vers == 0x00010001) {
@@ -376,7 +387,7 @@ int msm_chg_usb_charger_connected(uint32_t device)
 		pr_err("%s: charger_connected failed! rc = %d\n",
 			__func__, rc);
 	} else
-		pr_debug("msm_chg_usb_charger_connected\n");
+        pr_info("msm_chg_usb_charger_connected\n");
 
 	return rc;
 }
@@ -400,7 +411,7 @@ int msm_chg_usb_i_is_available(uint32_t sample)
 		pr_err("%s: charger_i_available failed! rc = %d\n",
 			__func__, rc);
 	} else
-		pr_debug("msm_chg_usb_i_is_available(%u)\n", sample);
+        pr_info("msm_chg_usb_i_is_available(%u)\n", sample);
 
 	return rc;
 }
@@ -422,7 +433,7 @@ int msm_chg_usb_i_is_not_available(void)
 		pr_err("%s: charger_i_not_available failed! rc ="
 			"%d \n", __func__, rc);
 	} else
-		pr_debug("msm_chg_usb_i_is_not_available\n");
+        pr_info("msm_chg_usb_i_is_not_available\n");
 
 	return rc;
 }
@@ -444,7 +455,7 @@ int msm_chg_usb_charger_disconnected(void)
 		pr_err("%s: charger_disconnected failed! rc = %d\n",
 			__func__, rc);
 	} else
-		pr_debug("msm_chg_usb_charger_disconnected\n");
+        pr_info("msm_chg_usb_charger_disconnected\n");
 
 	return rc;
 }
@@ -586,9 +597,46 @@ EXPORT_SYMBOL(hsusb_chg_init);
 
 void hsusb_chg_vbus_draw(unsigned mA)
 {
+/* Div2-SW2-BSP-FBX-CHG { */
+#ifdef CONFIG_BATTERY_FIH_MSM 
+    chg_current = mA;
+    
+    mutex_lock(&OT_flag_lock);
+    if (g_OT_flag)
+        msm_chg_usb_i_is_available(0);
+    else
+#endif
+/* } Div2-SW2-BSP-FBX-CHG */
+
 	msm_chg_usb_i_is_available(mA);
+
+/* Div2-SW2-BSP-FBX-CHG { */
+#ifdef CONFIG_BATTERY_FIH_MSM
+    mutex_unlock(&OT_flag_lock);
+#endif
+/* } Div2-SW2-BSP-FBX-CHG */
+
 }
 EXPORT_SYMBOL(hsusb_chg_vbus_draw);
+
+/* Div2-SW2-BSP-FBX-CHG { */
+#ifdef CONFIG_BATTERY_FIH_MSM   
+void hsusb_chg_notify_over_tempearture(bool OT_flag)
+{
+    mutex_lock(&OT_flag_lock);
+    if (g_OT_flag != OT_flag) {
+        g_OT_flag = OT_flag;
+        if (g_OT_flag) {
+            msm_chg_usb_i_is_available(0);
+        } else {
+            msm_chg_usb_i_is_available(chg_current);
+        }
+    }
+    mutex_unlock(&OT_flag_lock);
+}
+EXPORT_SYMBOL(hsusb_chg_notify_over_tempearture);
+#endif
+/* } Div2-SW2-BSP-FBX-CHG */
 
 void hsusb_chg_connected(enum chg_type chgtype)
 {
@@ -596,6 +644,12 @@ void hsusb_chg_connected(enum chg_type chgtype)
 			"CARKIT",
 			"DEDICATED CHARGER",
 			"INVALID"};
+
+/* Div2-SW2-BSP-FBX-CHG { */
+#ifdef CONFIG_BATTERY_FIH_MSM            
+    msm_batt_update_charger_type(chgtype);
+#endif
+/* } Div2-SW2-BSP-FBX-CHG */
 
 	if (chgtype == USB_CHG_TYPE__INVALID) {
 		msm_chg_usb_i_is_not_available();

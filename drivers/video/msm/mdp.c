@@ -434,6 +434,9 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 #endif
 }
 
+static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
+static int pdev_list_cnt;
+
 static void mdp_pipe_ctrl_workqueue_handler(struct work_struct *work)
 {
 	mdp_pipe_ctrl(MDP_MASTER_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
@@ -444,7 +447,7 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 	boolean mdp_all_blocks_off = TRUE;
 	int i;
 	unsigned long flag;
-
+	struct msm_fb_panel_data *pdata;
 
 	/*
 	 * It is assumed that if isr = TRUE then start = OFF
@@ -472,10 +475,12 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 			* There shouldn't be multiple power-off request for
 			* other blocks
 			*/
+#ifndef CONFIG_FB_MSM_MDDI
 			if (block != MDP_MASTER_BLOCK) {
 				MSM_FB_INFO("mdp_block_power_cnt[block=%d] \
 				multiple power-off request\n", block);
 			}
+#endif
 			atomic_set(&mdp_block_power_cnt[block], 0);
 		}
 
@@ -496,10 +501,14 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 		}
 
 		if ((mdp_all_blocks_off) && (mdp_current_clk_on)) {
+//SW2-6-MM-JH-mdp_timer_duration-00+
+		  if (mdp_timer_duration > 0) {
 			/* send workqueue to turn off mdp power */
 			queue_delayed_work(mdp_pipe_ctrl_wq,
 					   &mdp_pipe_ctrl_worker,
 					   mdp_timer_duration);
+		  }
+//SW2-6-MM-JH-mdp_timer_duration-00-
 		}
 	} else {
 		down(&mdp_pipe_ctrl_mutex);
@@ -530,35 +539,74 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 			if (block == MDP_MASTER_BLOCK) {
 				mdp_current_clk_on = FALSE;
 				/* turn off MDP clks */
+				mdp_vsync_clk_disable();
+				for (i = 0; i < pdev_list_cnt; i++) {
+					pdata = (struct msm_fb_panel_data *)
+						pdev_list[i]->dev.platform_data;
+//					if (pdata && pdata->clk_func)
+//						pdata->clk_func(0);
+				}
 				if (mdp_clk != NULL) {
 					clk_disable(mdp_clk);
 					MSM_FB_DEBUG("MDP CLK OFF\n");
+					printk(KERN_INFO "[DISPLAY] %s: MDP CLK OFF\n", __func__);
 				}
 				if (mdp_pclk != NULL) {
 					clk_disable(mdp_pclk);
 					MSM_FB_DEBUG("MDP PCLK OFF\n");
+					printk(KERN_INFO "[DISPLAY] %s: MDP PCLK OFF\n", __func__);
 				}
 			} else {
+//SW2-6-MM-JH-mdp_timer_duration-00+
+			  if (mdp_timer_duration > 0) {
 				/* send workqueue to turn off mdp power */
 				queue_delayed_work(mdp_pipe_ctrl_wq,
 						   &mdp_pipe_ctrl_worker,
 						   mdp_timer_duration);
+			  }
+//SW2-6-MM-JH-mdp_timer_duration-00-
 			}
 		} else if ((!mdp_all_blocks_off) && (!mdp_current_clk_on)) {
 			mdp_current_clk_on = TRUE;
 			/* turn on MDP clks */
+			for (i = 0; i < pdev_list_cnt; i++) {
+				pdata = (struct msm_fb_panel_data *)
+					pdev_list[i]->dev.platform_data;
+//				if (pdata && pdata->clk_func)
+//					pdata->clk_func(1);
+			}
 			if (mdp_clk != NULL) {
 				clk_enable(mdp_clk);
 				MSM_FB_DEBUG("MDP CLK ON\n");
+				printk(KERN_INFO "[DISPLAY] %s: MDP CLK ON\n", __func__);
 			}
 			if (mdp_pclk != NULL) {
 				clk_enable(mdp_pclk);
 				MSM_FB_DEBUG("MDP PCLK ON\n");
+				printk(KERN_INFO "[DISPLAY] %s: MDP PCLK ON\n", __func__);
 			}
+			mdp_vsync_clk_enable();
 		}
 		up(&mdp_pipe_ctrl_mutex);
 	}
 }
+
+//SW2-6-MM-JH-mdp_timer_duration-00+
+static ssize_t mdp_timer_duration_show(struct device *dev,
+        struct device_attribute *attr, char *buf)
+{
+    return sprintf(buf, "%lu\n", mdp_timer_duration);
+}
+
+static ssize_t mdp_timer_duration_store(struct device *dev,
+        struct device_attribute *attr, const char *buf, size_t size)
+{
+    sscanf(buf, "%lu", &mdp_timer_duration);
+    return size;
+}
+
+static DEVICE_ATTR(mdp_timer_duration, 0644, mdp_timer_duration_show, mdp_timer_duration_store);
+//SW2-6-MM-JH-mdp_timer_duration-00-
 
 #ifndef CONFIG_FB_MSM_MDP40
 irqreturn_t mdp_isr(int irq, void *ptr)
@@ -825,41 +873,63 @@ static int mdp_off(struct platform_device *pdev)
 {
 	int ret = 0;
 
-#ifdef MDP_HW_VSYNC
-	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
-#endif
-
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	ret = panel_next_off(pdev);
-
-#ifdef MDP_HW_VSYNC
-	mdp_hw_vsync_clk_disable(mfd);
-#endif
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
 	return ret;
 }
 
 static int mdp_on(struct platform_device *pdev)
 {
-#ifdef MDP_HW_VSYNC
-	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
-#endif
-
 	int ret = 0;
 
-#ifdef MDP_HW_VSYNC
-	mdp_hw_vsync_clk_enable(mfd);
-#endif
-
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	ret = panel_next_on(pdev);
-
+	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 	return ret;
 }
 
-
-static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
-static int pdev_list_cnt;
 static int mdp_resource_initialized;
 static struct msm_panel_common_pdata *mdp_pdata;
+
+uint32 mdp_hw_revision;
+
+/*
+ * mdp_hw_revision:
+ * 0 == V1
+ * 1 == V2
+ * 2 == V2.1
+ *
+ */
+void mdp_hw_version(void)
+{
+	char *cp;
+	uint32 *hp;
+
+	if (mdp_pdata == NULL)
+		return;
+
+	mdp_hw_revision = MDP4_REVISION_NONE;
+	if (mdp_pdata->hw_revision_addr == 0)
+		return;
+
+	/* tlmmgpio2 shadow */
+	cp = (char *)ioremap(mdp_pdata->hw_revision_addr, 0x16);
+
+	if (cp == NULL)
+		return;
+
+	hp = (uint32 *)cp;	/* HW_REVISION_NUMBER */
+	mdp_hw_revision = *hp;
+	iounmap(cp);
+
+	mdp_hw_revision >>= 28;	/* bit 31:28 */
+	mdp_hw_revision &= 0x0f;
+
+	printk(KERN_INFO "%s: mdp_hw_revision=%x\n",
+				__func__, mdp_hw_revision);
+}
 
 static int mdp_irq_clk_setup(void)
 {
@@ -892,8 +962,22 @@ static int mdp_irq_clk_setup(void)
 	/*
 	 * mdp_clk should greater than mdp_pclk always
 	 */
+//SW2-6-MM-JH-MDP_CLK-00+
+#ifdef CONFIG_FB_MSM_LCDC
+    /* FIHTDC-Div2-SW2-BSP, Ming { */
+    /* If LCDC was already enabled in APPSBOOT, 
+        we should not set MDP_CLK again. 
+     */
+	if (!(inpdw(MDP_BASE + 0xC0000) & 0x01)) { /* lcdc not yet enabled */
+		if (mdp_pdata && mdp_pdata->mdp_core_clk_rate)
+	    	clk_set_rate(mdp_clk, mdp_pdata->mdp_core_clk_rate);
+    }
+    /* } FIHTDC-Div2-SW2-BSP, Ming */
+#else
 	if (mdp_pdata && mdp_pdata->mdp_core_clk_rate)
-		clk_set_rate(mdp_clk, mdp_pdata->mdp_core_clk_rate);
+    	clk_set_rate(mdp_clk, mdp_pdata->mdp_core_clk_rate);
+#endif // CONFIG_FB_MSM_LCDC
+//SW2-6-MM-JH-MDP_CLK-00-
 	printk(KERN_INFO "mdp_clk: mdp_clk=%d\n", (int)clk_get_rate(mdp_clk));
 #endif
 
@@ -929,6 +1013,8 @@ static int mdp_probe(struct platform_device *pdev)
 
 		if (rc)
 			return rc;
+
+		mdp_hw_version();
 
 		/* initializing mdp hw */
 #ifdef CONFIG_FB_MSM_MDP40
@@ -1032,6 +1118,12 @@ static int mdp_probe(struct platform_device *pdev)
 		mdp4_display_intf_sel(if_no, intf);
 #endif
 		mdp_config_vsync(mfd);
+
+//SW2-6-MM-JH-mdp_timer_duration-00+
+		/* File node: /sys/devices/platform/mdp.?/mdp_timer_duration */
+		rc = device_create_file(&pdev->dev, &dev_attr_mdp_timer_duration);
+//SW2-6-MM-JH-mdp_timer_duration-00-
+
 		break;
 
 #ifdef CONFIG_FB_MSM_MIPI_DSI
@@ -1215,8 +1307,8 @@ static int __init mdp_driver_init(void)
 		return ret;
 	}
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_FB_MSM_MDP40)
-	mdp4_debugfs_init();
+#if defined(CONFIG_DEBUG_FS)
+	mdp_debugfs_init();
 #endif
 
 	return 0;

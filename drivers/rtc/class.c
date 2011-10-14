@@ -18,6 +18,11 @@
 
 #include "rtc-core.h"
 
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+#include "mach/alog_ram_console.h"
+#endif
+//SW2-5-1-MP-DbgCfgTool-00+]
 
 static DEFINE_IDR(rtc_idr);
 static DEFINE_MUTEX(idr_lock);
@@ -49,6 +54,18 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	struct rtc_time		tm;
 	struct timespec		ts;
 	struct timespec		new_delta;
+
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+    printk(KERN_INFO "rtc_suspend(): %s, dev_name = %s\n", rtc->name, dev_name(&rtc->dev));
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
+
+//SW2-5-2-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+	alog_ram_console_sync_time(LOG_TYPE_ALL, SYNC_BEFORE);
+#endif	
+//SW2-5-2-MP-DbgCfgTool-00+]
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
@@ -100,6 +117,12 @@ static int rtc_resume(struct device *dev)
 				newtime + delta.tv_sec,
 				(NSEC_PER_SEC >> 1) + delta.tv_nsec);
 	do_settimeofday(&time);
+
+//SW2-5-1-MP-DbgCfgTool-00+[
+#ifdef CONFIG_FIH_LAST_ALOG
+	alog_ram_console_sync_time(LOG_TYPE_ALL, SYNC_AFTER);
+#endif	
+//SW2-5-1-MP-DbgCfgTool-00+]
 
 	return 0;
 }

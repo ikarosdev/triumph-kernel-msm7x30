@@ -52,7 +52,26 @@
 #define DIAG_IOCTL_SWITCH_LOGGING	7
 #define DIAG_IOCTL_GET_DELAYED_RSP_ID 	8
 #define DIAG_IOCTL_LSM_DEINIT		9
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+#define DIAG_IOCTL_WRITE_BUFFER 10
+#define DIAG_IOCTL_READ_BUFFER  11
+#define DIAG_IOCTL_PASS_FIRMWARE_LIST  12
+#define DIAG_IOCTL_GET_PART_TABLE_FROM_SMEM  13
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
 
+//Mig-Added for Slate Application support
+#define DIAG_IOCTL_GET_RSSI                 14
+#define DIAG_IOCTL_GET_STATE_AND_CONN_INFO  15
+//Shashi added for Slate command support FXPCAYM81
+#define DIAG_IOCTL_GET_KEY_EVENT_MASK  16
+#define DIAG_IOCTL_GET_PEN_EVENT_MASK  17
+//Shashi added for Slate command support FXPCAYM81 ends here
+
+// Ketan-Added for FTM Application Support - FXPCAYM-87
+#define DIAG_IOCTL_GET_SEARCHER_DUMP        18
+#define DIAG_IOCTL_READ_DMSS_STATUS         19
+#define DIAG_IOCTL_SEND_DMSS_STATUS         20
+#define DIAG_IOCTL_RESTORE_LOGGING_MASKS    21
 
 struct bindpkt_params {
 	uint16_t cmd_code;
@@ -77,5 +96,63 @@ struct diagpkt_delay_params{
 	int size;
 	int *num_bytes_ptr;
 };
+
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +[
+struct diagpkt_ioctl_param
+{
+		uint8_t * pPacket;
+		uint16_t Len;
+};
+
+#define DL_FILENAME_LEN 32
+
+#pragma pack(push)
+#pragma pack(8)
+typedef struct file_dest_info
+{
+   char filename[26];
+   int  in_use;
+   int  offset;
+   uint position;
+} CMM_info;
+
+typedef struct dl_list
+{
+uint32_t magic_num;               
+uint32_t iFLAG;// update flag
+uint32_t dl_flag;                /*bit 0  (1)be set-> dont' switch to backup even EFS parti diff*/
+                             /*bit 1  (2)be set-> combined image mode*/
+                             /*bit 2  (4)be set-> need backup and restore NV*/
+                             /*bit 3  (8)be set-> multi port download*/                             
+                             /*bit 4 (16)be set-> eMMC download*/
+                             /*bit 5 (32)be set-> Emgerency download mode*/
+                             /*bit 6 (64)be set-> erase user data partition*/
+char pCOMBINED_IMAGE[32];
+int aAMSS[3];
+int aAPPSBOOT[3];
+int aANDROID_BOOT[3];
+int aANDROID_SYSTEM[3];
+int aANDROID_SPLASH[3];
+int aANDROID_RECOVERY[3];
+int aANDROID_HIDDEN[3];
+int aANDROID_USR_DATA[3];
+int aANDROID_FTM[3];
+int aOSBL[3];
+int aDBL[3];
+int aDSP1[3];
+int aCUSTOMER_NV[3];
+int aPARTITION_BIN[3];
+int aLOADPT[3];
+int aANDROID_CDA[3];
+int  aRESERVED1[3];
+int  aRESERVED2[3];
+int  aRESERVED3[3];
+int  aRESERVED4[3];
+int  aRESERVED5[3];
+CMM_info fdinfo[17];
+uint32_t checksum;  
+}FirmwareList;
+#pragma pack(pop)
+//Div2D5-LC-BSP-Porting_OTA_SDDownload-00 +]
 
 #endif

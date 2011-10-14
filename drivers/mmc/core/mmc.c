@@ -221,11 +221,16 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 			ext_csd[EXT_CSD_SEC_CNT + 1] << 8 |
 			ext_csd[EXT_CSD_SEC_CNT + 2] << 16 |
 			ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
-		if (card->ext_csd.sectors)
-			mmc_card_set_blockaddr(card);
+		if (card->ext_csd.sectors){
+			//Div6-D1-BSP-LL-EMMC_BYTEMODE-00+{
+			//mmc_card_set_blockaddr(card);
+			//byte/sector mode determined by access mode bit
+			printk("ext_csd.sectors=0x%x\n",card->ext_csd.sectors);
+			//Div6-D1-BSP-LL-EMMC_BYTEMODE-00+}
+		}		
 	}
 
-	switch (ext_csd[EXT_CSD_CARD_TYPE] &&
+	switch (ext_csd[EXT_CSD_CARD_TYPE] &
 			(EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26)) {
 	case EXT_CSD_CARD_TYPE_52 | EXT_CSD_CARD_TYPE_26:
 		card->ext_csd.hs_max_dtr = 52000000;
@@ -307,6 +312,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	int err;
 	u32 cid[4];
 	unsigned int max_dtr;
+    u32 rocr;//Div6-D1-BSP-LL-EMMC_BYTEMODE-00+
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -320,7 +326,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	mmc_go_idle(host);
 
 	/* The extra bit indicates that we support high capacity */
-	err = mmc_send_op_cond(host, ocr | (1 << 30), NULL);
+	//Div6-D1-BSP-LL-EMMC_BYTEMODE-00*{
+	//err = mmc_send_op_cond(host, ocr | (1 << 30), NULL);
+	//read OCR from eMMC to check access mode bit
+	err = mmc_send_op_cond(host, ocr | (1 << 30), &rocr);
+	//Div6-D1-BSP-LL-EMMC_BYTEMODE-00*}	
 	if (err)
 		goto err;
 
@@ -408,6 +418,12 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_read_ext_csd(card);
 		if (err)
 			goto free_card;
+		//Div6-D1-BSP-LL-EMMC_BYTEMODE-00+{
+		//If access mode [29:30] set to "10" then set block addr
+		if(rocr & (1 << 30)){
+			mmc_card_set_blockaddr(card);
+		}
+		//Div6-D1-BSP-LL-EMMC_BYTEMODE-00+}			
 	}
 
 	/*

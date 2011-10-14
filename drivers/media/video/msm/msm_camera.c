@@ -1429,8 +1429,38 @@ static int msm_get_sensor_info(struct msm_sync *sync, void __user *arg)
 	memcpy(&info.name[0],
 		sdata->sensor_name,
 		MAX_SENSOR_NAME);
+//Div6D1-CL-Camera-SensorInfo-01+{
+    if(sdata->parameters_data!=NULL)
+    {
+        //Div6D1-CL-Camera-SensorInfo-02*{
+        info.autoexposure=sdata->parameters_data->autoexposure;
+        info.effects=sdata->parameters_data->effects;
+        info.wb=sdata->parameters_data->wb;
+        info.antibanding=sdata->parameters_data->antibanding;
+        info.flash=sdata->parameters_data->flash;
+        info.focus=sdata->parameters_data->focus;
+        info.ISO=sdata->parameters_data->ISO;
+        info.lensshade=sdata->parameters_data->lensshade;
+        info.scenemode=sdata->parameters_data->scenemode;
+        info.continuous_af=sdata->parameters_data->continuous_af;
+        info.touchafaec=sdata->parameters_data->touchafaec;
+        info.frame_rate_modes=sdata->parameters_data->frame_rate_modes;
+        //Div6D1-CL-Camera-SensorInfo-02*}
+
+        info.max_brightness=sdata->parameters_data->max_brightness;
+        info.max_contrast=sdata->parameters_data->max_contrast;
+        info.max_saturation=sdata->parameters_data->max_saturation;
+        info.max_sharpness=sdata->parameters_data->max_sharpness;
+        
+        info.min_brightness=sdata->parameters_data->min_brightness;
+        info.min_contrast=sdata->parameters_data->min_contrast;
+        info.min_saturation=sdata->parameters_data->min_saturation;
+        info.min_sharpness=sdata->parameters_data->min_sharpness;
+    }
+//Div6D1-CL-Camera-SensorInfo-01+}
 	info.flash_enabled = sdata->flash_data->flash_type !=
 		MSM_CAMERA_FLASH_NONE;
+    info.sensor_Orientation= sdata->sensor_Orientation;//Div6D1-CL-Camera-SensorInfo-00+
 
 	/* copy back to user space */
 	if (copy_to_user((void *)arg,
@@ -2129,6 +2159,13 @@ static long msm_ioctl_control(struct file *filep, unsigned int cmd,
 	case MSM_CAM_IOCTL_GET_SENSOR_INFO:
 		rc = msm_get_sensor_info(pmsm->sync, argp);
 		break;
+
+	//Div6D1-HL-Camera-BringUp-00+{
+	case MSM_CAM_IOCTL_GET_FIH_SENSOR_INFO:
+		rc = msm_get_sensor_info(pmsm->sync, argp);
+		break;
+	//Div6D1-HL-Camera-BringUp-00+}
+	
 	default:
 		rc = msm_ioctl_common(pmsm, cmd, argp);
 		break;
@@ -2147,22 +2184,21 @@ static int __msm_release(struct msm_sync *sync)
 	if (sync->opencnt)
 		sync->opencnt--;
 	if (!sync->opencnt) {
-		/*sensor release*/
-		sync->sctrl.s_release();
 		/* need to clean up system resource */
 		if (sync->vfefn.vfe_release)
 			sync->vfefn.vfe_release(sync->pdev);
+		/*sensor release */
+		sync->sctrl.s_release();
+		msm_camio_sensor_clk_off(sync->pdev);
 		kfree(sync->cropinfo);
 		sync->cropinfo = NULL;
 		sync->croplen = 0;
-
 		hlist_for_each_entry_safe(region, hnode, n,
 				&sync->pmem_frames, list) {
 			hlist_del(hnode);
 			put_pmem_file(region->file);
 			kfree(region);
 		}
-
 		hlist_for_each_entry_safe(region, hnode, n,
 				&sync->pmem_stats, list) {
 			hlist_del(hnode);
@@ -2598,16 +2634,22 @@ static int __msm_open(struct msm_sync *sync, const char *const apps_id)
 		if (sync->vfefn.vfe_init) {
 			sync->pp_frame_avail = 0;
 			sync->get_pic_abort = 0;
-			rc = sync->vfefn.vfe_init(&msm_vfe_s,
-				sync->pdev);
+			rc = msm_camio_sensor_clk_on(sync->pdev);
 			if (rc < 0) {
-				pr_err("%s: vfe_init failed at %d\n",
+				pr_err("%s: setting sensor clocks failed: %d\n",
 					__func__, rc);
 				goto msm_open_done;
 			}
 			rc = sync->sctrl.s_init(sync->sdata);
 			if (rc < 0) {
 				pr_err("%s: sensor init failed: %d\n",
+					__func__, rc);
+				goto msm_open_done;
+			}
+			rc = sync->vfefn.vfe_init(&msm_vfe_s,
+				sync->pdev);
+			if (rc < 0) {
+				pr_err("%s: vfe_init failed at %d\n",
 					__func__, rc);
 				goto msm_open_done;
 			}
@@ -2658,9 +2700,7 @@ static int msm_open_common(struct inode *inode, struct file *filep,
 	rc = __msm_open(pmsm->sync, MSM_APPS_ID_PROP);
 	if (rc < 0)
 		return rc;
-
 	filep->private_data = pmsm;
-
 	CDBG("%s: rc %d\n", __func__, rc);
 	return rc;
 }
@@ -2680,9 +2720,10 @@ static int msm_open_control(struct inode *inode, struct file *filep)
 		return -ENOMEM;
 
 	rc = msm_open_common(inode, filep, 0);
-	if (rc < 0)
+	if (rc < 0) {
+		kfree(ctrl_pmsm);
 		return rc;
-
+	}
 	ctrl_pmsm->pmsm = filep->private_data;
 	filep->private_data = ctrl_pmsm;
 
@@ -2690,9 +2731,7 @@ static int msm_open_control(struct inode *inode, struct file *filep)
 
 	if (!g_v4l2_opencnt)
 		g_v4l2_control_device = ctrl_pmsm;
-
 	g_v4l2_opencnt++;
-
 	CDBG("%s: rc %d\n", __func__, rc);
 	return rc;
 }

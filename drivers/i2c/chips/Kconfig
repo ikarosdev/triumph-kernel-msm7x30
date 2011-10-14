@@ -61,4 +61,18 @@ config VP_A1026
 	help
 	  A1026 Voice Processor Driver implemented by HTC.
 
+config SENSORS_YAS529
+	bool "Yamaha YAS529 Driver"
+	depends on MSM_CAMERA && FIH_CONFIG_GROUP
+	default y
+	help
+		Yamaha Ecompass Driver implemented by FIH.       
+
+config SENSORS_LTR502ALS
+	bool "Liteon ALS Driver"
+ 	depends on I2C && FIH_CONFIG_GROUP
+	default y
+	help
+		Liteon ALS Driver implemented by FIH. 
+
 endmenu

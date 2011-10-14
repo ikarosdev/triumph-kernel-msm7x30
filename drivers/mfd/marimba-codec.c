@@ -25,6 +25,11 @@
 #include <linux/uaccess.h>
 #include <linux/string.h>
 
+//Div2-SW5-BSP-CTA-SideTone-00+{
+#include "../../../arch/arm/mach-msm/smd_private.h"
+#include "../../../arch/arm/mach-msm/proc_comm.h"
+//Div2-SW5-BSP-CTA-SideTone-00+}
+
 #define MARIMBA_CDC_RX_CTL 0x81
 #define MARIMBA_CDC_RX_CTL_ST_EN_MASK 0x20
 #define MARIMBA_CDC_RX_CTL_ST_EN_SHFT 0x5
@@ -241,6 +246,31 @@ static struct adie_codec_vol_cntrl_data adie_codec_vol_cntrl[] = {
 	{ADIE_CODEC_TX_DIG_VOL, 5100, -12700, 12700, 100, 255,
 	 adie_codec_tx_vol_cntrl}
 };
+
+
+//Div2-SW5-BSP-CTA-SideTone-00+{
+#define PROJECT_TYPE_OFFS         9
+#define PROJECT_TYPE_SIZE         3
+#define MODEL_TYPE_OFFS           34
+#define MODEL_TYPE_SIZE           4
+
+typedef struct CTA_DEV_INFO_S   {
+    u8 project_type[PROJECT_TYPE_SIZE+1];
+    u8 model_type[MODEL_TYPE_SIZE+1];    
+} CTA_DEV_INFO_T;    
+
+// MODEL ID "7116" "7118" "7121" are spported for CTA test
+static CTA_DEV_INFO_T  cta_device_info[]= {
+        {"FB0", "7118"},
+        {"FB1", "7121"},
+        {"FB3", "7116"},
+};        
+
+static char version_info[64+1];
+static char project_type[PROJECT_TYPE_SIZE+1];
+static char model_type[MODEL_TYPE_SIZE+1];
+//Div2-SW5-BSP-CTA-SideTone-00+}
+
 
 static int adie_codec_write(u8 reg, u8 mask, u8 val)
 {
@@ -595,6 +625,9 @@ static int marimba_adie_codec_proceed_stage(struct adie_codec_path *path_ptr,
 	struct adie_codec_action_unit *curr_action;
 	struct adie_codec_hwsetting_entry *setting;
 	u8 reg, mask, val;
+//Div2-SW5-BSP-CTA-SideTone-00+{
+    u16 index;
+//Div2-SW5-BSP-CTA-SideTone-00+}
 
 	mutex_lock(&adie_codec.lock);
 	setting = &path_ptr->profile->settings[path_ptr->hwsetting_idx];
@@ -604,6 +637,17 @@ static int marimba_adie_codec_proceed_stage(struct adie_codec_path *path_ptr,
 		case ADIE_CODEC_ACTION_ENTRY:
 			ADIE_CODEC_UNPACK_ENTRY(curr_action->action,
 			reg, mask, val);
+			
+//Div2-SW5-BSP-CTA-SideTone-00+{
+			if (path_ptr->profile->path_type == ADIE_CODEC_TX) {
+			        for (index = 0; index < sizeof(cta_device_info); index++) {
+			            if (!strcmp(project_type, cta_device_info[index].project_type) &&
+			                !strcmp(model_type, cta_device_info[index].model_type) &&
+			                (reg == 0x8b)) 
+			                 val  = 0xf6;
+                }			         
+            }			    
+//Div2-SW5-BSP-CTA-SideTone-00+}
 			adie_codec_write(reg, mask, val);
 			break;
 		case ADIE_CODEC_ACTION_DELAY_WAIT:
@@ -944,6 +988,15 @@ static int __init marimba_codec_init(void)
 	adie_codec.path[ADIE_CODEC_LB].img.img_sz =
 	ARRAY_SIZE(adie_codec_lb_regs);
 	mutex_init(&adie_codec.lock);
+
+//Div2-SW5-BSP-CTA-SideTone-00+{
+    memset(version_info, 0x00, sizeof(version_info));
+    memset(project_type, 0x00, sizeof(project_type));
+    memset(model_type, 0x00, sizeof(model_type));
+    proc_comm_version_info_read(version_info);
+    memcpy(project_type, &version_info[PROJECT_TYPE_OFFS], PROJECT_TYPE_SIZE);
+    memcpy(model_type, &version_info[MODEL_TYPE_OFFS], MODEL_TYPE_SIZE);
+//Div2-SW5-BSP-CTA-SideTone-00+}
 
 error:
 	return rc;

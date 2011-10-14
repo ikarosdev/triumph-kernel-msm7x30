@@ -43,10 +43,11 @@
 
 MODULE_ALIAS("mmc:block");
 
+//Div2-SW2-BSP,JOE HSU,Max partitions 16->32 
 /*
- * max 16 partitions per card
+ * max 32 partitions per card
  */
-#define MMC_SHIFT	4
+#define MMC_SHIFT	5 //4
 #define MMC_NUM_MINORS	(256 >> MMC_SHIFT)
 
 static DECLARE_BITMAP(dev_use, MMC_NUM_MINORS);
@@ -276,7 +277,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	int ret = 1, disable_multi = 0;
 
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
-	if (mmc_bus_needs_resume(card->host)) {
+	if (mmc_bus_needs_resume(card->host) && card->host->card_status) {
+		printk("card->host->card_status:%d\n", card->host->card_status);
 		mmc_resume_bus(card->host);
 		mmc_blk_set_blksize(md, card);
 	}
@@ -452,9 +454,11 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 				 * read a single sector.
 				 */
 				spin_lock_irq(&md->lock);
-				ret = __blk_end_request(req, -EIO, brq.data.blksz);
+				//ret = __blk_end_request(req, -EIO, brq.data.blksz);
+				__blk_end_request_all(req, -EIO);
 				spin_unlock_irq(&md->lock);
-				continue;
+				//continue;
+				break;
 			}
 			goto cmd_err;
 		}

@@ -37,6 +37,7 @@
 #include <mach/debug_mm.h>
 #include <mach/qdsp5v2/audio_dev_ctl.h>
 #include <mach/qdsp5v2/afe.h>
+#include<linux/fih_hw_info.h> //MM-RC-ChangeFMPath-00+
 
 #define SESSION_ID_FM 6
 #define FM_ENABLE	0xFFFF
@@ -170,6 +171,14 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		else
 			rc = 0;
 		break;
+	//MM-RC-ChangeFMPath-00+{
+	case FM_CODECSETTING:
+ 		if(IS_SF8_SERIES_PRJ())
+			rc = 1;
+		else
+			rc = 0;
+		break;
+	//MM-RC-ChangeFMPath-00+}
 	default:
 		rc = -EINVAL;
 	}

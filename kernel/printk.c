@@ -63,6 +63,11 @@ extern void printascii(char *);
 #define DEFAULT_CONSOLE_LOGLEVEL 7 /* anything MORE serious than KERN_DEBUG */
 
 DECLARE_WAIT_QUEUE_HEAD(log_wait);
+/* ++ FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 ++ */
+#if defined(CONFIG_FIH_FLOG)
+DECLARE_WAIT_QUEUE_HEAD(log_ftm_wait);
+#endif
+/* -- FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 -- */
 
 int console_printk[4] = {
 	DEFAULT_CONSOLE_LOGLEVEL,	/* console_loglevel */
@@ -105,6 +110,11 @@ static int console_locked, console_suspended;
  * release_console_sem().
  */
 static DEFINE_SPINLOCK(logbuf_lock);
+/* ++ FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 ++ */
+#if defined(CONFIG_FIH_FLOG)
+static DEFINE_SPINLOCK(logbuf_ftm_lock);
+#endif
+/* -- FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 -- */
 
 #define LOG_BUF_MASK (log_buf_len-1)
 #define LOG_BUF(idx) (log_buf[(idx) & LOG_BUF_MASK])
@@ -116,6 +126,12 @@ static DEFINE_SPINLOCK(logbuf_lock);
 static unsigned log_start;	/* Index into log_buf: next char to be read by syslog() */
 static unsigned con_start;	/* Index into log_buf: next char to be sent to consoles */
 static unsigned log_end;	/* Index into log_buf: most-recently-written-char + 1 */
+
+/* ++ FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 ++ */
+#if defined(CONFIG_FIH_FLOG)
+static unsigned log_ftm_start;	
+#endif
+/* -- FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 -- */
 
 /*
  *	Array of consoles built from command line options (console=)
@@ -197,6 +213,13 @@ static int __init log_buf_len_setup(char *str)
 		log_start -= offset;
 		con_start -= offset;
 		log_end -= offset;
+		/* ++ FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 ++ */
+#if defined(CONFIG_FIH_FLOG)
+		spin_lock_irqsave(&logbuf_ftm_lock, flags);
+        log_ftm_start = log_start;
+		spin_unlock_irqrestore(&logbuf_ftm_lock, flags);
+#endif
+		/* -- FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 -- */
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 
 		printk(KERN_NOTICE "log_buf_len: %d\n", log_buf_len);
@@ -469,6 +492,69 @@ SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
 	return do_syslog(type, buf, len);
 }
 
+//++ FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 ++
+#if defined(CONFIG_FIH_FLOG)
+int do_ftmlog(int type, char __user *buf, int len)
+{
+    unsigned i;
+    char c;
+    int error = 0;
+
+    error = security_syslog(type);
+    if (error)
+        return error;
+
+    switch (type) {
+    case 0:     /* Close log */
+        break;
+    case 1:     /* Open log */
+        break;
+    case 2:     /* Read from log */
+        error = -EINVAL;
+        if (!buf || len < 0)
+            goto out;
+        error = 0;
+        if (!len)
+            goto out;
+        if (!access_ok(VERIFY_WRITE, buf, len)) {
+            error = -EFAULT;
+            goto out;
+        }
+        error = wait_event_interruptible(log_ftm_wait,
+                            (log_ftm_start - log_end));
+        if (error)
+            goto out;
+        i = 0;
+        spin_lock_irq(&logbuf_ftm_lock);
+        while (!error && (log_ftm_start != log_end) && i < len) {
+            c = LOG_BUF(log_ftm_start);
+            log_ftm_start++;
+            spin_unlock_irq(&logbuf_ftm_lock);
+            error = __put_user(c,buf);
+            buf++;
+            i++;
+            cond_resched();
+            spin_lock_irq(&logbuf_ftm_lock);
+        }
+        spin_unlock_irq(&logbuf_ftm_lock);
+        if (!error)
+            error = i;
+        break;
+	case 9:		/* Number of chars in the log buffer */
+        error = log_end - log_ftm_start;
+        break;
+    default:
+        error = -EINVAL;
+        break;
+    }
+out:
+    return error;
+}
+
+EXPORT_SYMBOL(do_ftmlog);
+#endif
+//-- FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 -- 
+
 /*
  * Call the console drivers on a range of log_buf
  */
@@ -573,6 +659,14 @@ static void emit_log_char(char c)
 		con_start = log_end - log_buf_len;
 	if (logged_chars < log_buf_len)
 		logged_chars++;
+
+/* ++ FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 ++ */
+#if defined(CONFIG_FIH_FLOG)
+	if (log_end - log_ftm_start > log_buf_len)
+		log_ftm_start = log_end - log_buf_len;
+#endif
+/* -- FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 -- */
+
 }
 
 /*
@@ -844,6 +938,11 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	 */
 	if (acquire_console_semaphore_for_printk(this_cpu))
 		release_console_sem();
+	/* ++ FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 ++ */
+#if defined(CONFIG_FIH_FLOG)
+    wake_up_interruptible(&log_ftm_wait);
+#endif
+	/* -- FIHTDC Div2-SW2-BSP AlbertYCFang 2010.08.31 -- */
 
 	lockdep_on();
 out_restore_irqs:
@@ -984,8 +1083,17 @@ int update_console_cmdline(char *name, int idx, char *name_new, int idx_new, cha
 	return -1;
 }
 
+//SW2-5-1-MP-DbgCfgTool-00*[
+#ifdef CONFIG_FIH_BUILDTYPE_DEBUG
+int console_suspend_enabled = 0;
+#else
 int console_suspend_enabled = 1;
+#endif
+//SW2-5-1-MP-DbgCfgTool-00*]
+
 EXPORT_SYMBOL(console_suspend_enabled);
+
+module_param_named(console_suspend, console_suspend_enabled, bool, S_IRUGO | S_IWUSR | S_IWGRP); //SW2-5-1-MP-DbgCfgTool-00+
 
 static int __init console_suspend_disable(char *str)
 {

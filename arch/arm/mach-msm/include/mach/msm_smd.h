@@ -18,6 +18,8 @@
 #ifndef __ASM_ARCH_MSM_SMD_H
 #define __ASM_ARCH_MSM_SMD_H
 
+#include "../../smd_private.h"    //SW2-5-1-MP-HostOemInfo-00+
+
 typedef struct smd_channel smd_channel_t;
 
 /* warning: notify() may be called before open returns */

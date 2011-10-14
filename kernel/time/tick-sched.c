@@ -26,6 +26,19 @@
 
 #include "tick-internal.h"
 
+//SW2-5-1-MP-DbgCfgTool-00+[
+#include <linux/irq.h>
+#include <linux/mm.h>
+#include <linux/fs.h>
+#include <linux/kallsyms.h>
+
+u64 Last_checked_jiffies = 0;
+u64 LastIdleTime = 0;
+extern unsigned int debug_cpu_usage_enable;
+
+#define CPU_USAGE_CHECK_INTERVAL_MS 1000  //1000ms
+//SW2-5-1-MP-DbgCfgTool-00+]
+
 /*
  * Per cpu nohz control structure
  */
@@ -40,6 +53,42 @@ struct tick_sched *tick_get_tick_sched(int cpu)
 {
 	return &per_cpu(tick_cpu_sched, cpu);
 }
+
+//SW2-5-1-MP-DbgCfgTool-00+[
+long get_cpu_usage(void)
+{
+	struct cpu_usage_stat *cpustat;
+	u64 TotalTickCount, CurrTime, Temp;
+	u64 IdleTickCount, CurrIdleIdleTime;
+	long Usage;
+
+	/* Collect the current time and idle time */
+	cpustat = &kstat_this_cpu.cpustat;
+	CurrTime = jiffies_64;
+	CurrIdleIdleTime = cpustat->idle;
+
+	/* Calculate the time interval */
+	TotalTickCount = CurrTime - Last_checked_jiffies;
+
+	/* Calculate the busy rate */
+	IdleTickCount = CurrIdleIdleTime - LastIdleTime;
+	if (TotalTickCount >= IdleTickCount)
+	{
+		Temp = 100 * (TotalTickCount - IdleTickCount);
+		do_div(Temp,TotalTickCount);
+		Usage = Temp;
+	}
+	else
+	{
+		Usage = 0;
+	}
+
+	Last_checked_jiffies = jiffies_64;
+	LastIdleTime = CurrIdleIdleTime;
+
+	return Usage;
+}
+//SW2-5-1-MP-DbgCfgTool-00+]
 
 /*
  * Must be called with interrupts disabled !
@@ -81,6 +130,102 @@ static void tick_do_update_jiffies64(ktime_t now)
 		tick_next_period = ktime_add(last_jiffies_update, tick_period);
 	}
 	write_sequnlock(&xtime_lock);
+
+//SW2-5-1-MP-DbgCfgTool-00+[
+	if (unlikely(debug_cpu_usage_enable == 1 && (1000*(jiffies_64 - Last_checked_jiffies)/HZ >= CPU_USAGE_CHECK_INTERVAL_MS)))
+	{
+		struct task_struct * p = current;
+		struct pt_regs *regs = get_irq_regs();
+
+		if (likely(p != 0))
+		{
+			if (regs != 0)
+			{
+				if (regs->ARM_pc <= TASK_SIZE)  //User space
+				{
+					struct mm_struct *mm = p->mm;
+					struct vm_area_struct *vma;
+					struct file *map_file = NULL;
+
+					/* Parse vma information */
+					vma = find_vma(mm, regs->ARM_pc);
+
+					if (vma != NULL)
+					{
+						map_file = vma->vm_file;
+					}
+					
+					if (map_file)  //memory-mapped file
+					{
+						printk(KERN_INFO "[CPU] %3ld%% LR=0x%08lx PC=0x%08lx [U][%4d][%s][%s+0x%lx]\r\n", 
+							get_cpu_usage(), 
+							regs->ARM_lr, 
+							regs->ARM_pc, 
+							(unsigned int) p->pid, 
+							p->comm, 
+							map_file->f_path.dentry->d_iname, 
+							regs->ARM_pc - vma->vm_start);
+					}
+					else 
+					{
+						const char *name = arch_vma_name(vma);
+						if (!name) 
+						{
+							if (mm) 
+							{
+								if (vma->vm_start <= mm->start_brk &&
+									vma->vm_end >= mm->brk) 
+								{
+									name = "heap";
+								} 
+								else if (vma->vm_start <= mm->start_stack &&
+									vma->vm_end >= mm->start_stack) 
+								{
+									name = "stack";
+								}
+							}
+							else 
+							{
+								name = "vdso";
+							}
+						}
+						printk(KERN_INFO "[CPU] %3ld%% LR=0x%08lx PC=0x%08lx [U][%4d][%s][%s]\r\n", 
+							get_cpu_usage(), 
+							regs->ARM_lr, 
+							regs->ARM_pc, 
+							(unsigned int) p->pid,
+							p->comm, 
+							name);
+					}
+				}
+				else //Kernel space
+				{
+					printk(KERN_INFO "[CPU] %3ld%% LR=0x%08lx PC=0x%08lx [K][%4d][%s]", 
+						get_cpu_usage(), 
+						regs->ARM_lr, 
+						regs->ARM_pc, 
+						(unsigned int) p->pid,
+						p->comm);
+					
+					#ifdef CONFIG_KALLSYMS
+					print_symbol("[%s]\r\n", regs->ARM_pc);
+					#else
+					printk("\r\n");
+					#endif
+				}
+			}
+			else  //Can't get PC & RA address
+			{
+				printk(KERN_INFO "[CPU] %3ld%% [%s]\r\n", get_cpu_usage(), p->comm);
+			}
+		}
+		else  //Can't get process information
+		{
+			printk(KERN_INFO "[CPU] %3ld%% ERROR: p=0x%08lx, regs=0x%08lx\r\n", get_cpu_usage(), (long)p, (long)regs);
+		}
+	}
+//SW2-5-1-MP-DbgCfgTool-00+]
+
 }
 
 /*

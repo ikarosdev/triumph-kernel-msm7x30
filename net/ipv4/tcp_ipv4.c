@@ -2397,8 +2397,74 @@ static struct tcp_seq_afinfo tcp4_seq_afinfo = {
 	},
 };
 
+/* FIH; Tiger; 2009/12/10 { */
+#ifdef CONFIG_FIH_FXX
+int tcpFilter_seq_show(struct seq_file *seq, void *v)
+{
+	struct tcp_iter_state *st;
+
+	if (v == SEQ_START_TOKEN) {
+		goto out;
+	}
+	st = seq->private;
+
+	switch (st->state) {
+	case TCP_SEQ_STATE_LISTENING:
+	case TCP_SEQ_STATE_ESTABLISHED: 
+		{
+			struct sock *sk = (struct sock *)v;
+			//struct tcp_sock *tp = tcp_sk(sk);
+			//const struct inet_connection_sock *icsk = inet_csk(sk);
+			struct inet_sock *inet = inet_sk(sk);
+			//__be32 dest = inet->daddr;
+			__be32 src = inet->rcv_saddr;
+			//__u16 destp = ntohs(inet->dport);
+			__u16 srcp = ntohs(inet->sport);
+
+			/*
+			if(src == 0) {
+				printk(KERN_INFO "#skip source address 0.0.0.0:%d\n", srcp);
+			}
+			else*/ if((src & 0xff) == 127) {
+				printk(KERN_INFO "#skip source address 127.X.X.X:%d\n", srcp);
+			}
+			else {
+				seq_printf(seq, "%04X", srcp);
+			}
+		}
+
+		break;
+	case TCP_SEQ_STATE_OPENREQ:
+		break;
+	case TCP_SEQ_STATE_TIME_WAIT:
+		break;
+	}
+out:
+	return 0;
+}
+EXPORT_SYMBOL(tcpFilter_seq_show);
+
+static struct tcp_seq_afinfo tcpFilter_seq_afinfo = {
+	.name		= "tcpFilter",
+	.family		= AF_INET,
+	.seq_fops	= {
+		.owner		= THIS_MODULE,
+	},
+	.seq_ops	= {
+		.show		= tcpFilter_seq_show,
+	},
+};
+#endif
+/* } FIH; Tiger; 2009/12/10 */
+
 static int tcp4_proc_init_net(struct net *net)
 {
+/* FIH; Tiger; 2009/12/10 { */
+#ifdef CONFIG_FIH_FXX
+	tcp_proc_register(net, &tcpFilter_seq_afinfo);
+#endif
+/* } FIH; Tiger; 2009/12/10 */
+
 	return tcp_proc_register(net, &tcp4_seq_afinfo);
 }
 

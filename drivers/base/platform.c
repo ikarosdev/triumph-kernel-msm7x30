@@ -20,6 +20,11 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+#include <linux/kallsyms.h>
+#endif
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 #include "base.h"
 
 #define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
@@ -625,7 +630,12 @@ static int platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 	int ret = 0;
 
 	if (dev->driver && pdrv->suspend)
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+	{
 		ret = pdrv->suspend(pdev, mesg);
+		print_symbol("platform_legacy_suspend: %s\n", (unsigned long)pdrv->suspend);
+	}
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 
 	return ret;
 }
@@ -637,7 +647,12 @@ static int platform_legacy_resume(struct device *dev)
 	int ret = 0;
 
 	if (dev->driver && pdrv->resume)
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+	{
 		ret = pdrv->resume(pdev);
+		print_symbol("platform_legacy_resume: %s\n", (unsigned long)pdrv->resume);
+	}
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 
 	return ret;
 }

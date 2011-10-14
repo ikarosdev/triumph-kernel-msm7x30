@@ -66,14 +66,31 @@ EXPORT_SYMBOL_GPL(resume_device_irqs);
 /**
  * check_wakeup_irqs - check if any wake-up interrupts are pending
  */
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#define MSM_PM_DEBUG_FIH_MODULE (1U << 8)
+extern int msm_pm_debug_mask;
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 int check_wakeup_irqs(void)
 {
 	struct irq_desc *desc;
 	int irq;
 
 	for_each_irq_desc(irq, desc)
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai+[
+#ifdef CONFIG_FIH_POWER_LOG
+		if (desc->status & IRQ_WAKEUP) {
+			if (msm_pm_debug_mask & MSM_PM_DEBUG_FIH_MODULE)
+				printk(KERN_INFO "GPIO%03d set WAKEUP : %x\n", irq, desc->status);
+			if (desc->status & IRQ_PENDING) {
+				printk(KERN_INFO "Suspend aborted by IRQ_WAKEUP(%d) IRQ_PENDING(%x).\n", irq, desc->status);
+				return -EBUSY;
+			}
+		}
+#else	// CONFIG_FIH_POWER_LOG
 		if ((desc->status & IRQ_WAKEUP) && (desc->status & IRQ_PENDING))
 			return -EBUSY;
+#endif	// CONFIG_FIH_POWER_LOG
+//Div2-SW2-BSP-SuspendLog, VinceCCTsai-]
 
 	return 0;
 }
