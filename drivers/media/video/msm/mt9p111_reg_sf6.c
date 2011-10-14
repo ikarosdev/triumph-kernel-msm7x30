@@ -1,0 +1,2507 @@
+/*
+ *     mt9p111_reg.c - Camera Sensor Config
+ *
+ *     Copyright (C) 2010 Kent Kwan <kentkwan@fihspec.com>
+ *     Copyright (C) 2008 FIH CO., Inc.
+ *
+ *     This program is free software; you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation; version 2 of the License.
+ */
+
+#include "mt9p111.h"
+
+struct mt9p111_i2c_reg_conf const init_tbl[] = {
+	//for 24MHz input, VCO=MAX PCLK=76.8MHz 
+	{ 0x0010, 0x0340, WORD_LEN, 0 },
+	{ 0x0012, 0x0090, WORD_LEN, 0 },
+	{ 0x0014, 0x2025, WORD_LEN, 0 },
+	{ 0x001E, 0x0656, WORD_LEN, 0 },	// PAD_SLEW_PAD_CONFIG
+	{ 0x0022, 0x0030, WORD_LEN, 0 },	// VDD_DIS_COUNTER	 //Aptina suggestion to shorten delay_signal
+	{ 0x002A, 0x7F7F, WORD_LEN, 0 },	 // PLL_P4_P5_P6_DIVIDERS
+	{ 0x002C, 0x0000, WORD_LEN, 0 },	 // PLL_P7_DIVIDER
+	{ 0x002E, 0x0000, WORD_LEN, 0 },	 // SENSOR_CLOCK_DIVIDER
+	{ 0x0018, 0x4008, WORD_LEN, 100 },
+    //timing_settings
+    {0x0010, 0x0340 , WORD_LEN, 0 },	// PLL_DIVIDERS
+    {0x098E, 0x483A , WORD_LEN, 0 },	// LOGICAL_ADDRESS_ACCESS [CAM_CORE_A_Y_ADDR_START]
+    {0xC83A, 0x000C , WORD_LEN, 0 },	// CAM_CORE_A_Y_ADDR_START
+    {0xC83C, 0x0018 , WORD_LEN, 0 },	// CAM_CORE_A_X_ADDR_START
+    {0xC83E, 0x07B1 , WORD_LEN, 0 },	// CAM_CORE_A_Y_ADDR_END
+    {0xC840, 0x0A45 , WORD_LEN, 0 },	// CAM_CORE_A_X_ADDR_END
+    {0xC842, 0x0001 , WORD_LEN, 0 },	// CAM_CORE_A_ROW_SPEED
+    {0xC844, 0x0103 , WORD_LEN, 0 },	// CAM_CORE_A_SKIP_X_CORE
+    {0xC846, 0x0103 , WORD_LEN, 0 },	// CAM_CORE_A_SKIP_Y_CORE
+    {0xC848, 0x0103 , WORD_LEN, 0 },	// CAM_CORE_A_SKIP_X_PIPE
+    {0xC84A, 0x0103 , WORD_LEN, 0 },	// CAM_CORE_A_SKIP_Y_PIPE
+    {0xC84C, 0x00F6 , WORD_LEN, 0 },	// CAM_CORE_A_POWER_MODE
+    {0xC84E, 0x0001 , WORD_LEN, 0 },	// CAM_CORE_A_BIN_MODE
+    {0xC850, 0x00 , BYTE_LEN, 0 },	// CAM_CORE_A_ORIENTATION
+    {0xC851, 0x00 , BYTE_LEN, 0 },	// CAM_CORE_A_PIXEL_ORDER
+    {0xC852, 0x019C , WORD_LEN, 0 },	// CAM_CORE_A_FINE_CORRECTION
+    {0xC854, 0x0732 , WORD_LEN, 0 },	// CAM_CORE_A_FINE_ITMIN
+    {0xC858, 0x0000 , WORD_LEN, 0 },	// CAM_CORE_A_COARSE_ITMIN
+    {0xC85A, 0x0001 , WORD_LEN, 0 },	// CAM_CORE_A_COARSE_ITMAX_MARGIN
+    {0xC85C, 0x0423 , WORD_LEN, 0 },	// CAM_CORE_A_MIN_FRAME_LENGTH_LINES
+    {0xC85E, 0xFFFF , WORD_LEN, 0 },	// CAM_CORE_A_MAX_FRAME_LENGTH_LINES
+    {0xC860, 0x0423 , WORD_LEN, 0 },	// CAM_CORE_A_BASE_FRAME_LENGTH_LINES
+    {0xC862, 0x1194 , WORD_LEN, 0 },	// CAM_CORE_A_MIN_LINE_LENGTH_PCLK
+    {0xC864, 0xFFFE , WORD_LEN, 0 },	// CAM_CORE_A_MAX_LINE_LENGTH_PCLK
+    {0xC866, 0x7F7F , WORD_LEN, 0 },	// CAM_CORE_A_P4_5_6_DIVIDER
+    {0xC868, 0x0423 , WORD_LEN, 0 },	// CAM_CORE_A_FRAME_LENGTH_LINES
+    {0xC86A, 0x1194 , WORD_LEN, 0 },	// CAM_CORE_A_LINE_LENGTH_PCK
+    {0xC86C, 0x0518 , WORD_LEN, 0 },	// CAM_CORE_A_OUTPUT_SIZE_WIDTH
+    {0xC86E, 0x03D4 , WORD_LEN, 0 },	// CAM_CORE_A_OUTPUT_SIZE_HEIGHT
+    {0xC870, 0x0014 , WORD_LEN, 0 },	// CAM_CORE_A_RX_FIFO_TRIGGER_MARK
+    {0xC858, 0x0003 , WORD_LEN, 0 },	// CAM_CORE_A_COARSE_ITMIN
+    {0xC8B8, 0x0004 , WORD_LEN, 0 },	// CAM_OUTPUT_0_JPEG_CONTROL
+    {0xC8AE, 0x0001, WORD_LEN, 0 }, 	// CAM_OUTPUT_0_OUTPUT_FORMAT
+    {0xC8AA, 0x0500 , WORD_LEN, 0 },	// CAM_OUTPUT_0_IMAGE_WIDTH//Div6D1-CL-Camera-D1_WVGA-05*
+    {0xC8AC, 0x03C0 , WORD_LEN, 0 },	// CAM_OUTPUT_0_IMAGE_HEIGHT//Div6D1-CL-Camera-D1_WVGA-05*
+    //{0xC8AA, 0x0280 , WORD_LEN, 0 },	// CAM_OUTPUT_0_IMAGE_WIDTH//Div6D1-CL-Camera-D1_WVGA-05*
+    //{0xC8AC, 0x01E0 , WORD_LEN, 0 },	// CAM_OUTPUT_0_IMAGE_HEIGHT//Div6D1-CL-Camera-D1_WVGA-05*
+    {0xC872, 0x0010 , WORD_LEN, 0 },	// CAM_CORE_B_Y_ADDR_START
+    {0xC874, 0x001C , WORD_LEN, 0 },	// CAM_CORE_B_X_ADDR_START
+    {0xC876, 0x07AF , WORD_LEN, 0 },	// CAM_CORE_B_Y_ADDR_END
+    {0xC878, 0x0A43 , WORD_LEN, 0 },	// CAM_CORE_B_X_ADDR_END
+    {0xC87A, 0x0001 , WORD_LEN, 0 },	// CAM_CORE_B_ROW_SPEED
+    {0xC87C, 0x0101 , WORD_LEN, 0 },	// CAM_CORE_B_SKIP_X_CORE
+    {0xC87E, 0x0101 , WORD_LEN, 0 },	// CAM_CORE_B_SKIP_Y_CORE
+    {0xC880, 0x0101 , WORD_LEN, 0 },	// CAM_CORE_B_SKIP_X_PIPE
+    {0xC882, 0x0101 , WORD_LEN, 0 },	// CAM_CORE_B_SKIP_Y_PIPE
+    {0xC884, 0x00F2 , WORD_LEN, 0 },	// CAM_CORE_B_POWER_MODE
+    {0xC886, 0x0000 , WORD_LEN, 0 },	// CAM_CORE_B_BIN_MODE
+    {0xC888, 0x00 , BYTE_LEN, 0 },	// CAM_CORE_B_ORIENTATION
+    {0xC889, 0x00 , BYTE_LEN, 0 },	// CAM_CORE_B_PIXEL_ORDER
+    {0xC88A, 0x009C , WORD_LEN, 0 },	// CAM_CORE_B_FINE_CORRECTION
+    {0xC88C, 0x034A , WORD_LEN, 0 },	// CAM_CORE_B_FINE_ITMIN
+    {0xC890, 0x0000 , WORD_LEN, 0 },	// CAM_CORE_B_COARSE_ITMIN
+    {0xC892, 0x0001 , WORD_LEN, 0 },	// CAM_CORE_B_COARSE_ITMAX_MARGIN
+    {0xC894, 0x07EF , WORD_LEN, 0 },	// CAM_CORE_B_MIN_FRAME_LENGTH_LINES
+    {0xC896, 0xFFFF , WORD_LEN, 0 },	// CAM_CORE_B_MAX_FRAME_LENGTH_LINES
+    {0xC898, 0x082F , WORD_LEN, 0 },	// CAM_CORE_B_BASE_FRAME_LENGTH_LINES
+    {0xC89A, 0x1964 , WORD_LEN, 0 },	// CAM_CORE_B_MIN_LINE_LENGTH_PCLK
+    {0xC89C, 0xFFFE , WORD_LEN, 0 },	// CAM_CORE_B_MAX_LINE_LENGTH_PCLK
+    {0xC89E, 0x7F7F , WORD_LEN, 0 },	// CAM_CORE_B_P4_5_6_DIVIDER
+    {0xC8A0, 0x07EF , WORD_LEN, 0 },	// CAM_CORE_B_FRAME_LENGTH_LINES
+    {0xC8A2, 0x1964 , WORD_LEN, 0 },	// CAM_CORE_B_LINE_LENGTH_PCK
+    {0xC8A4, 0x0A28 , WORD_LEN, 0 },	// CAM_CORE_B_OUTPUT_SIZE_WIDTH
+    {0xC8A6, 0x07A0 , WORD_LEN, 0 },	// CAM_CORE_B_OUTPUT_SIZE_HEIGHT
+    {0xC8A8, 0x0124 , WORD_LEN, 0 },	// CAM_CORE_B_RX_FIFO_TRIGGER_MARK
+    {0xC890, 0x0003 , WORD_LEN, 0 },	// CAM_CORE_B_COARSE_ITMIN
+    {0xC8C0, 0x0A20 , WORD_LEN, 0 },	// CAM_OUTPUT_1_IMAGE_WIDTH
+    {0xC89A, 0x1964 , WORD_LEN, 0 },	// CAM_CORE_B_MIN_LINE_LENGTH_PCLK
+    {0xC8A2, 0x1964 , WORD_LEN, 0 },	// CAM_CORE_B_LINE_LENGTH_PCK
+    {0xC8C4, 0x0001 , WORD_LEN, 0 },	// CAM_OUTPUT_1_OUTPUT_FORMAT
+    {0xC8C6, 0x0000 , WORD_LEN, 0 },	// CAM_OUTPUT_1_OUTPUT_FORMAT_ORDER
+    {0xC8CE, 0x0014 , WORD_LEN, 0 },	// CAM_OUTPUT_1_JPEG_CONTROL
+    {0xD822, 0x4610 , WORD_LEN, 0 },	// JPEG_JPSS_CTRL_VAR
+    {0x3330, 0x0000 , WORD_LEN, 0 },	// OUTPUT_FORMAT_TEST
+    {0x098E, 0xA00E , WORD_LEN, 0 },	// LOGICAL_ADDRESS_ACCESS
+    {0xA00E, 0x32 , BYTE_LEN, 0 },	// FD_MAX_NUM_AUTOCOR_FUNC_VALUES_TO_CHECK
+    {0xA010, 0x00CC , WORD_LEN, 0 },	// FD_MIN_EXPECTED50HZ_FLICKER_PERIOD
+    {0xA012, 0x00E0 , WORD_LEN, 0 },	// FD_MAX_EXPECTED50HZ_FLICKER_PERIOD
+    {0xA014, 0x00A8 , WORD_LEN, 0 },	// FD_MIN_EXPECTED60HZ_FLICKER_PERIOD
+    {0xA016, 0x00BC , WORD_LEN, 0 },	// FD_MAX_EXPECTED60HZ_FLICKER_PERIOD
+    {0xA018, 0x00D6 , WORD_LEN, 0 },	// FD_EXPECTED50HZ_FLICKER_PERIOD_IN_CONTEXT_A
+    {0xA01A, 0x0075, WORD_LEN, 0 }, 	// FD_EXPECTED50HZ_FLICKER_PERIOD_IN_CONTEXT_B
+    {0xA01C, 0x00B2 , WORD_LEN, 0 },	// FD_EXPECTED60HZ_FLICKER_PERIOD_IN_CONTEXT_A
+    {0xA01E, 0x0062, WORD_LEN, 0 }, 	// FD_EXPECTED60HZ_FLICKER_PERIOD_IN_CONTEXT_B
+    {0xA000, 0x10 , BYTE_LEN, 0 },	// FD_STATUS
+    {0x8417, 0x02 , BYTE_LEN, 0 },	// SEQ_STATE_CFG_1_FD
+    {0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
+    {0x060E, 0xFF, BYTE_LEN, 0 },//set vgpio down
+};
+
+struct mt9p111_i2c_reg_conf const hd_init_tbl[] = {
+    {0x098E, 0x843C , WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [CAM_CORE_A_Y_ADDR_START]
+    {0x843C, 0x01 , BYTE_LEN, 0 },// SEQ_STATE_CFG_5_MAX_FRAME_CNT
+    {0x8404, 0x01, BYTE_LEN, 0 }, // SEQ_CMD
+    {0x0016, 0x0447 , WORD_LEN, 0 }, // CLOCKS_CONTROL
+    {0xC83A, 0x0106 , WORD_LEN, 0 }, // CAM_CORE_A_Y_ADDR_START
+    {0xC83C, 0x0018 , WORD_LEN, 0 }, // CAM_CORE_A_X_ADDR_START
+    {0xC83E, 0x06B7 , WORD_LEN, 0 }, // CAM_CORE_A_Y_ADDR_END
+    {0xC840, 0x0A45 , WORD_LEN, 0 }, // CAM_CORE_A_X_ADDR_END
+    {0xC86C, 0x0518  , WORD_LEN, 0 },// CAM_CORE_A_OUTPUT_SIZE_WIDTH
+    {0xC86E, 0x02D8  , WORD_LEN, 0 },// CAM_CORE_A_OUTPUT_SIZE_HEIGHT
+    {0xC870, 0x0014  , WORD_LEN, 0 },// CAM_CORE_A_RX_FIFO_TRIGGER_MARK
+    {0xC858, 0x0003 , WORD_LEN, 0 },// CAM_CORE_A_COARSE_ITMIN
+    {0xC8B8, 0x0004 , WORD_LEN, 0 }, // CAM_OUTPUT_0_JPEG_CONTROL
+    {0xC8AA, 0x0500 , WORD_LEN, 0 }, // CAM_OUTPUT_0_IMAGE_WIDTH
+    {0xC8AC, 0x02D0 , WORD_LEN, 0 }, // CAM_OUTPUT_0_IMAGE_HEIGHT
+    {0xC8AE, 0x0001 , WORD_LEN, 0 }, // CAM_OUTPUT_0_OUTPUT_FORMAT
+    { 0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
+};
+
+struct mt9p111_i2c_reg_conf const hd_to_vga_tbl[] = {
+    {0xC83A, 0x000C  , WORD_LEN, 0 },   // CAM_CORE_A_Y_ADDR_START
+    {0xC83C, 0x0018 , WORD_LEN, 0 },    // CAM_CORE_A_X_ADDR_START
+    {0xC83E, 0x07B1 , WORD_LEN, 0 },    // CAM_CORE_A_Y_ADDR_END
+    {0xC840, 0x0A45 , WORD_LEN, 0 },    // CAM_CORE_A_X_ADDR_END
+    {0xC868, 0x0423 , WORD_LEN, 0 },    // CAM_CORE_A_FRAME_LENGTH_LINES
+    {0xC86A, 0x1194 , WORD_LEN, 0 },    // CAM_CORE_A_LINE_LENGTH_PCK
+    {0xC86C, 0x0518 , WORD_LEN, 0 },    // CAM_CORE_A_OUTPUT_SIZE_WIDTH
+    {0xC86E, 0x03D4 , WORD_LEN, 0 },    // CAM_CORE_A_OUTPUT_SIZE_HEIGHT
+    {0xC870, 0x0014  , WORD_LEN, 0 },// CAM_CORE_A_RX_FIFO_TRIGGER_MARK
+    {0xC858, 0x0003 , WORD_LEN, 0 }, // CAM_CORE_A_COARSE_ITMIN
+    {0xC8A4, 0x0A28 , WORD_LEN, 0 },    // CAM_CORE_B_OUTPUT_SIZE_WIDTH
+    {0xC8A6, 0x07A0 , WORD_LEN, 0 },    // CAM_CORE_B_OUTPUT_SIZE_HEIGHT
+    {0xC8AA, 0x0280 , WORD_LEN, 0 },    // CAM_OUTPUT_0_IMAGE_WIDTH
+    {0xC8AC, 0x01E0 , WORD_LEN, 0 },    // CAM_OUTPUT_0_IMAGE_HEIGHT
+    {0xC8AE, 0x0001 , WORD_LEN, 0 },    // CAM_OUTPUT_0_OUTPUT_FORMAT
+    { 0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD 
+};
+
+struct mt9p111_i2c_reg_conf const d1_init_tbl[] = {
+    { 0xC83A, 0x012C, WORD_LEN, 0 },  // CAM_CORE_A_Y_ADDR_START
+    { 0xC83E, 0x07EF, WORD_LEN, 0 },  // CAM_CORE_A_Y_ADDR_END
+    { 0xC86E, 0x02C7, WORD_LEN, 0 },  // CAM_CORE_A_OUTPUT_SIZE_HEIGHT
+    { 0xC8AA, 0x02D0, WORD_LEN, 0 },  // CAM_OUTPUT_0_IMAGE_WIDTH                  (720)
+    { 0xC8AC, 0x01E0, WORD_LEN, 0 },  // CAM_OUTPUT_0_IMAGE_HEIGHT     (480)
+    { 0xDC0A, 0x0E, BYTE_LEN, 0 },      // SYS_SCALE_MODE
+    { 0x8404, 0x06, BYTE_LEN, 0 },        // SEQ_CMD//Div6D1-CL-Camera-D1_WVGA-03*//Div6D1-CL-Camera-SnapShotFail-00*
+};
+
+struct mt9p111_i2c_reg_conf const wvga_init_tbl[] = {
+    { 0xC83A, 0x012C, WORD_LEN, 0 },  // CAM_CORE_A_Y_ADDR_START
+    { 0xC83E, 0x07EF, WORD_LEN, 0 },  // CAM_CORE_A_Y_ADDR_END
+    { 0xC86E, 0x02C7, WORD_LEN, 0 },  // CAM_CORE_A_OUTPUT_SIZE_HEIGHT
+    { 0xC8AA, 0x0320, WORD_LEN, 0 },  // CAM_OUTPUT_0_IMAGE_WIDTH                   (800)
+    { 0xC8AC, 0x01E0, WORD_LEN, 0 },  // CAM_OUTPUT_0_IMAGE_HEIGHT     (480)
+    { 0xDC0A, 0x0E, BYTE_LEN, 0 },  // SYS_SCALE_MODE
+    { 0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD//Div6D1-CL-Camera-D1_WVGA-03*//Div6D1-CL-Camera-SnapShotFail-00*
+};
+
+struct mt9p111_i2c_reg_conf const yellow_light_tbl[] = {                                                             
+    //[Lens Correction 90% 01/25/11 10:48:08]               
+    {0x3640, 0x0170, WORD_LEN, 0 },// P_G1_P0Q0               
+    {0x3642, 0x5DEC, WORD_LEN, 0 },// P_G1_P0Q1               
+    {0x3644, 0x0D91, WORD_LEN, 0 },// P_G1_P0Q2               
+    {0x3646, 0xAF0D, WORD_LEN, 0 },// P_G1_P0Q3               
+    {0x3648, 0xAB0F, WORD_LEN, 0 },// P_G1_P0Q4               
+    {0x364A, 0x0350, WORD_LEN, 0 },// P_R_P0Q0                
+    {0x364C, 0x8A0E, WORD_LEN, 0 },// P_R_P0Q1                
+    {0x364E, 0x3351, WORD_LEN, 0 },// P_R_P0Q2                
+    {0x3650, 0x1B8E, WORD_LEN, 0 },// P_R_P0Q3                
+    {0x3652, 0x98B0, WORD_LEN, 0 },// P_R_P0Q4                
+    {0x3654, 0x0250, WORD_LEN, 0 },// P_B_P0Q0                
+    {0x3656, 0x50CC, WORD_LEN, 0 },// P_B_P0Q1                
+    {0x3658, 0x326F, WORD_LEN, 0 },// P_B_P0Q2                
+    {0x365A, 0xBBAE, WORD_LEN, 0 },// P_B_P0Q3                
+    {0x365C, 0x162E, WORD_LEN, 0 },// P_B_P0Q4                
+    {0x365E, 0x0290, WORD_LEN, 0 },// P_G2_P0Q0               
+    {0x3660, 0x94CE, WORD_LEN, 0 },// P_G2_P0Q1               
+    {0x3662, 0x35F1, WORD_LEN, 0 },// P_G2_P0Q2               
+    {0x3664, 0x05EA, WORD_LEN, 0 },// P_G2_P0Q3               
+    {0x3666, 0xFD2F, WORD_LEN, 0 },// P_G2_P0Q4               
+    {0x3680, 0x5DCD, WORD_LEN, 0 },// P_G1_P1Q0               
+    {0x3682, 0xC24D, WORD_LEN, 0 },// P_G1_P1Q1               
+    {0x3684, 0x27AC, WORD_LEN, 0 },// P_G1_P1Q2               
+    {0x3686, 0x3EEE, WORD_LEN, 0 },// P_G1_P1Q3               
+    {0x3688, 0x848F, WORD_LEN, 0 },// P_G1_P1Q4               
+    {0x368A, 0x0FEE, WORD_LEN, 0 },// P_R_P1Q0                
+    {0x368C, 0x520D, WORD_LEN, 0 },// P_R_P1Q1                
+    {0x368E, 0x0B4E, WORD_LEN, 0 },// P_R_P1Q2                
+    {0x3690, 0xB1EE, WORD_LEN, 0 },// P_R_P1Q3                
+    {0x3692, 0xD86F, WORD_LEN, 0 },// P_R_P1Q4                
+    {0x3694, 0xD4ED, WORD_LEN, 0 },// P_B_P1Q0                
+    {0x3696, 0x5A8C, WORD_LEN, 0 },// P_B_P1Q1                
+    {0x3698, 0x17AF, WORD_LEN, 0 },// P_B_P1Q2                
+    {0x369A, 0xB62E, WORD_LEN, 0 },// P_B_P1Q3                
+    {0x369C, 0x962E, WORD_LEN, 0 },// P_B_P1Q4                
+    {0x369E, 0x452B, WORD_LEN, 0 },// P_G2_P1Q0               
+    {0x36A0, 0x858E, WORD_LEN, 0 },// P_G2_P1Q1               
+    {0x36A2, 0x486D, WORD_LEN, 0 },// P_G2_P1Q2               
+    {0x36A4, 0x1F0D, WORD_LEN, 0 },// P_G2_P1Q3               
+    {0x36A6, 0x892D, WORD_LEN, 0 },// P_G2_P1Q4               
+    {0x36C0, 0x3D11, WORD_LEN, 0 },// P_G1_P2Q0               
+    {0x36C2, 0x61EE, WORD_LEN, 0 },// P_G1_P2Q1               
+    {0x36C4, 0x7C70, WORD_LEN, 0 },// P_G1_P2Q2               
+    {0x36C6, 0x854F, WORD_LEN, 0 },// P_G1_P2Q3               
+    {0x36C8, 0xBE92, WORD_LEN, 0 },// P_G1_P2Q4               
+    {0x36CA, 0x4A51, WORD_LEN, 0 },// P_R_P2Q0                
+    {0x36CC, 0xBC0E, WORD_LEN, 0 },// P_R_P2Q1                
+    {0x36CE, 0x2811, WORD_LEN, 0 },// P_R_P2Q2                
+    {0x36D0, 0x4AEA, WORD_LEN, 0 },// P_R_P2Q3                
+    {0x36D2, 0x8913, WORD_LEN, 0 },// P_R_P2Q4                
+    {0x36D4, 0x6AB0, WORD_LEN, 0 },// P_B_P2Q0                
+    {0x36D6, 0x20EE, WORD_LEN, 0 },// P_B_P2Q1                
+    {0x36D8, 0x682E, WORD_LEN, 0 },// P_B_P2Q2                
+    {0x36DA, 0xD02D, WORD_LEN, 0 },// P_B_P2Q3                
+    {0x36DC, 0x4C10, WORD_LEN, 0 },// P_B_P2Q4                
+    {0x36DE, 0x3471, WORD_LEN, 0 },// P_G2_P2Q0               
+    {0x36E0, 0xC6AE, WORD_LEN, 0 },// P_G2_P2Q1               
+    {0x36E2, 0x0AB1, WORD_LEN, 0 },// P_G2_P2Q2               
+    {0x36E4, 0x0D2E, WORD_LEN, 0 },// P_G2_P2Q3               
+    {0x36E6, 0xE232, WORD_LEN, 0 },// P_G2_P2Q4               
+    {0x3700, 0x62ED, WORD_LEN, 0 },// P_G1_P3Q0               
+    {0x3702, 0xBB87, WORD_LEN, 0 },// P_G1_P3Q1               
+    {0x3704, 0xC671, WORD_LEN, 0 },// P_G1_P3Q2               
+    {0x3706, 0x766E, WORD_LEN, 0 },// P_G1_P3Q3               
+    {0x3708, 0x2C91, WORD_LEN, 0 },// P_G1_P3Q4               
+    {0x370A, 0x0A2F, WORD_LEN, 0 },// P_R_P3Q0                
+    {0x370C, 0xB90D, WORD_LEN, 0 },// P_R_P3Q1                
+    {0x370E, 0xFA71, WORD_LEN, 0 },// P_R_P3Q2                
+    {0x3710, 0x4810, WORD_LEN, 0 },// P_R_P3Q3                
+    {0x3712, 0x3551, WORD_LEN, 0 },// P_R_P3Q4                
+    {0x3714, 0xDD4A, WORD_LEN, 0 },// P_B_P3Q0                
+    {0x3716, 0xC46E, WORD_LEN, 0 },// P_B_P3Q1                
+    {0x3718, 0x776E, WORD_LEN, 0 },// P_B_P3Q2                
+    {0x371A, 0x00D1, WORD_LEN, 0 },// P_B_P3Q3                
+    {0x371C, 0xCF11, WORD_LEN, 0 },// P_B_P3Q4                
+    {0x371E, 0x616B, WORD_LEN, 0 },// P_G2_P3Q0               
+    {0x3720, 0x92AD, WORD_LEN, 0 },// P_G2_P3Q1               
+    {0x3722, 0xADEE, WORD_LEN, 0 },// P_G2_P3Q2               
+    {0x3724, 0x5E10, WORD_LEN, 0 },// P_G2_P3Q3               
+    {0x3726, 0x81B2, WORD_LEN, 0 },// P_G2_P3Q4               
+    {0x3740, 0xB9AF, WORD_LEN, 0 },// P_G1_P4Q0               
+    {0x3742, 0xB18F, WORD_LEN, 0 },// P_G1_P4Q1               
+    {0x3744, 0xAC13, WORD_LEN, 0 },// P_G1_P4Q2               
+    {0x3746, 0x2191, WORD_LEN, 0 },// P_G1_P4Q3               
+    {0x3748, 0x2432, WORD_LEN, 0 },// P_G1_P4Q4               
+    {0x374A, 0xE3EC, WORD_LEN, 0 },// P_R_P4Q0                
+    {0x374C, 0xE5EE, WORD_LEN, 0 },// P_R_P4Q1                
+    {0x374E, 0xC553, WORD_LEN, 0 },// P_R_P4Q2                
+    {0x3750, 0x7671, WORD_LEN, 0 },// P_R_P4Q3                
+    {0x3752, 0x1932, WORD_LEN, 0 },// P_R_P4Q4                
+    {0x3754, 0xA62F, WORD_LEN, 0 },// P_B_P4Q0                
+    {0x3756, 0xFBAF, WORD_LEN, 0 },// P_B_P4Q1                
+    {0x3758, 0x24B1, WORD_LEN, 0 },// P_B_P4Q2                
+    {0x375A, 0x0D31, WORD_LEN, 0 },// P_B_P4Q3                
+    {0x375C, 0x86D4, WORD_LEN, 0 },// P_B_P4Q4                
+    {0x375E, 0xB0AF, WORD_LEN, 0 },// P_G2_P4Q0               
+    {0x3760, 0x7F0C, WORD_LEN, 0 },// P_G2_P4Q1               
+    {0x3762, 0x8593, WORD_LEN, 0 },// P_G2_P4Q2               
+    {0x3764, 0x6050, WORD_LEN, 0 },// P_G2_P4Q3               
+    {0x3766, 0x8451, WORD_LEN, 0 },// P_G2_P4Q4               
+    {0x3782, 0x0404, WORD_LEN, 0 },// CENTER_ROW              
+    {0x3784, 0x04E0, WORD_LEN, 0 },// CENTER_COLUMN         
+    {0x3210, 0x49B8, WORD_LEN, 0 },  // COLOR_PIPELINE_CONTROL
+}  ;
+
+static struct mt9p111_i2c_reg_conf const lc_outdoor_daylight_tbl[] = {
+    //[Lens Correction 90% 02/10/11 14:00:07]
+    { 0x3640, 0x0190, WORD_LEN, 0 },  // P_G1_P0Q0
+    { 0x3642, 0x3DAD, WORD_LEN, 0 },  // P_G1_P0Q1
+    { 0x3644, 0x13D1, WORD_LEN, 0 },  // P_G1_P0Q2
+    { 0x3646, 0xE78D, WORD_LEN, 0 },  // P_G1_P0Q3
+    { 0x3648, 0x096C, WORD_LEN, 0 },  // P_G1_P0Q4
+    { 0x364A, 0x0310, WORD_LEN, 0 },  // P_R_P0Q0
+    { 0x364C, 0xBE6D, WORD_LEN, 0 },  // P_R_P0Q1
+    { 0x364E, 0x7290, WORD_LEN, 0 },  // P_R_P0Q2
+    { 0x3650, 0x426D, WORD_LEN, 0 },  // P_R_P0Q3
+    { 0x3652, 0xB92E, WORD_LEN, 0 },  // P_R_P0Q4
+    { 0x3654, 0x0270, WORD_LEN, 0 },  // P_B_P0Q0
+    { 0x3656, 0x118D, WORD_LEN, 0 },  // P_B_P0Q1
+    { 0x3658, 0x34D0, WORD_LEN, 0 },  // P_B_P0Q2
+    { 0x365A, 0xC08D, WORD_LEN, 0 },  // P_B_P0Q3
+    { 0x365C, 0x738E, WORD_LEN, 0 },  // P_B_P0Q4
+    { 0x365E, 0x0470, WORD_LEN, 0 },  // P_G2_P0Q0
+    { 0x3660, 0xF9ED, WORD_LEN, 0 },  // P_G2_P0Q1
+    { 0x3662, 0x1991, WORD_LEN, 0 },  // P_G2_P0Q2
+    { 0x3664, 0x280C, WORD_LEN, 0 },  // P_G2_P0Q3
+    { 0x3666, 0x7402, WORD_LEN, 0 },  // P_G2_P0Q4
+    { 0x3680, 0x2FCD, WORD_LEN, 0 },  // P_G1_P1Q0
+    { 0x3682, 0xD4ED, WORD_LEN, 0 },  // P_G1_P1Q1
+    { 0x3684, 0xD56E, WORD_LEN, 0 },  // P_G1_P1Q2
+    { 0x3686, 0x1AAE, WORD_LEN, 0 },  // P_G1_P1Q3
+    { 0x3688, 0x740D, WORD_LEN, 0 },  // P_G1_P1Q4
+    { 0x368A, 0x1FEE, WORD_LEN, 0 },  // P_R_P1Q0
+    { 0x368C, 0x0CED, WORD_LEN, 0 },  // P_R_P1Q1
+    { 0x368E, 0xE82E, WORD_LEN, 0 },  // P_R_P1Q2
+    { 0x3690, 0xC609, WORD_LEN, 0 },  // P_R_P1Q3
+    { 0x3692, 0x3BCD, WORD_LEN, 0 },  // P_R_P1Q4
+    { 0x3694, 0xC0CC, WORD_LEN, 0 },  // P_B_P1Q0
+    { 0x3696, 0x52AD, WORD_LEN, 0 },  // P_B_P1Q1
+    { 0x3698, 0xA4C9, WORD_LEN, 0 },  // P_B_P1Q2
+    { 0x369A, 0xA22E, WORD_LEN, 0 },  // P_B_P1Q3
+    { 0x369C, 0x7E4B, WORD_LEN, 0 },  // P_B_P1Q4
+    { 0x369E, 0x78C7, WORD_LEN, 0 },  // P_G2_P1Q0
+    { 0x36A0, 0x936E, WORD_LEN, 0 },  // P_G2_P1Q1
+    { 0x36A2, 0x93CD, WORD_LEN, 0 },  // P_G2_P1Q2
+    { 0x36A4, 0x518E, WORD_LEN, 0 },  // P_G2_P1Q3
+    { 0x36A6, 0x0C2E, WORD_LEN, 0 },  // P_G2_P1Q4
+    { 0x36C0, 0x2FF1, WORD_LEN, 0 },  // P_G1_P2Q0
+    { 0x36C2, 0x1C8E, WORD_LEN, 0 },  // P_G1_P2Q1
+    { 0x36C4, 0x50F2, WORD_LEN, 0 },  // P_G1_P2Q2
+    { 0x36C6, 0x138F, WORD_LEN, 0 },  // P_G1_P2Q3
+    { 0x36C8, 0xE273, WORD_LEN, 0 },  // P_G1_P2Q4
+    { 0x36CA, 0x1A91, WORD_LEN, 0 },  // P_R_P2Q0
+    { 0x36CC, 0xE18E, WORD_LEN, 0 },  // P_R_P2Q1
+    { 0x36CE, 0x1212, WORD_LEN, 0 },  // P_R_P2Q2
+    { 0x36D0, 0x150E, WORD_LEN, 0 },  // P_R_P2Q3
+    { 0x36D2, 0xE532, WORD_LEN, 0 },  // P_R_P2Q4
+    { 0x36D4, 0x0711, WORD_LEN, 0 },  // P_B_P2Q0
+    { 0x36D6, 0x3B0F, WORD_LEN, 0 },  // P_B_P2Q1
+    { 0x36D8, 0x4D32, WORD_LEN, 0 },  // P_B_P2Q2
+    { 0x36DA, 0xB5EF, WORD_LEN, 0 },  // P_B_P2Q3
+    { 0x36DC, 0x9993, WORD_LEN, 0 },  // P_B_P2Q4
+    { 0x36DE, 0x3891, WORD_LEN, 0 },  // P_G2_P2Q0
+    { 0x36E0, 0xF9EE, WORD_LEN, 0 },  // P_G2_P2Q1
+    { 0x36E2, 0x6B52, WORD_LEN, 0 },  // P_G2_P2Q2
+    { 0x36E4, 0x278F, WORD_LEN, 0 },  // P_G2_P2Q3
+    { 0x36E6, 0x8014, WORD_LEN, 0 },  // P_G2_P2Q4
+    { 0x3700, 0x0A4A, WORD_LEN, 0 },  // P_G1_P3Q0
+    { 0x3702, 0x0BAE, WORD_LEN, 0 },  // P_G1_P3Q1
+    { 0x3704, 0xE14E, WORD_LEN, 0 },  // P_G1_P3Q2
+    { 0x3706, 0xB6F0, WORD_LEN, 0 },  // P_G1_P3Q3
+    { 0x3708, 0x5651, WORD_LEN, 0 },  // P_G1_P3Q4
+    { 0x370A, 0x2B8B, WORD_LEN, 0 },  // P_R_P3Q0
+    { 0x370C, 0x3B2E, WORD_LEN, 0 },  // P_R_P3Q1
+    { 0x370E, 0x666D, WORD_LEN, 0 },  // P_R_P3Q2
+    { 0x3710, 0x9931, WORD_LEN, 0 },  // P_R_P3Q3
+    { 0x3712, 0x2A31, WORD_LEN, 0 },  // P_R_P3Q4
+    { 0x3714, 0xA1AF, WORD_LEN, 0 },  // P_B_P3Q0
+    { 0x3716, 0x55EC, WORD_LEN, 0 },  // P_B_P3Q1
+    { 0x3718, 0x7350, WORD_LEN, 0 },  // P_B_P3Q2
+    { 0x371A, 0x890F, WORD_LEN, 0 },  // P_B_P3Q3
+    { 0x371C, 0xEC6F, WORD_LEN, 0 },  // P_B_P3Q4
+    { 0x371E, 0x93EE, WORD_LEN, 0 },  // P_G2_P3Q0
+    { 0x3720, 0x2C6E, WORD_LEN, 0 },  // P_G2_P3Q1
+    { 0x3722, 0x2E90, WORD_LEN, 0 },  // P_G2_P3Q2
+    { 0x3724, 0xC550, WORD_LEN, 0 },  // P_G2_P3Q3
+    { 0x3726, 0x616F, WORD_LEN, 0 },  // P_G2_P3Q4
+    { 0x3740, 0x1A2E, WORD_LEN, 0 },  // P_G1_P4Q0
+    { 0x3742, 0x618E, WORD_LEN, 0 },  // P_G1_P4Q1
+    { 0x3744, 0xB274, WORD_LEN, 0 },  // P_G1_P4Q2
+    { 0x3746, 0x8FD2, WORD_LEN, 0 },  // P_G1_P4Q3
+    { 0x3748, 0x2294, WORD_LEN, 0 },  // P_G1_P4Q4
+    { 0x374A, 0xEF2C, WORD_LEN, 0 },  // P_R_P4Q0
+    { 0x374C, 0x386F, WORD_LEN, 0 },  // P_R_P4Q1
+    { 0x374E, 0xCC73, WORD_LEN, 0 },  // P_R_P4Q2
+    { 0x3750, 0xFB71, WORD_LEN, 0 },  // P_R_P4Q3
+    { 0x3752, 0x5511, WORD_LEN, 0 },  // P_R_P4Q4
+    { 0x3754, 0x1270, WORD_LEN, 0 },  // P_B_P4Q0
+    { 0x3756, 0x8310, WORD_LEN, 0 },  // P_B_P4Q1
+    { 0x3758, 0xF033, WORD_LEN, 0 },  // P_B_P4Q2
+    { 0x375A, 0x1790, WORD_LEN, 0 },  // P_B_P4Q3
+    { 0x375C, 0xCCEE, WORD_LEN, 0 },  // P_B_P4Q4
+    { 0x375E, 0x1FCF, WORD_LEN, 0 },  // P_G2_P4Q0
+    { 0x3760, 0x624F, WORD_LEN, 0 },  // P_G2_P4Q1
+    { 0x3762, 0xCD74, WORD_LEN, 0 },  // P_G2_P4Q2
+    { 0x3764, 0xFC71, WORD_LEN, 0 },  // P_G2_P4Q3
+    { 0x3766, 0x6054, WORD_LEN, 0 },  // P_G2_P4Q4
+    { 0x3782, 0x03DC, WORD_LEN, 0 },  // CENTER_ROW
+    { 0x3784, 0x04F4, WORD_LEN, 0 },  // CENTER_COLUMN
+    { 0x3210, 0x49B8, WORD_LEN, 0 },  // COLOR_PIPELINE_CONTROL
+};
+
+static struct mt9p111_i2c_reg_conf const lc_tbl[] = {
+    //[Lens Correction 90% 02/09/11 15:08:24]
+    { 0x3640, 0x00F0, WORD_LEN, 0 },  // P_G1_P0Q0
+    { 0x3642, 0x542C, WORD_LEN, 0 },  // P_G1_P0Q1
+    { 0x3644, 0x1B71, WORD_LEN, 0 },  // P_G1_P0Q2
+    { 0x3646, 0xAFEC, WORD_LEN, 0 },  // P_G1_P0Q3
+    { 0x3648, 0xF82E, WORD_LEN, 0 },  // P_G1_P0Q4
+    { 0x364A, 0x0450, WORD_LEN, 0 },  // P_R_P0Q0
+    { 0x364C, 0xEF4D, WORD_LEN, 0 },  // P_R_P0Q1
+    { 0x364E, 0x4670, WORD_LEN, 0 },  // P_R_P0Q2
+    { 0x3650, 0x506E, WORD_LEN, 0 },  // P_R_P0Q3
+    { 0x3652, 0xA78F, WORD_LEN, 0 },  // P_R_P0Q4
+    { 0x3654, 0x0370, WORD_LEN, 0 },  // P_B_P0Q0
+    { 0x3656, 0x1A8D, WORD_LEN, 0 },  // P_B_P0Q1
+    { 0x3658, 0x4D6F, WORD_LEN, 0 },  // P_B_P0Q2
+    { 0x365A, 0x87CE, WORD_LEN, 0 },  // P_B_P0Q3
+    { 0x365C, 0x272E, WORD_LEN, 0 },  // P_B_P0Q4
+    { 0x365E, 0x01F0, WORD_LEN, 0 },  // P_G2_P0Q0
+    { 0x3660, 0xA1CE, WORD_LEN, 0 },  // P_G2_P0Q1
+    { 0x3662, 0x27D1, WORD_LEN, 0 },  // P_G2_P0Q2
+    { 0x3664, 0xBE8A, WORD_LEN, 0 },  // P_G2_P0Q3
+    { 0x3666, 0x8F0F, WORD_LEN, 0 },  // P_G2_P0Q4
+    { 0x3680, 0x43EC, WORD_LEN, 0 },  // P_G1_P1Q0
+    { 0x3682, 0xD22D, WORD_LEN, 0 },  // P_G1_P1Q1
+    { 0x3684, 0xD9EC, WORD_LEN, 0 },  // P_G1_P1Q2
+    { 0x3686, 0x436C, WORD_LEN, 0 },  // P_G1_P1Q3
+    { 0x3688, 0xC0EE, WORD_LEN, 0 },  // P_G1_P1Q4
+    { 0x368A, 0x0C2E, WORD_LEN, 0 },  // P_R_P1Q0
+    { 0x368C, 0x16CD, WORD_LEN, 0 },  // P_R_P1Q1
+    { 0x368E, 0xA08B, WORD_LEN, 0 },  // P_R_P1Q2
+    { 0x3690, 0xFD8D, WORD_LEN, 0 },  // P_R_P1Q3
+    { 0x3692, 0x81EF, WORD_LEN, 0 },  // P_R_P1Q4
+    { 0x3694, 0xC3AD, WORD_LEN, 0 },  // P_B_P1Q0
+    { 0x3696, 0x1B6D, WORD_LEN, 0 },  // P_B_P1Q1
+    { 0x3698, 0x208F, WORD_LEN, 0 },  // P_B_P1Q2
+    { 0x369A, 0x98EE, WORD_LEN, 0 },  // P_B_P1Q3
+    { 0x369C, 0xF90F, WORD_LEN, 0 },  // P_B_P1Q4
+    { 0x369E, 0x28A8, WORD_LEN, 0 },  // P_G2_P1Q0
+    { 0x36A0, 0x9F2E, WORD_LEN, 0 },  // P_G2_P1Q1
+    { 0x36A2, 0x266E, WORD_LEN, 0 },  // P_G2_P1Q2
+    { 0x36A4, 0x2AAC, WORD_LEN, 0 },  // P_G2_P1Q3
+    { 0x36A6, 0xD24E, WORD_LEN, 0 },  // P_G2_P1Q4
+    { 0x36C0, 0x2351, WORD_LEN, 0 },  // P_G1_P2Q0
+    { 0x36C2, 0x4CEC, WORD_LEN, 0 },  // P_G1_P2Q1
+    { 0x36C4, 0x25B2, WORD_LEN, 0 },  // P_G1_P2Q2
+    { 0x36C6, 0xA82D, WORD_LEN, 0 },  // P_G1_P2Q3
+    { 0x36C8, 0xB233, WORD_LEN, 0 },  // P_G1_P2Q4
+    { 0x36CA, 0x73B0, WORD_LEN, 0 },  // P_R_P2Q0
+    { 0x36CC, 0x828F, WORD_LEN, 0 },  // P_R_P2Q1
+    { 0x36CE, 0x37F1, WORD_LEN, 0 },  // P_R_P2Q2
+    { 0x36D0, 0x682C, WORD_LEN, 0 },  // P_R_P2Q3
+    { 0x36D2, 0xF9B1, WORD_LEN, 0 },  // P_R_P2Q4
+    { 0x36D4, 0x4F90, WORD_LEN, 0 },  // P_B_P2Q0
+    { 0x36D6, 0xD169, WORD_LEN, 0 },  // P_B_P2Q1
+    { 0x36D8, 0x1C71, WORD_LEN, 0 },  // P_B_P2Q2
+    { 0x36DA, 0x19F0, WORD_LEN, 0 },  // P_B_P2Q3
+    { 0x36DC, 0x8CF0, WORD_LEN, 0 },  // P_B_P2Q4
+    { 0x36DE, 0x2751, WORD_LEN, 0 },  // P_G2_P2Q0
+    { 0x36E0, 0xE48F, WORD_LEN, 0 },  // P_G2_P2Q1
+    { 0x36E2, 0x2B32, WORD_LEN, 0 },  // P_G2_P2Q2
+    { 0x36E4, 0x0650, WORD_LEN, 0 },  // P_G2_P2Q3
+    { 0x36E6, 0xC773, WORD_LEN, 0 },  // P_G2_P2Q4
+    { 0x3700, 0x302D, WORD_LEN, 0 },  // P_G1_P3Q0
+    { 0x3702, 0x19EE, WORD_LEN, 0 },  // P_G1_P3Q1
+    { 0x3704, 0x8511, WORD_LEN, 0 },  // P_G1_P3Q2
+    { 0x3706, 0x8691, WORD_LEN, 0 },  // P_G1_P3Q3
+    { 0x3708, 0x47D1, WORD_LEN, 0 },  // P_G1_P3Q4
+    { 0x370A, 0x0ACE, WORD_LEN, 0 },  // P_R_P3Q0
+    { 0x370C, 0x4D8C, WORD_LEN, 0 },  // P_R_P3Q1
+    { 0x370E, 0xD18F, WORD_LEN, 0 },  // P_R_P3Q2
+    { 0x3710, 0xE66F, WORD_LEN, 0 },  // P_R_P3Q3
+    { 0x3712, 0x51CD, WORD_LEN, 0 },  // P_R_P3Q4
+    { 0x3714, 0x8ECE, WORD_LEN, 0 },  // P_B_P3Q0
+    { 0x3716, 0xE76D, WORD_LEN, 0 },  // P_B_P3Q1
+    { 0x3718, 0xEFCF, WORD_LEN, 0 },  // P_B_P3Q2
+    { 0x371A, 0xB52D, WORD_LEN, 0 },  // P_B_P3Q3
+    { 0x371C, 0x5071, WORD_LEN, 0 },  // P_B_P3Q4
+    { 0x371E, 0xD08B, WORD_LEN, 0 },  // P_G2_P3Q0
+    { 0x3720, 0x58CE, WORD_LEN, 0 },  // P_G2_P3Q1
+    { 0x3722, 0xF48E, WORD_LEN, 0 },  // P_G2_P3Q2
+    { 0x3724, 0xDA30, WORD_LEN, 0 },  // P_G2_P3Q3
+    { 0x3726, 0x0D4D, WORD_LEN, 0 },  // P_G2_P3Q4
+    { 0x3740, 0x404E, WORD_LEN, 0 },  // P_G1_P4Q0
+    { 0x3742, 0x3ACB, WORD_LEN, 0 },  // P_G1_P4Q1
+    { 0x3744, 0x8214, WORD_LEN, 0 },  // P_G1_P4Q2
+    { 0x3746, 0xAE71, WORD_LEN, 0 },  // P_G1_P4Q3
+    { 0x3748, 0x3B92, WORD_LEN, 0 },  // P_G1_P4Q4
+    { 0x374A, 0x8BEE, WORD_LEN, 0 },  // P_R_P4Q0
+    { 0x374C, 0x03EF, WORD_LEN, 0 },  // P_R_P4Q1
+    { 0x374E, 0x9B92, WORD_LEN, 0 },  // P_R_P4Q2
+    { 0x3750, 0x8991, WORD_LEN, 0 },  // P_R_P4Q3
+    { 0x3752, 0xE932, WORD_LEN, 0 },  // P_R_P4Q4
+    { 0x3754, 0xEC2E, WORD_LEN, 0 },  // P_B_P4Q0
+    { 0x3756, 0x692F, WORD_LEN, 0 },  // P_B_P4Q1
+    { 0x3758, 0x0D10, WORD_LEN, 0 },  // P_B_P4Q2
+    { 0x375A, 0x80B3, WORD_LEN, 0 },  // P_B_P4Q3
+    { 0x375C, 0x95F4, WORD_LEN, 0 },  // P_B_P4Q4
+    { 0x375E, 0x362E, WORD_LEN, 0 },  // P_G2_P4Q0
+    { 0x3760, 0x4F90, WORD_LEN, 0 },  // P_G2_P4Q1
+    { 0x3762, 0x8334, WORD_LEN, 0 },  // P_G2_P4Q2
+    { 0x3764, 0x9772, WORD_LEN, 0 },  // P_G2_P4Q3
+    { 0x3766, 0x2C13, WORD_LEN, 0 },  // P_G2_P4Q4
+    { 0x3782, 0x0404, WORD_LEN, 0 },  // CENTER_ROW
+    { 0x3784, 0x04CC, WORD_LEN, 0 },  // CENTER_COLUMN
+    { 0x3210, 0x49B8, WORD_LEN, 0 },  // COLOR_PIPELINE_CONTROL
+};
+
+static const struct mt9p111_i2c_reg_conf const otp_outdoor_daylight_tbl[] = {
+	{ 0xAC9A, 0x72, BYTE_LEN, 0 },// AWB_RIGHT_TINT_COEF_FOR_CCM_ROW_0
+	{ 0xAC9C, 0x7E, BYTE_LEN, 0 },// AWB_RIGHT_TINT_COEF_FOR_CCM_ROW_2
+};
+
+static const struct mt9p111_i2c_reg_conf const otp_tbl[] = {
+	{ 0xAC9A, 0x7B, BYTE_LEN, 0 },// AWB_RIGHT_TINT_COEF_FOR_CCM_ROW_0
+    { 0xAC9C, 0x82, BYTE_LEN, 0 },// AWB_RIGHT_TINT_COEF_FOR_CCM_ROW_2
+};
+
+static struct mt9p111_i2c_reg_conf const iq_tbl[] = {
+    //[Step5-AWB_CCM]
+    //awb_setup
+	{ 0x098E, 0xAC01, WORD_LEN, 0 },	// LOGICAL_ADDRESS_ACCESS [AWB_MODE]
+	{ 0xAC01, 0x7F, BYTE_LEN, 0 },	// AWB_MODE
+	{ 0xAC02, 0x00FF, WORD_LEN, 0 },	// AWB_ALGO   ??? not sure is WORD_LEN or BYTE_LEN
+    //preawb_params
+	{ 0xAC3C, 0x39, BYTE_LEN, 0 },	// AWB_MIN_ACCEPTED_PRE_AWB_R2G_RATIO
+	{ 0xAC3D, 0x6E, BYTE_LEN, 0 },	// AWB_MAX_ACCEPTED_PRE_AWB_R2G_RATIO
+	{ 0xAC3E, 0x28, BYTE_LEN, 0 },	// AWB_MIN_ACCEPTED_PRE_AWB_B2G_RATIO
+	{ 0xAC3F, 0x6B, BYTE_LEN, 0 },	// AWB_MAX_ACCEPTED_PRE_AWB_B2G_RATIO
+	{ 0xAC40, 0x64, BYTE_LEN, 0 },	// AWB_MIN_ACCEPTED_POST_AWB_R2G_RATIO
+	{ 0xAC41, 0x66, BYTE_LEN, 0 },	// AWB_MAX_ACCEPTED_POST_AWB_R2G_RATIO
+	{ 0xAC42, 0x64, BYTE_LEN, 0 },	// AWB_MIN_ACCEPTED_POST_AWB_B2G_RATIO
+	{ 0xAC43, 0x66, BYTE_LEN, 0 },	// AWB_MAX_ACCEPTED_POST_AWB_B2G_RATIO
+	//awb_patch
+	{ 0xACB0, 0x31, BYTE_LEN, 0 },	// AWB_RG_MIN
+	{ 0xACB1, 0x5B, BYTE_LEN, 0 },	// AWB_RG_MAX
+	{ 0xACB4, 0x2A, BYTE_LEN, 0 },	// AWB_BG_MIN
+	{ 0xACB5, 0x5B, BYTE_LEN, 0 },	// AWB_BG_MAX
+	{ 0xACB2, 0x3C, BYTE_LEN, 0 },	// AWB_RG_MIN_BRIGHT
+	//{ 0xACB3, 0x4B, BYTE_LEN, 0 },	// AWB_RG_MAX_BRIGHT
+	{ 0xACB3, 0x4F, BYTE_LEN, 0 },	// AWB_RG_MAX_BRIGHT 20110215
+	{ 0xACB6, 0x36, BYTE_LEN, 0 },	// AWB_BG_MIN_BRIGHT
+	{ 0xACB7, 0x42, BYTE_LEN, 0 },	// AWB_BG_MAX_BRIGHT
+	{ 0xACB8, 0x00D0, WORD_LEN, 0 },	// AWB_START_NUM_INT_LINES
+	{ 0xACBA, 0x0090, WORD_LEN, 0 },	// AWB_END_NUM_INT_LINES
+	//bright_DNP_patch
+	{ 0xAC09, 0x01, BYTE_LEN, 0 },	// AWB_MODE_EX	 ??? not sure is WORD_LEN or BYTE_LEN
+	{ 0xAC22, 0x0000, WORD_LEN, 0 },	// AWB_SHARPNESS_TH   ??? not sure is WORD_LEN or BYTE_LEN 
+    //soc5140_ccm_settings: from 0816 KI
+	{ 0xAC46, 0x01C4, WORD_LEN, 0 },	// AWB_LEFT_CCM_0
+	{ 0xAC48, 0xFF7A, WORD_LEN, 0 },	// AWB_LEFT_CCM_1
+	{ 0xAC4A, 0xFFC2, WORD_LEN, 0 },	// AWB_LEFT_CCM_2
+	{ 0xAC4C, 0xFFA6, WORD_LEN, 0 },	// AWB_LEFT_CCM_3
+	{ 0xAC4E, 0x018F, WORD_LEN, 0 },	// AWB_LEFT_CCM_4
+	{ 0xAC50, 0xFFCB, WORD_LEN, 0 },	// AWB_LEFT_CCM_5
+	{ 0xAC52, 0xFFE9, WORD_LEN, 0 },	// AWB_LEFT_CCM_6
+	{ 0xAC54, 0xFF63, WORD_LEN, 0 },	// AWB_LEFT_CCM_7
+	{ 0xAC56, 0x01B4, WORD_LEN, 0 },	// AWB_LEFT_CCM_8
+	{ 0xAC58, 0x00C6, WORD_LEN, 0 },	// AWB_LEFT_CCM_R2BRATIO
+	{ 0xAC5C, 0x01E8, WORD_LEN, 0 },	// AWB_RIGHT_CCM_0
+	{ 0xAC5E, 0xFF5C, WORD_LEN, 0 },	// AWB_RIGHT_CCM_1
+	{ 0xAC60, 0xFFBC, WORD_LEN, 0 },	// AWB_RIGHT_CCM_2
+	{ 0xAC62, 0xFFA8, WORD_LEN, 0 },	// AWB_RIGHT_CCM_3
+	{ 0xAC64, 0x018D, WORD_LEN, 0 },	// AWB_RIGHT_CCM_4
+	{ 0xAC66, 0xFFCB, WORD_LEN, 0 },	// AWB_RIGHT_CCM_5
+	{ 0xAC68, 0xFFE6, WORD_LEN, 0 },	// AWB_RIGHT_CCM_6
+	{ 0xAC6A, 0xFF46, WORD_LEN, 0 },	// AWB_RIGHT_CCM_7
+	{ 0xAC6C, 0x01D4, WORD_LEN, 0 },	// AWB_RIGHT_CCM_8
+	{ 0xAC6E, 0x0069, WORD_LEN, 0 },	// AWB_RIGHT_CCM_R2BRATIO
+	{ 0xAC72, 0x004D, WORD_LEN, 0 },	// AWB_LL_CCM_0
+	{ 0xAC74, 0x0096, WORD_LEN, 0 },	// AWB_LL_CCM_1
+	{ 0xAC76, 0x001D, WORD_LEN, 0 },	// AWB_LL_CCM_2
+	{ 0xAC78, 0x004D, WORD_LEN, 0 },	// AWB_LL_CCM_3
+	{ 0xAC7A, 0x0096, WORD_LEN, 0 },	// AWB_LL_CCM_4
+	{ 0xAC7C, 0x001D, WORD_LEN, 0 },	// AWB_LL_CCM_5
+	{ 0xAC7E, 0x004D, WORD_LEN, 0 },	// AWB_LL_CCM_6
+	{ 0xAC80, 0x0096, WORD_LEN, 0 },	// AWB_LL_CCM_7
+	{ 0xAC82, 0x001D, WORD_LEN, 0 },	// AWB_LL_CCM_8
+	{ 0xAC96, 0x10 , BYTE_LEN, 0 },	// AWB_TINT_TH
+	{ 0xAC97, 0x58 , BYTE_LEN, 0 },	// AWB_LEFT_TINT_COEF_FOR_CCM_ROW_0
+	{ 0xAC98, 0x8C , BYTE_LEN, 0 }, // AWB_LEFT_TINT_COEF_FOR_CCM_ROW_1
+	{ 0xAC99, 0x80 , BYTE_LEN, 0 },	// AWB_LEFT_TINT_COEF_FOR_CCM_ROW_2
+	{ 0xAC9A, 0x7B , BYTE_LEN, 0 },	// AWB_RIGHT_TINT_COEF_FOR_CCM_ROW_0
+	{ 0xAC9B, 0x80 , BYTE_LEN, 0 },	// AWB_RIGHT_TINT_COEF_FOR_CCM_ROW_1
+	{ 0xAC9C, 0x82 , BYTE_LEN, 0 },	// AWB_RIGHT_TINT_COEF_FOR_CCM_ROW_2
+	{ 0xB83E, 0x10 , BYTE_LEN, 0 },	// STAT_AWB_WINDOW_POS_X
+	{ 0xB83F, 0x10 , BYTE_LEN, 0 },	// STAT_AWB_WINDOW_POS_Y
+	{ 0xB840, 0xDF , BYTE_LEN, 0 },	// STAT_AWB_WINDOW_SIZE_X
+	{ 0xB841, 0xCF , BYTE_LEN, 0 },	// STAT_AWB_WINDOW_SIZE_Y
+    
+    //soc5140_weighted2D_awb_settings
+	{ 0xB842, 0x0038 , WORD_LEN, 0 },	// STAT_AWB_GRAY_CHECKER_OFFSET_X
+	{ 0xB844, 0x0044, WORD_LEN, 0 },	//2F 	// STAT_AWB_GRAY_CHECKER_OFFSET_Y
+	{ 0x3240, 0x0024, WORD_LEN, 0 },	// AWB_XY_SCALE
+	{ 0x3242, 0x0000, WORD_LEN, 0 },	// AWB_WEIGHT_R0
+	{ 0x3244, 0x0000, WORD_LEN, 0 },	// AWB_WEIGHT_R1
+	{ 0x3246, 0x0000, WORD_LEN, 0 },	// AWB_WEIGHT_R2
+	{ 0x3248, 0x7070, WORD_LEN, 0 },	// AWB_WEIGHT_R3
+	{ 0x324A, 0x38E0, WORD_LEN, 0 },	// AWB_WEIGHT_R4
+	{ 0x324C, 0x70E0, WORD_LEN, 0 },	// AWB_WEIGHT_R5
+	{ 0x324E, 0x01B8, WORD_LEN, 0 },	// AWB_WEIGHT_R6
+	{ 0x3250, 0x00AB, WORD_LEN, 0 },	// AWB_WEIGHT_R7
+	{ 0xD80F, 0x04, BYTE_LEN, 0 },	// JPEG_QSCALE_0
+	{ 0xD810, 0x08, BYTE_LEN, 0 },	// JPEG_QSCALE_1
+	{ 0xC8D2, 0x04, BYTE_LEN, 0 },	// CAM_OUTPUT_1_JPEG_QSCALE_0
+	{ 0xC8D3, 0x08, BYTE_LEN, 0 },	// CAM_OUTPUT_1_JPEG_QSCALE_1
+	{ 0xC8BC, 0x04, BYTE_LEN, 0 },	// CAM_OUTPUT_0_JPEG_QSCALE_0
+	{ 0xC8BD, 0x08, BYTE_LEN, 0 },	// CAM_OUTPUT_0_JPEG_QSCALE_1
+	//sys_settings
+	{ 0x301A, 0x10F4, WORD_LEN, 0 },	// RESET_REGISTER
+	{ 0x301E, 0x0083, WORD_LEN, 0 },	// DATA_PEDESTAL
+	{ 0x301A, 0x10FC, WORD_LEN, 0 },	// RESET_REGISTER
+	{ 0xDC33, 0x20, BYTE_LEN, 0 },	// SYS_FIRST_BLACK_LEVEL
+	{ 0xDC35, 0x04, BYTE_LEN, 0 },	// SYS_UV_COLOR_BOOST
+	{ 0x326E, 0x0006, WORD_LEN, 0 },	// LOW_PASS_YUV_FILTER
+	{ 0xDC37, 0x62, BYTE_LEN, 0 },	// SYS_BRIGHT_COLORKILL
+	{ 0x35A4, 0x0596, WORD_LEN, 0 },	// BRIGHT_COLOR_KILL_CONTROLS
+	{ 0x35A2, 0x9C, BYTE_LEN, 0 },	// DARK_COLOR_KILL_CONTROLS
+	{ 0x098E, 0x5C02, WORD_LEN, 0 },	// MCU_ADDR
+	{ 0xDC02, 0x003E, WORD_LEN, 0 },	// SYS_ALGO   ??? not sure is WORD_LEN or BYTE_LEN
+	{ 0xDC36, 0x34, BYTE_LEN, 0 },	// SYS_DARK_COLOR_KILL
+	// Refresh Mode - skip
+	{ 0xBC18, 0x00, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_0
+	{ 0xBC19, 0x11, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_1
+	{ 0xBC1A, 0x23, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_2
+	{ 0xBC1B, 0x3F, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_3
+	{ 0xBC1C, 0x67, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_4
+	{ 0xBC1D, 0x85, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_5
+	{ 0xBC1E, 0x9B, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_6
+	{ 0xBC1F, 0xAD, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_7
+	{ 0xBC20, 0xBB, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_8
+	{ 0xBC21, 0xC7, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_9
+	{ 0xBC22, 0xD1, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_10
+	{ 0xBC23, 0xDA, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_11
+	{ 0xBC24, 0xE1, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_12
+	{ 0xBC25, 0xE8, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_13
+	{ 0xBC26, 0xEE, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_14
+	{ 0xBC27, 0xF3, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_15
+	{ 0xBC28, 0xF7, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_16
+	{ 0xBC29, 0xFB, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_17
+	{ 0xBC2A, 0xFF, BYTE_LEN, 0 },	// LL_GAMMA_CONTRAST_CURVE_18
+	{ 0xBC2B, 0x00, BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_0
+	{ 0xBC2C, 0x08, BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_1
+	{ 0xBC2D, 0x19, BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_2
+	{ 0xBC2E, 0x31 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_3
+	{ 0xBC2F, 0x52 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_4
+	{ 0xBC30, 0x6E , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_5
+	{ 0xBC31, 0x87 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_6
+	{ 0xBC32, 0x9C , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_7
+	{ 0xBC33, 0xAD , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_8
+	{ 0xBC34, 0xBB , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_9
+	{ 0xBC35, 0xC6 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_10
+	{ 0xBC36, 0xD1 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_11
+	{ 0xBC37, 0xD9 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_12
+	{ 0xBC38, 0xE1 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_13
+	{ 0xBC39, 0xE8 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_14
+	{ 0xBC3A, 0xEF , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_15
+	{ 0xBC3B, 0xF5 , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_16
+	{ 0xBC3C, 0xFA , BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_17
+	{ 0xBC2A, 0xFF, BYTE_LEN, 0 },	// LL_GAMMA_NEUTRAL_CURVE_18
+	{ 0xBC3E, 0x00, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_0
+	{ 0xBC3F, 0x18, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_1
+	{ 0xBC40, 0x25, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_2
+	{ 0xBC41, 0x3A, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_3
+	{ 0xBC42, 0x59, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_4
+	{ 0xBC43, 0x70, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_5
+	{ 0xBC44, 0x81, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_6
+	{ 0xBC45, 0x90, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_7
+	{ 0xBC46, 0x9E, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_8
+	{ 0xBC47, 0xAB, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_9
+	{ 0xBC48, 0xB6, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_10
+	{ 0xBC49, 0xC1, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_11
+	{ 0xBC4A, 0xCB, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_12
+	{ 0xBC4B, 0xD5, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_13
+	{ 0xBC4C, 0xDE, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_14
+	{ 0xBC4D, 0xE7, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_15
+	{ 0xBC4E, 0xEF, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_16
+	{ 0xBC4F, 0xF7, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_17
+	{ 0xBC50, 0xFF, BYTE_LEN, 0 },	// LL_GAMMA_NR_CURVE_18
+	{ 0xBC51, 0x04, BYTE_LEN, 0 },	// LL_GAMMA_CURVE_SELECTOR
+    //BM_dampening
+	{ 0xB801, 0xE0, BYTE_LEN, 0 },	// STAT_MODE
+	{ 0xB862, 0x04, BYTE_LEN, 0 },	// STAT_BMTRACKING_SPEED
+	//AE
+	{ 0xB829, 0x02, BYTE_LEN, 0 },	// STAT_LL_BRIGHTNESS_METRIC_DIVISOR
+	{ 0xB863, 0x02, BYTE_LEN, 0 },	// STAT_BM_MUL
+	{ 0xB827, 0x0F, BYTE_LEN, 0 },	// STAT_AE_EV_SHIFT
+	//{ 0xA409, 0x4A, BYTE_LEN, 0 },	// AE_RULE_BASE_TARGET
+	{ 0xA409, 0x42, BYTE_LEN, 0 },	// 134
+	{ 0xA805, 0x06, BYTE_LEN, 0 },	// AE_TRACK_GATE   ??? not sure is WORD_LEN or BYTE_LEN
+	{ 0xA80D, 0x08, BYTE_LEN, 0 },
+	{ 0xA816, 0x0002, WORD_LEN, 0 },	// AE_TRACK_MIN_INT_TIME_ROWS
+	{ 0xA401, 0x00, BYTE_LEN, 0 },	// AE_RULE_MODE
+	{ 0xA80E, 0x06, BYTE_LEN, 0 },	// AE_TRACK_MAX_BLACK_LEVEL
+	//BM_GM_start_stop
+	{ 0xC8E6, 0x014C, WORD_LEN, 0 },	// RESERVED_CAM_E6
+	{ 0xC8E8, 0x0040, WORD_LEN, 0 },	// RESERVED_CAM_E8
+	{ 0xBC52, 0x00C8, WORD_LEN, 0 },	// LL_START_BRIGHTNESS_METRIC
+	{ 0xBC54, 0x0A28, WORD_LEN, 0 },	// LL_END_BRIGHTNESS_METRIC
+	{ 0xBC58, 0x0000, WORD_LEN, 0 },	// LL_START_GAIN_METRIC
+	{ 0xBC5A, 0x1000, WORD_LEN, 0 },	// LL_END_GAIN_METRIC
+	{ 0xBC5E, 0x0227, WORD_LEN, 0 },	// LL_START_APERTURE_GAIN_BM
+	{ 0xBC60, 0x0540, WORD_LEN, 0 },	// LL_END_APERTURE_GAIN_BM
+	{ 0xBC66, 0x0154, WORD_LEN, 0 },	// LL_START_APERTURE_GM
+	{ 0xBC68, 0x07D0, WORD_LEN, 0 },	// LL_END_APERTURE_GM
+	{ 0xBC86, 0x00C8, WORD_LEN, 0 },	// LL_START_FFNR_GM
+	{ 0xBC88, 0x0420, WORD_LEN, 0 },	// LL_END_FFNR_GM
+	{ 0xBCBC, 0x0040, WORD_LEN, 0 },	// LL_SFFB_START_GAIN
+	{ 0xBCBE, 0x01FC, WORD_LEN, 0 },	// LL_SFFB_END_GAIN
+	{ 0xBCCC, 0x00C8, WORD_LEN, 0 },	// LL_SFFB_START_MAX_GM
+	{ 0xBCCE, 0x0640, WORD_LEN, 0 },	// LL_SFFB_END_MAX_GM
+	{ 0xBC90, 0x00C8, WORD_LEN, 0 },	// LL_START_GRB_GM
+	{ 0xBC92, 0x0640, WORD_LEN, 0 },	// LL_END_GRB_GM
+	{ 0xBC0E, 0x0032, WORD_LEN, 0 },	// LL_GAMMA_CURVE_ADJ_START_POS
+	{ 0xBC10, 0x0064, WORD_LEN, 0 },	// LL_GAMMA_CURVE_ADJ_MID_POS
+	{ 0xBC12, 0x0FA0, WORD_LEN, 0 },	// LL_GAMMA_CURVE_ADJ_END_POS
+	{ 0xBCAA, 0x03E8, WORD_LEN, 0 },	// LL_CDC_THR_ADJ_START_POS
+	{ 0xBCAC, 0x012C, WORD_LEN, 0 },	// LL_CDC_THR_ADJ_MID_POS
+	{ 0xBCAE, 0x0009, WORD_LEN, 0 },	// LL_CDC_THR_ADJ_END_POS
+	{ 0xBCD8, 0x00C8, WORD_LEN, 0 },	// LL_PCR_START_BM
+	{ 0xBCDA, 0x0A28, WORD_LEN, 0 },	// LL_PCR_END_BM
+    //[Kernel]
+	{ 0x3380, 0x0504, WORD_LEN, 0 },	// KERNEL_CONFIG
+	{ 0x3380, 0x0505, WORD_LEN, 0 },	// KERNEL_CONFIG
+	{ 0x3380, 0x0584, WORD_LEN, 0 },	// KERNEL_CONFIG
+	{ 0x3380, 0x0586, WORD_LEN, 0 },	// KERNEL_CONFIG
+	{ 0x3380, 0x0587, WORD_LEN, 0 },	// KERNEL_CONFIG
+	//GRB
+	{ 0xBC94, 0x06, BYTE_LEN, 0 },	// LL_GB_START_THRESHOLD_0
+	{ 0xBC95, 0x05, BYTE_LEN, 0 },	// LL_GB_START_THRESHOLD_1
+	{ 0xBC9C, 0x09, BYTE_LEN, 0 },	// LL_GB_END_THRESHOLD_0
+	{ 0xBC9D, 0x05, BYTE_LEN, 0 },	// LL_GB_END_THRESHOLD_1
+	//demosaic
+	{ 0x33B0, 0x2A16, WORD_LEN, 0 },	// FFNR_ALPHA_BETA
+	{ 0xBC8A, 0x00, BYTE_LEN, 0 },	// LL_START_FF_MIX_THRESH_Y
+	{ 0xBC8B, 0x4C, BYTE_LEN, 0 },	// LL_END_FF_MIX_THRESH_Y
+	{ 0xBC8C, 0x00, BYTE_LEN, 0 },	// LL_START_FF_MIX_THRESH_YGAIN
+	{ 0xBC8D, 0x24, BYTE_LEN, 0 },	// LL_END_FF_MIX_THRESH_YGAIN
+	{ 0xBC8E, 0xFF, BYTE_LEN, 0 },	// LL_START_FF_MIX_THRESH_GAIN
+	{ 0xBC8F, 0x00, BYTE_LEN, 0 },	// LL_END_FF_MIX_THRESH_GAIN
+	{ 0xBCB2, 0x20, BYTE_LEN, 0 },	// LL_CDC_DARK_CLUS_SLOPE
+	{ 0xBCB3, 0x3A, BYTE_LEN, 0 },	// LL_CDC_DARK_CLUS_SATUR
+	{ 0xBCB4, 0x39, BYTE_LEN, 0 },	// RESERVED_LL_B4
+	{ 0xBCB7, 0x39, BYTE_LEN, 0 },	// RESERVED_LL_B7
+	{ 0xBCB5, 0x20, BYTE_LEN, 0 },	// RESERVED_LL_B5
+	{ 0xBCB8, 0x3A, BYTE_LEN, 0 },	// RESERVED_LL_B8
+	{ 0xBCB6, 0x80, BYTE_LEN, 0 },	// RESERVED_LL_B6
+	{ 0xBCB9, 0x24, BYTE_LEN, 0 },	// RESERVED_LL_B9
+	{ 0xBCC0, 0x1F, BYTE_LEN, 0 },	// LL_SFFB_RAMP_START
+	{ 0xBCC1, 0x03, BYTE_LEN, 0 },	// LL_SFFB_RAMP_STOP
+	{ 0xBCC2, 0x3C, BYTE_LEN, 0 },	// LL_SFFB_SLOPE_START
+	{ 0xBCC3, 0x10, BYTE_LEN, 0 },	// LL_SFFB_SLOPE_STOP
+	{ 0xBCC4, 0x07, BYTE_LEN, 0 },	// LL_SFFB_THSTART
+	{ 0xBCC5, 0x0B, BYTE_LEN, 0 },	// LL_SFFB_THSTOP
+	{ 0xBCBA, 0x0009, WORD_LEN, 0 },	// LL_SFFB_CONFIG
+    //[Step7-CPIPE_Preference]
+    //ftb_off
+    {0xBC14, 0xFFFE , WORD_LEN, 0 },	// LL_GAMMA_FADE_TO_BLACK_START_POS
+    {0xBC16, 0xFFFF , WORD_LEN, 0 },	// LL_GAMMA_FADE_TO_BLACK_END_POS
+	//aperture_preference
+	{ 0xBC6A, 0x05, BYTE_LEN, 0 },	// LL_START_APERTURE_INTEGER_GAIN
+	{ 0xBC6B, 0x00, BYTE_LEN, 0 },	// LL_END_APERTURE_INTEGER_GAIN
+	{ 0xBC6C, 0x00, BYTE_LEN, 0 },	// LL_START_APERTURE_EXP_GAIN
+	{ 0xBC6D, 0x00, BYTE_LEN, 0 },	// LL_END_APERTURE_EXP_GAIN
+	{ 0xBCE2, 0x06, BYTE_LEN, 0 },	// LL_START_POS_KNEE
+	{ 0xBCE3, 0x2B, BYTE_LEN, 0 },	// LL_END_POS_KNEE
+	{ 0xBCE4, 0x06, BYTE_LEN, 0 },	// LL_START_NEG_KNEE
+	{ 0xBCE5, 0x2B, BYTE_LEN, 0 },	// LL_END_NEG_KNEE
+	{ 0x33BA, 0x0084, WORD_LEN, 0 },	// APEDGE_CONTROL
+	{ 0x33BE, 0x0000, WORD_LEN, 0 },	// UA_KNEE_L
+	{ 0x33C2, 0x5600, WORD_LEN, 0 },	// UA_WEIGHTS
+	{ 0xBC62, 0x04, BYTE_LEN, 0 },	// LL_START_APERTURE_KPGAIN
+	{ 0xBC63, 0x1F, BYTE_LEN, 0 },	// LL_END_APERTURE_KPGAIN
+	{ 0xBC64, 0x04, BYTE_LEN, 0 },	// LL_START_APERTURE_KNGAIN
+	{ 0xBC65, 0x1F, BYTE_LEN, 0 },	// LL_END_APERTURE_KNGAIN
+	{ 0xA81C, 0x0040, WORD_LEN, 0 },	// AE_TRACK_MIN_AGAIN
+	{ 0xA820, 0x014C, WORD_LEN, 0 },	// AE_TRACK_MAX_AGAIN
+	{ 0xA822, 0x0080, WORD_LEN, 0 },	// AE_TRACK_MIN_DGAIN
+	{ 0xA824, 0x00A0, WORD_LEN, 0 },	// AE_TRACK_MAX_DGAIN
+    //min_fps
+	{ 0xA818, 0x07D0, WORD_LEN, 0 },	// AE_TRACK_TARGET_INT_TIME_ROWS
+	{ 0xA81A, 0x0FF4, WORD_LEN, 0 },	// AE_TRACK_MAX_INT_TIME_ROWS
+	//ccm_saturation
+	{ 0xBC56, 0x98, BYTE_LEN, 0 },	// LL_START_CCM_SATURATION
+	{ 0xBC57, 0x10, BYTE_LEN, 0 },	// LL_END_CCM_SATURATION
+	//DCCM
+	{ 0xBCDE, 0x03, BYTE_LEN, 0 },	// LL_START_SYS_THRESHOLD
+	{ 0xBCDF, 0x50, BYTE_LEN, 0 },	// LL_STOP_SYS_THRESHOLD
+	{ 0xBCE0, 0x08, BYTE_LEN, 0 },	// LL_START_SYS_GAIN
+	{ 0xBCE1, 0x03, BYTE_LEN, 0 },	// LL_STOP_SYS_GAIN
+    //sobel
+	{ 0xBCD0, 0x000A, WORD_LEN, 0 },	// LL_SFFB_SOBEL_FLAT_START
+	{ 0xBCD2, 0x00FE, WORD_LEN, 0 },	// LL_SFFB_SOBEL_FLAT_STOP
+	{ 0xBCD4, 0x001E, WORD_LEN, 0 },	// LL_SFFB_SOBEL_SHARP_START
+	{ 0xBCD6, 0x00FF, WORD_LEN, 0 },	// LL_SFFB_SOBEL_SHARP_STOP
+	{ 0xBCC6, 0x00, BYTE_LEN, 0 },	// LL_SFFB_SHARPENING_START
+	{ 0xBCC7, 0x00, BYTE_LEN, 0 },	// LL_SFFB_SHARPENING_STOP
+	{ 0xBCC8, 0x20, BYTE_LEN, 0 },	// LL_SFFB_FLATNESS_START
+	{ 0xBCC9, 0x40, BYTE_LEN, 0 },	// LL_SFFB_FLATNESS_STOP
+	{ 0xBCCA, 0x04, BYTE_LEN, 0 },	// LL_SFFB_TRANSITION_START
+	{ 0xBCCB, 0x00, BYTE_LEN, 0 },	// LL_SFFB_TRANSITION_STOP
+	//SFFB_slope_zero_enable
+	{ 0xBCE6, 0x03, BYTE_LEN, 0 },	// LL_SFFB_ZERO_ENABLE
+	//manual_FD
+	{ 0x8417, 0x01, BYTE_LEN, 0 },	// SEQ_STATE_CFG_1_FD
+	//tx_setting
+	{ 0xC8ED, 0x00, BYTE_LEN, 0 },	// CAM_TX_ENABLE_MODE Context A,B time
+	{ 0x8419, 0x04 , BYTE_LEN, 0 },	// SEQ_STATE_CFG_1_AF
+	{ 0x3EDA, 0x6060, WORD_LEN, 0 },	  // DAC_LD_14_15
+	{ 0x8404, 0x06 , BYTE_LEN, 300 },	// SEQ_CMD
+};
+
+static struct mt9p111_i2c_reg_conf const char_tbl[] = {
+	//[Step3-Recommended]
+	//[k28a_rev3_FW_patch7]
+	//	k28a_rev03_patch07_CR30221_MCNEX_AWB_AFNOISE_YOFFSET_APGA_REV1
+	{ 0x0982, 0x0000, WORD_LEN, 0 }, 	// ACCESS_CTL_STAT
+	{ 0x098A, 0x0000, WORD_LEN, 0 }, 	// PHYSICAL_ADDRESS_ACCESS
+	{ 0x886C, 0xC0F1, WORD_LEN, 0 },
+	{ 0x886E, 0xC5E1, WORD_LEN, 0 },
+	{ 0x8870, 0x246A, WORD_LEN, 0 },
+	{ 0x8872, 0x1280, WORD_LEN, 0 },
+	{ 0x8874, 0xC4E1, WORD_LEN, 0 },
+	{ 0x8876, 0xD30E, WORD_LEN, 0 },
+	{ 0x8878, 0x2069, WORD_LEN, 0 },
+	{ 0x887A, 0x0000, WORD_LEN, 0 },
+	{ 0x887C, 0x1305, WORD_LEN, 0 },
+	{ 0x887E, 0x0084, WORD_LEN, 0 },
+	{ 0x8880, 0x1730, WORD_LEN, 0 },
+	{ 0x8882, 0x7005, WORD_LEN, 0 },
+	{ 0x8884, 0xD801, WORD_LEN, 0 },
+	{ 0x8886, 0x8B41, WORD_LEN, 0 },
+	{ 0x8888, 0xD900, WORD_LEN, 0 },
+	{ 0x888A, 0x0D5E, WORD_LEN, 0 },
+	{ 0x888C, 0x0664, WORD_LEN, 0 },
+	{ 0x888E, 0x8B63, WORD_LEN, 0 },
+	{ 0x8890, 0xE809, WORD_LEN, 0 },
+	{ 0x8892, 0xD509, WORD_LEN, 0 },
+	{ 0x8894, 0xF004, WORD_LEN, 0 },
+	{ 0x8896, 0x1504, WORD_LEN, 0 },
+	{ 0x8898, 0x1400, WORD_LEN, 0 },
+	{ 0x889A, 0x7840, WORD_LEN, 0 },
+	{ 0x889C, 0xD007, WORD_LEN, 0 },
+	{ 0x889E, 0x0DFB, WORD_LEN, 0 },
+	{ 0x88A0, 0x9004, WORD_LEN, 0 },
+	{ 0x88A2, 0xC4C1, WORD_LEN, 0 },
+	{ 0x88A4, 0x2029, WORD_LEN, 0 },
+	{ 0x88A6, 0x0300, WORD_LEN, 0 },
+	{ 0x88A8, 0x021D, WORD_LEN, 0 },
+	{ 0x88AA, 0x06C4, WORD_LEN, 0 },
+	{ 0x88AC, 0xFF80, WORD_LEN, 0 },
+	{ 0x88AE, 0x08C8, WORD_LEN, 0 },
+	{ 0x88B0, 0xFF80, WORD_LEN, 0 },
+	{ 0x88B2, 0x086C, WORD_LEN, 0 },
+	{ 0x88B4, 0xFF80, WORD_LEN, 0 },
+	{ 0x88B6, 0x08BC, WORD_LEN, 0 },
+	{ 0x88B8, 0xFF80, WORD_LEN, 0 },
+	{ 0x88BA, 0x08C8, WORD_LEN, 0 },
+	{ 0x88BC, 0xFF80, WORD_LEN, 0 },
+	{ 0x88BE, 0x08D0, WORD_LEN, 0 },
+	{ 0x88C0, 0xFF80, WORD_LEN, 0 },
+	{ 0x88C2, 0x0978, WORD_LEN, 0 },
+	{ 0x88C4, 0xFF80, WORD_LEN, 0 },
+	{ 0x88C6, 0x0F88, WORD_LEN, 0 },
+	{ 0x88C8, 0x0007, WORD_LEN, 0 },
+	{ 0x88CA, 0x0006, WORD_LEN, 0 },
+	{ 0x88CC, 0x0000, WORD_LEN, 0 },
+	{ 0x88CE, 0x0000, WORD_LEN, 0 },
+	{ 0x88D0, 0xC0F1, WORD_LEN, 0 },
+	{ 0x88D2, 0x097E, WORD_LEN, 0 },
+	{ 0x88D4, 0x06E4, WORD_LEN, 0 },
+	{ 0x88D6, 0xDA14, WORD_LEN, 0 },
+	{ 0x88D8, 0xD0DB, WORD_LEN, 0 },
+	{ 0x88DA, 0xDE00, WORD_LEN, 0 },
+	{ 0x88DC, 0xD1DB, WORD_LEN, 0 },
+	{ 0x88DE, 0x2E41, WORD_LEN, 0 },
+	{ 0x88E0, 0x120C, WORD_LEN, 0 },
+	{ 0x88E2, 0xA895, WORD_LEN, 0 },
+	{ 0x88E4, 0xD5DA, WORD_LEN, 0 },
+	{ 0x88E6, 0xA8D4, WORD_LEN, 0 },
+	{ 0x88E8, 0xA8D6, WORD_LEN, 0 },
+	{ 0x88EA, 0x0F0A, WORD_LEN, 0 },
+	{ 0x88EC, 0x06A4, WORD_LEN, 0 },
+	{ 0x88EE, 0x2555, WORD_LEN, 0 },
+	{ 0x88F0, 0x1440, WORD_LEN, 0 },
+	{ 0x88F2, 0xD0D8, WORD_LEN, 0 },
+	{ 0x88F4, 0x2555, WORD_LEN, 0 },
+	{ 0x88F6, 0x1441, WORD_LEN, 0 },
+	{ 0x88F8, 0x77A9, WORD_LEN, 0 },
+	{ 0x88FA, 0xA515, WORD_LEN, 0 },
+	{ 0x88FC, 0xD0D6, WORD_LEN, 0 },
+	{ 0x88FE, 0xA020, WORD_LEN, 0 },
+	{ 0x8900, 0xD1D6, WORD_LEN, 0 },
+	{ 0x8902, 0x70E9, WORD_LEN, 0 },
+	{ 0x8904, 0x0EEE, WORD_LEN, 0 },
+	{ 0x8906, 0x06A4, WORD_LEN, 0 },
+	{ 0x8908, 0xDA44, WORD_LEN, 0 },
+	{ 0x890A, 0xD0D5, WORD_LEN, 0 },
+	{ 0x890C, 0xD1D5, WORD_LEN, 0 },
+	{ 0x890E, 0xDAF0, WORD_LEN, 0 },
+	{ 0x8910, 0xDB08, WORD_LEN, 0 },
+	{ 0x8912, 0xA502, WORD_LEN, 0 },
+	{ 0x8914, 0xD0D4, WORD_LEN, 0 },
+	{ 0x8916, 0x19B0, WORD_LEN, 0 },
+	{ 0x8918, 0x00C2, WORD_LEN, 0 },
+	{ 0x891A, 0x19B1, WORD_LEN, 0 },
+	{ 0x891C, 0x0082, WORD_LEN, 0 },
+	{ 0x891E, 0x19B4, WORD_LEN, 0 },
+	{ 0x8920, 0x00C2, WORD_LEN, 0 },
+	{ 0x8922, 0xA0E0, WORD_LEN, 0 },
+	{ 0x8924, 0xD0D1, WORD_LEN, 0 },
+	{ 0x8926, 0x19B5, WORD_LEN, 0 },
+	{ 0x8928, 0x0082, WORD_LEN, 0 },
+	{ 0x892A, 0xB0CB, WORD_LEN, 0 },
+	{ 0x892C, 0x8900, WORD_LEN, 0 },
+	{ 0x892E, 0xB8A6, WORD_LEN, 0 },
+	{ 0x8930, 0xA900, WORD_LEN, 0 },
+	{ 0x8932, 0xD851, WORD_LEN, 0 },
+	{ 0x8934, 0x19B2, WORD_LEN, 0 },
+	{ 0x8936, 0x0002, WORD_LEN, 0 },
+	{ 0x8938, 0xD852, WORD_LEN, 0 },
+	{ 0x893A, 0x19B3, WORD_LEN, 0 },
+	{ 0x893C, 0x0002, WORD_LEN, 0 },
+	{ 0x893E, 0xD855, WORD_LEN, 0 },
+	{ 0x8940, 0x19B6, WORD_LEN, 0 },
+	{ 0x8942, 0x0002, WORD_LEN, 0 },
+	{ 0x8944, 0xD856, WORD_LEN, 0 },
+	{ 0x8946, 0x19B7, WORD_LEN, 0 },
+	{ 0x8948, 0x0002, WORD_LEN, 0 },
+	{ 0x894A, 0xD896, WORD_LEN, 0 },
+	{ 0x894C, 0x19B8, WORD_LEN, 0 },
+	{ 0x894E, 0x0004, WORD_LEN, 0 },
+	{ 0x8950, 0xD814, WORD_LEN, 0 },
+	{ 0x8952, 0x19BA, WORD_LEN, 0 },
+	{ 0x8954, 0x0004, WORD_LEN, 0 },
+	{ 0x8956, 0xD805, WORD_LEN, 0 },
+	{ 0x8958, 0xB111, WORD_LEN, 0 },
+	{ 0x895A, 0xD1C5, WORD_LEN, 0 },
+	{ 0x895C, 0x2556, WORD_LEN, 0 },
+	{ 0x895E, 0x12C0, WORD_LEN, 0 },
+	{ 0x8960, 0x0E92, WORD_LEN, 0 },
+	{ 0x8962, 0x06A4, WORD_LEN, 0 },
+	{ 0x8964, 0xDA2C, WORD_LEN, 0 },
+	{ 0x8966, 0xD0C3, WORD_LEN, 0 },
+	{ 0x8968, 0x2556, WORD_LEN, 0 },
+	{ 0x896A, 0x12C1, WORD_LEN, 0 },
+	{ 0x896C, 0xA519, WORD_LEN, 0 },
+	{ 0x896E, 0xD0C2, WORD_LEN, 0 },
+	{ 0x8970, 0x0145, WORD_LEN, 0 },
+	{ 0x8972, 0x06E4, WORD_LEN, 0 },
+	{ 0x8974, 0xA020, WORD_LEN, 0 },
+	{ 0x8976, 0x78E0, WORD_LEN, 0 },
+	{ 0x8978, 0xD0C0, WORD_LEN, 0 },
+	{ 0x897A, 0xD1B5, WORD_LEN, 0 },
+	{ 0x897C, 0x1984, WORD_LEN, 0 },
+	{ 0x897E, 0x0000, WORD_LEN, 0 },
+	{ 0x8980, 0xD0BF, WORD_LEN, 0 },
+	{ 0x8982, 0x1988, WORD_LEN, 0 },
+	{ 0x8984, 0x0000, WORD_LEN, 0 },
+	{ 0x8986, 0xD0BF, WORD_LEN, 0 },
+	{ 0x8988, 0x198C, WORD_LEN, 0 },
+	{ 0x898A, 0x0000, WORD_LEN, 0 },
+	{ 0x898C, 0xD0BE, WORD_LEN, 0 },
+	{ 0x898E, 0x1990, WORD_LEN, 0 },
+	{ 0x8990, 0x0000, WORD_LEN, 0 },
+	{ 0x8992, 0xD0BE, WORD_LEN, 0 },
+	{ 0x8994, 0x2180, WORD_LEN, 0 },
+	{ 0x8996, 0x0102, WORD_LEN, 0 },
+	{ 0x8998, 0x7FE0, WORD_LEN, 0 },
+	{ 0x899A, 0xA020, WORD_LEN, 0 },
+	{ 0x899C, 0xC0F1, WORD_LEN, 0 },
+	{ 0x899E, 0x08B6, WORD_LEN, 0 },
+	{ 0x89A0, 0x06E4, WORD_LEN, 0 },
+	{ 0x89A2, 0xDB03, WORD_LEN, 0 },
+	{ 0x89A4, 0xD2BA, WORD_LEN, 0 },
+	{ 0x89A6, 0x8A2E, WORD_LEN, 0 },
+	{ 0x89A8, 0x8ACF, WORD_LEN, 0 },
+	{ 0x89AA, 0xB908, WORD_LEN, 0 },
+	{ 0x89AC, 0x79C5, WORD_LEN, 0 },
+	{ 0x89AE, 0xDD65, WORD_LEN, 0 },
+	{ 0x89B0, 0x094F, WORD_LEN, 0 },
+	{ 0x89B2, 0x00D1, WORD_LEN, 0 },
+	{ 0x89B4, 0xD90A, WORD_LEN, 0 },
+	{ 0x89B6, 0x1A24, WORD_LEN, 0 },
+	{ 0x89B8, 0x0042, WORD_LEN, 0 },
+	{ 0x89BA, 0x8A24, WORD_LEN, 0 },
+	{ 0x89BC, 0xE1E5, WORD_LEN, 0 },
+	{ 0x89BE, 0xF6C9, WORD_LEN, 0 },
+	{ 0x89C0, 0xD902, WORD_LEN, 0 },
+	{ 0x89C2, 0x2941, WORD_LEN, 0 },
+	{ 0x89C4, 0x0200, WORD_LEN, 0 },
+	{ 0x89C6, 0xAA0E, WORD_LEN, 0 },
+	{ 0x89C8, 0xAA2F, WORD_LEN, 0 },
+	{ 0x89CA, 0x70A9, WORD_LEN, 0 },
+	{ 0x89CC, 0xF014, WORD_LEN, 0 },
+	{ 0x89CE, 0xE1C8, WORD_LEN, 0 },
+	{ 0x89D0, 0x0036, WORD_LEN, 0 },
+	{ 0x89D2, 0x000B, WORD_LEN, 0 },
+	{ 0x89D4, 0xE0C8, WORD_LEN, 0 },
+	{ 0x89D6, 0x003A, WORD_LEN, 0 },
+	{ 0x89D8, 0x000A, WORD_LEN, 0 },
+	{ 0x89DA, 0xD901, WORD_LEN, 0 },
+	{ 0x89DC, 0x2941, WORD_LEN, 0 },
+	{ 0x89DE, 0x0200, WORD_LEN, 0 },
+	{ 0x89E0, 0xAA0E, WORD_LEN, 0 },
+	{ 0x89E2, 0xAA2F, WORD_LEN, 0 },
+	{ 0x89E4, 0xD848, WORD_LEN, 0 },
+	{ 0x89E6, 0xF008, WORD_LEN, 0 },
+	{ 0x89E8, 0xD900, WORD_LEN, 0 },
+	{ 0x89EA, 0x2941, WORD_LEN, 0 },
+	{ 0x89EC, 0x0200, WORD_LEN, 0 },
+	{ 0x89EE, 0xAA0E, WORD_LEN, 0 },
+	{ 0x89F0, 0xAA2F, WORD_LEN, 0 },
+	{ 0x89F2, 0xD820, WORD_LEN, 0 },
+	{ 0x89F4, 0xD2A7, WORD_LEN, 0 },
+	{ 0x89F6, 0x8A26, WORD_LEN, 0 },
+	{ 0x89F8, 0xB961, WORD_LEN, 0 },
+	{ 0x89FA, 0xAA26, WORD_LEN, 0 },
+	{ 0x89FC, 0xF00D, WORD_LEN, 0 },
+	{ 0x89FE, 0x091F, WORD_LEN, 0 },
+	{ 0x8A00, 0x0091, WORD_LEN, 0 },
+	{ 0x8A02, 0x8A24, WORD_LEN, 0 },
+	{ 0x8A04, 0xF1E5, WORD_LEN, 0 },
+	{ 0x8A06, 0x0913, WORD_LEN, 0 },
+	{ 0x8A08, 0x0812, WORD_LEN, 0 },
+	{ 0x8A0A, 0x08E1, WORD_LEN, 0 },
+	{ 0x8A0C, 0x8812, WORD_LEN, 0 },
+	{ 0x8A0E, 0x2B41, WORD_LEN, 0 },
+	{ 0x8A10, 0x0201, WORD_LEN, 0 },
+	{ 0x8A12, 0xAA2E, WORD_LEN, 0 },
+	{ 0x8A14, 0xAA6F, WORD_LEN, 0 },
+	{ 0x8A16, 0x00A9, WORD_LEN, 0 },
+	{ 0x8A18, 0x06C4, WORD_LEN, 0 },
+	{ 0x8A1A, 0x09F7, WORD_LEN, 0 },
+	{ 0x8A1C, 0x8051, WORD_LEN, 0 },
+	{ 0x8A1E, 0x8A24, WORD_LEN, 0 },
+	{ 0x8A20, 0xF1F3, WORD_LEN, 0 },
+	{ 0x8A22, 0x78E0, WORD_LEN, 0 },
+	{ 0x8A24, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8A26, 0x0822, WORD_LEN, 0 },
+	{ 0x8A28, 0x06C4, WORD_LEN, 0 },
+	{ 0x8A2A, 0xD699, WORD_LEN, 0 },
+	{ 0x8A2C, 0x7508, WORD_LEN, 0 },
+	{ 0x8A2E, 0xD199, WORD_LEN, 0 },
+	{ 0x8A30, 0x8E01, WORD_LEN, 0 },
+	{ 0x8A32, 0x1146, WORD_LEN, 0 },
+	{ 0x8A34, 0x0082, WORD_LEN, 0 },
+	{ 0x8A36, 0x2046, WORD_LEN, 0 },
+	{ 0x8A38, 0x00C0, WORD_LEN, 0 },
+	{ 0x8A3A, 0xAE01, WORD_LEN, 0 },
+	{ 0x8A3C, 0x1145, WORD_LEN, 0 },
+	{ 0x8A3E, 0x0080, WORD_LEN, 0 },
+	{ 0x8A40, 0xB808, WORD_LEN, 0 },
+	{ 0x8A42, 0x7845, WORD_LEN, 0 },
+	{ 0x8A44, 0x0817, WORD_LEN, 0 },
+	{ 0x8A46, 0x001E, WORD_LEN, 0 },
+	{ 0x8A48, 0x8900, WORD_LEN, 0 },
+	{ 0x8A4A, 0x8941, WORD_LEN, 0 },
+	{ 0x8A4C, 0xB808, WORD_LEN, 0 },
+	{ 0x8A4E, 0x7845, WORD_LEN, 0 },
+	{ 0x8A50, 0x080B, WORD_LEN, 0 },
+	{ 0x8A52, 0x00DE, WORD_LEN, 0 },
+	{ 0x8A54, 0x70A9, WORD_LEN, 0 },
+	{ 0x8A56, 0xFFD2, WORD_LEN, 0 },
+	{ 0x8A58, 0x7508, WORD_LEN, 0 },
+	{ 0x8A5A, 0x1604, WORD_LEN, 0 },
+	{ 0x8A5C, 0x1090, WORD_LEN, 0 },
+	{ 0x8A5E, 0x0D93, WORD_LEN, 0 },
+	{ 0x8A60, 0x1400, WORD_LEN, 0 },
+	{ 0x8A62, 0x8EEA, WORD_LEN, 0 },
+	{ 0x8A64, 0x8E0B, WORD_LEN, 0 },
+	{ 0x8A66, 0x214A, WORD_LEN, 0 },
+	{ 0x8A68, 0x2040, WORD_LEN, 0 },
+	{ 0x8A6A, 0x8E2D, WORD_LEN, 0 },
+	{ 0x8A6C, 0xBF08, WORD_LEN, 0 },
+	{ 0x8A6E, 0x7F05, WORD_LEN, 0 },
+	{ 0x8A70, 0x8E0C, WORD_LEN, 0 },
+	{ 0x8A72, 0xB808, WORD_LEN, 0 },
+	{ 0x8A74, 0x7825, WORD_LEN, 0 },
+	{ 0x8A76, 0x7710, WORD_LEN, 0 },
+	{ 0x8A78, 0x21C2, WORD_LEN, 0 },
+	{ 0x8A7A, 0x244C, WORD_LEN, 0 },
+	{ 0x8A7C, 0x081D, WORD_LEN, 0 },
+	{ 0x8A7E, 0x03E3, WORD_LEN, 0 },
+	{ 0x8A80, 0xD9FF, WORD_LEN, 0 },
+	{ 0x8A82, 0x2702, WORD_LEN, 0 },
+	{ 0x8A84, 0x1002, WORD_LEN, 0 },
+	{ 0x8A86, 0x2A05, WORD_LEN, 0 },
+	{ 0x8A88, 0x037E, WORD_LEN, 0 },
+	{ 0x8A8A, 0x089E, WORD_LEN, 0 },
+	{ 0x8A8C, 0x06E4, WORD_LEN, 0 },
+	{ 0x8A8E, 0x702F, WORD_LEN, 0 },
+	{ 0x8A90, 0x7810, WORD_LEN, 0 },
+	{ 0x8A92, 0x7F02, WORD_LEN, 0 },
+	{ 0x8A94, 0x7FF0, WORD_LEN, 0 },
+	{ 0x8A96, 0xF00B, WORD_LEN, 0 },
+	{ 0x8A98, 0x78E2, WORD_LEN, 0 },
+	{ 0x8A9A, 0x2805, WORD_LEN, 0 },
+	{ 0x8A9C, 0x037E, WORD_LEN, 0 },
+	{ 0x8A9E, 0x088A, WORD_LEN, 0 },
+	{ 0x8AA0, 0x06E4, WORD_LEN, 0 },
+	{ 0x8AA2, 0x702F, WORD_LEN, 0 },
+	{ 0x8AA4, 0x7810, WORD_LEN, 0 },
+	{ 0x8AA6, 0x671F, WORD_LEN, 0 },
+	{ 0x8AA8, 0x7FF0, WORD_LEN, 0 },
+	{ 0x8AAA, 0x8E08, WORD_LEN, 0 },
+	{ 0x8AAC, 0xD17A, WORD_LEN, 0 },
+	{ 0x8AAE, 0x7FEF, WORD_LEN, 0 },
+	{ 0x8AB0, 0xBF06, WORD_LEN, 0 },
+	{ 0x8AB2, 0xB8C3, WORD_LEN, 0 },
+	{ 0x8AB4, 0x78E5, WORD_LEN, 0 },
+	{ 0x8AB6, 0xB88F, WORD_LEN, 0 },
+	{ 0x8AB8, 0x1908, WORD_LEN, 0 },
+	{ 0x8ABA, 0x0024, WORD_LEN, 0 },
+	{ 0x8ABC, 0x2841, WORD_LEN, 0 },
+	{ 0x8ABE, 0x0201, WORD_LEN, 0 },
+	{ 0x8AC0, 0x1E26, WORD_LEN, 0 },
+	{ 0x8AC2, 0x1042, WORD_LEN, 0 },
+	{ 0x8AC4, 0x0D15, WORD_LEN, 0 },
+	{ 0x8AC6, 0x1423, WORD_LEN, 0 },
+	{ 0x8AC8, 0x1E27, WORD_LEN, 0 },
+	{ 0x8ACA, 0x1002, WORD_LEN, 0 },
+	{ 0x8ACC, 0x214C, WORD_LEN, 0 },
+	{ 0x8ACE, 0xA000, WORD_LEN, 0 },
+	{ 0x8AD0, 0x214A, WORD_LEN, 0 },
+	{ 0x8AD2, 0x2040, WORD_LEN, 0 },
+	{ 0x8AD4, 0x21C2, WORD_LEN, 0 },
+	{ 0x8AD6, 0x2442, WORD_LEN, 0 },
+	{ 0x8AD8, 0x8E21, WORD_LEN, 0 },
+	{ 0x8ADA, 0x214F, WORD_LEN, 0 },
+	{ 0x8ADC, 0x0040, WORD_LEN, 0 },
+	{ 0x8ADE, 0x090F, WORD_LEN, 0 },
+	{ 0x8AE0, 0x2010, WORD_LEN, 0 },
+	{ 0x8AE2, 0x2145, WORD_LEN, 0 },
+	{ 0x8AE4, 0x0181, WORD_LEN, 0 },
+	{ 0x8AE6, 0xAE21, WORD_LEN, 0 },
+	{ 0x8AE8, 0xF003, WORD_LEN, 0 },
+	{ 0x8AEA, 0xB8A2, WORD_LEN, 0 },
+	{ 0x8AEC, 0xAE01, WORD_LEN, 0 },
+	{ 0x8AEE, 0x0C22, WORD_LEN, 0 },
+	{ 0x8AF0, 0xFFE3, WORD_LEN, 0 },
+	{ 0x8AF2, 0x70A9, WORD_LEN, 0 },
+	{ 0x8AF4, 0x07B1, WORD_LEN, 0 },
+	{ 0x8AF6, 0x0684, WORD_LEN, 0 },
+	{ 0x8AF8, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8AFA, 0x0F5A, WORD_LEN, 0 },
+	{ 0x8AFC, 0x0684, WORD_LEN, 0 },
+	{ 0x8AFE, 0xD564, WORD_LEN, 0 },
+	{ 0x8B00, 0x8D00, WORD_LEN, 0 },
+	{ 0x8B02, 0x083D, WORD_LEN, 0 },
+	{ 0x8B04, 0x01DE, WORD_LEN, 0 },
+	{ 0x8B06, 0xB8A7, WORD_LEN, 0 },
+	{ 0x8B08, 0x790F, WORD_LEN, 0 },
+	{ 0x8B0A, 0xD660, WORD_LEN, 0 },
+	{ 0x8B0C, 0xAD00, WORD_LEN, 0 },
+	{ 0x8B0E, 0x091D, WORD_LEN, 0 },
+	{ 0x8B10, 0x0050, WORD_LEN, 0 },
+	{ 0x8B12, 0x091D, WORD_LEN, 0 },
+	{ 0x8B14, 0x0110, WORD_LEN, 0 },
+	{ 0x8B16, 0x0911, WORD_LEN, 0 },
+	{ 0x8B18, 0x0210, WORD_LEN, 0 },
+	{ 0x8B1A, 0xD060, WORD_LEN, 0 },
+	{ 0x8B1C, 0x0B56, WORD_LEN, 0 },
+	{ 0x8B1E, 0xFFE3, WORD_LEN, 0 },
+	{ 0x8B20, 0xA600, WORD_LEN, 0 },
+	{ 0x8B22, 0xF008, WORD_LEN, 0 },
+	{ 0x8B24, 0xD05E, WORD_LEN, 0 },
+	{ 0x8B26, 0xF005, WORD_LEN, 0 },
+	{ 0x8B28, 0xD05E, WORD_LEN, 0 },
+	{ 0x8B2A, 0xF003, WORD_LEN, 0 },
+	{ 0x8B2C, 0xD05E, WORD_LEN, 0 },
+	{ 0x8B2E, 0xA600, WORD_LEN, 0 },
+	{ 0x8B30, 0x8600, WORD_LEN, 0 },
+	{ 0x8B32, 0x8023, WORD_LEN, 0 },
+	{ 0x8B34, 0x7960, WORD_LEN, 0 },
+	{ 0x8B36, 0xD801, WORD_LEN, 0 },
+	{ 0x8B38, 0xD800, WORD_LEN, 0 },
+	{ 0x8B3A, 0xAD05, WORD_LEN, 0 },
+	{ 0x8B3C, 0x1528, WORD_LEN, 0 },
+	{ 0x8B3E, 0x1080, WORD_LEN, 0 },
+	{ 0x8B40, 0x0817, WORD_LEN, 0 },
+	{ 0x8B42, 0x01DE, WORD_LEN, 0 },
+	{ 0x8B44, 0xB8A7, WORD_LEN, 0 },
+	{ 0x8B46, 0x1D28, WORD_LEN, 0 },
+	{ 0x8B48, 0x1002, WORD_LEN, 0 },
+	{ 0x8B4A, 0xD050, WORD_LEN, 0 },
+	{ 0x8B4C, 0x8000, WORD_LEN, 0 },
+	{ 0x8B4E, 0x8023, WORD_LEN, 0 },
+	{ 0x8B50, 0x7960, WORD_LEN, 0 },
+	{ 0x8B52, 0x1528, WORD_LEN, 0 },
+	{ 0x8B54, 0x1080, WORD_LEN, 0 },
+	{ 0x8B56, 0x0769, WORD_LEN, 0 },
+	{ 0x8B58, 0x0684, WORD_LEN, 0 },
+	{ 0x8B5A, 0x78E0, WORD_LEN, 0 },
+	{ 0x8B5C, 0xD24C, WORD_LEN, 0 },
+	{ 0x8B5E, 0x8A21, WORD_LEN, 0 },
+	{ 0x8B60, 0xB9A1, WORD_LEN, 0 },
+	{ 0x8B62, 0x782F, WORD_LEN, 0 },
+	{ 0x8B64, 0x7FE0, WORD_LEN, 0 },
+	{ 0x8B66, 0xAA21, WORD_LEN, 0 },
+	{ 0x8B68, 0xD150, WORD_LEN, 0 },
+	{ 0x8B6A, 0xD251, WORD_LEN, 0 },
+	{ 0x8B6C, 0x11B2, WORD_LEN, 0 },
+	{ 0x8B6E, 0x8903, WORD_LEN, 0 },
+	{ 0x8B70, 0x1252, WORD_LEN, 0 },
+	{ 0x8B72, 0x0100, WORD_LEN, 0 },
+	{ 0x8B74, 0x7B6F, WORD_LEN, 0 },
+	{ 0x8B76, 0xB808, WORD_LEN, 0 },
+	{ 0x8B78, 0x2004, WORD_LEN, 0 },
+	{ 0x8B7A, 0x0F80, WORD_LEN, 0 },
+	{ 0x8B7C, 0x0000, WORD_LEN, 0 },
+	{ 0x8B7E, 0xFF00, WORD_LEN, 0 },
+	{ 0x8B80, 0x7865, WORD_LEN, 0 },
+	{ 0x8B82, 0x19B2, WORD_LEN, 0 },
+	{ 0x8B84, 0x8024, WORD_LEN, 0 },
+	{ 0x8B86, 0xD04B, WORD_LEN, 0 },
+	{ 0x8B88, 0x8801, WORD_LEN, 0 },
+	{ 0x8B8A, 0x2051, WORD_LEN, 0 },
+	{ 0x8B8C, 0x8040, WORD_LEN, 0 },
+	{ 0x8B8E, 0xD800, WORD_LEN, 0 },
+	{ 0x8B90, 0xF403, WORD_LEN, 0 },
+	{ 0x8B92, 0x1234, WORD_LEN, 0 },
+	{ 0x8B94, 0x0080, WORD_LEN, 0 },
+	{ 0x8B96, 0x1955, WORD_LEN, 0 },
+	{ 0x8B98, 0x803C, WORD_LEN, 0 },
+	{ 0x8B9A, 0x1233, WORD_LEN, 0 },
+	{ 0x8B9C, 0x0080, WORD_LEN, 0 },
+	{ 0x8B9E, 0xB802, WORD_LEN, 0 },
+	{ 0x8BA0, 0x1957, WORD_LEN, 0 },
+	{ 0x8BA2, 0x803C, WORD_LEN, 0 },
+	{ 0x8BA4, 0x1958, WORD_LEN, 0 },
+	{ 0x8BA6, 0x803C, WORD_LEN, 0 },
+	{ 0x8BA8, 0x1959, WORD_LEN, 0 },
+	{ 0x8BAA, 0x803C, WORD_LEN, 0 },
+	{ 0x8BAC, 0x195A, WORD_LEN, 0 },
+	{ 0x8BAE, 0x803C, WORD_LEN, 0 },
+	{ 0x8BB0, 0x7EE0, WORD_LEN, 0 },
+	{ 0x8BB2, 0x78E0, WORD_LEN, 0 },
+	{ 0x8BB4, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8BB6, 0x0E9A, WORD_LEN, 0 },
+	{ 0x8BB8, 0x0684, WORD_LEN, 0 },
+	{ 0x8BBA, 0xD523, WORD_LEN, 0 },
+	{ 0x8BBC, 0x8D2C, WORD_LEN, 0 },
+	{ 0x8BBE, 0x0983, WORD_LEN, 0 },
+	{ 0x8BC0, 0x0010, WORD_LEN, 0 },
+	{ 0x8BC2, 0xD23C, WORD_LEN, 0 },
+	{ 0x8BC4, 0x123A, WORD_LEN, 0 },
+	{ 0x8BC6, 0x0083, WORD_LEN, 0 },
+	{ 0x8BC8, 0x123B, WORD_LEN, 0 },
+	{ 0x8BCA, 0x008F, WORD_LEN, 0 },
+	{ 0x8BCC, 0x8D55, WORD_LEN, 0 },
+	{ 0x8BCE, 0xBB08, WORD_LEN, 0 },
+	{ 0x8BD0, 0x7BE5, WORD_LEN, 0 },
+	{ 0x8BD2, 0x8DF6, WORD_LEN, 0 },
+	{ 0x8BD4, 0xBA08, WORD_LEN, 0 },
+	{ 0x8BD6, 0x7AE5, WORD_LEN, 0 },
+	{ 0x8BD8, 0x0B0D, WORD_LEN, 0 },
+	{ 0x8BDA, 0x00A3, WORD_LEN, 0 },
+	{ 0x8BDC, 0x8DC5, WORD_LEN, 0 },
+	{ 0x8BDE, 0x8D54, WORD_LEN, 0 },
+	{ 0x8BE0, 0xAD45, WORD_LEN, 0 },
+	{ 0x8BE2, 0xF026, WORD_LEN, 0 },
+	{ 0x8BE4, 0x65DB, WORD_LEN, 0 },
+	{ 0x8BE6, 0x8B6D, WORD_LEN, 0 },
+	{ 0x8BE8, 0x0815, WORD_LEN, 0 },
+	{ 0x8BEA, 0x00E2, WORD_LEN, 0 },
+	{ 0x8BEC, 0x65DA, WORD_LEN, 0 },
+	{ 0x8BEE, 0x8A51, WORD_LEN, 0 },
+	{ 0x8BF0, 0x0A0D, WORD_LEN, 0 },
+	{ 0x8BF2, 0x0002, WORD_LEN, 0 },
+	{ 0x8BF4, 0xE683, WORD_LEN, 0 },
+	{ 0x8BF6, 0x22CA, WORD_LEN, 0 },
+	{ 0x8BF8, 0x038B, WORD_LEN, 0 },
+	{ 0x8BFA, 0xF69A, WORD_LEN, 0 },
+	{ 0x8BFC, 0xDA00, WORD_LEN, 0 },
+	{ 0x8BFE, 0xAD45, WORD_LEN, 0 },
+	{ 0x8C00, 0x2540, WORD_LEN, 0 },
+	{ 0x8C02, 0x1343, WORD_LEN, 0 },
+	{ 0x8C04, 0xE180, WORD_LEN, 0 },
+	{ 0x8C06, 0x2540, WORD_LEN, 0 },
+	{ 0x8C08, 0x144F, WORD_LEN, 0 },
+	{ 0x8C0A, 0xF6D2, WORD_LEN, 0 },
+	{ 0x8C0C, 0x719F, WORD_LEN, 0 },
+	{ 0x8C0E, 0x78E0, WORD_LEN, 0 },
+	{ 0x8C10, 0x20A8, WORD_LEN, 0 },
+	{ 0x8C12, 0x0280, WORD_LEN, 0 },
+	{ 0x8C14, 0x8B20, WORD_LEN, 0 },
+	{ 0x8C16, 0x0813, WORD_LEN, 0 },
+	{ 0x8C18, 0x0043, WORD_LEN, 0 },
+	{ 0x8C1A, 0xE201, WORD_LEN, 0 },
+	{ 0x8C1C, 0x7A4F, WORD_LEN, 0 },
+	{ 0x8C1E, 0xAD45, WORD_LEN, 0 },
+	{ 0x8C20, 0xE301, WORD_LEN, 0 },
+	{ 0x8C22, 0xE701, WORD_LEN, 0 },
+	{ 0x8C24, 0xF004, WORD_LEN, 0 },
+	{ 0x8C26, 0x8F20, WORD_LEN, 0 },
+	{ 0x8C28, 0x09F3, WORD_LEN, 0 },
+	{ 0x8C2A, 0x8002, WORD_LEN, 0 },
+	{ 0x8C2C, 0xD022, WORD_LEN, 0 },
+	{ 0x8C2E, 0x8800, WORD_LEN, 0 },
+	{ 0x8C30, 0xE803, WORD_LEN, 0 },
+	{ 0x8C32, 0x0E0F, WORD_LEN, 0 },
+	{ 0x8C34, 0x1080, WORD_LEN, 0 },
+	{ 0x8C36, 0xD008, WORD_LEN, 0 },
+	{ 0x8C38, 0x8000, WORD_LEN, 0 },
+	{ 0x8C3A, 0x8002, WORD_LEN, 0 },
+	{ 0x8C3C, 0x7840, WORD_LEN, 0 },
+	{ 0x8C3E, 0x0679, WORD_LEN, 0 },
+	{ 0x8C40, 0x0684, WORD_LEN, 0 },
+	{ 0x8C42, 0x78E0, WORD_LEN, 0 },
+	{ 0x8C44, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C46, 0x0644, WORD_LEN, 0 },
+	{ 0x8C48, 0x0000, WORD_LEN, 0 },
+	{ 0x8C4A, 0xF978, WORD_LEN, 0 },
+	{ 0x8C4C, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C4E, 0x1030, WORD_LEN, 0 },
+	{ 0x8C50, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C52, 0x0BB4, WORD_LEN, 0 },
+	{ 0x8C54, 0x8000, WORD_LEN, 0 },
+	{ 0x8C56, 0x0164, WORD_LEN, 0 },
+	{ 0x8C58, 0x0000, WORD_LEN, 0 },
+	{ 0x8C5A, 0xF9AC, WORD_LEN, 0 },
+	{ 0x8C5C, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C5E, 0x0B68, WORD_LEN, 0 },
+	{ 0x8C60, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C62, 0x0314, WORD_LEN, 0 },
+	{ 0x8C64, 0x8000, WORD_LEN, 0 },
+	{ 0x8C66, 0x016C, WORD_LEN, 0 },
+	{ 0x8C68, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C6A, 0x0694, WORD_LEN, 0 },
+	{ 0x8C6C, 0x0000, WORD_LEN, 0 },
+	{ 0x8C6E, 0xF444, WORD_LEN, 0 },
+	{ 0x8C70, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C72, 0x0CB8, WORD_LEN, 0 },
+	{ 0x8C74, 0x8000, WORD_LEN, 0 },
+	{ 0x8C76, 0x009C, WORD_LEN, 0 },
+	{ 0x8C78, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C7A, 0x0AF8, WORD_LEN, 0 },
+	{ 0x8C7C, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C7E, 0x0A24, WORD_LEN, 0 },
+	{ 0x8C80, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C82, 0x0B5C, WORD_LEN, 0 },
+	{ 0x8C84, 0x0000, WORD_LEN, 0 },
+	{ 0x8C86, 0x0998, WORD_LEN, 0 },
+	{ 0x8C88, 0x8000, WORD_LEN, 0 },
+	{ 0x8C8A, 0x0008, WORD_LEN, 0 },
+	{ 0x8C8C, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C8E, 0x0158, WORD_LEN, 0 },
+	{ 0x8C90, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C92, 0x0290, WORD_LEN, 0 },
+	{ 0x8C94, 0xFF00, WORD_LEN, 0 },
+	{ 0x8C96, 0x0618, WORD_LEN, 0 },
+	{ 0x8C98, 0x0000, WORD_LEN, 0 },
+	{ 0x8C9A, 0xF1A4, WORD_LEN, 0 },
+	{ 0x8C9C, 0xFF80, WORD_LEN, 0 },
+	{ 0x8C9E, 0x10B4, WORD_LEN, 0 },
+	{ 0x8CA0, 0x0000, WORD_LEN, 0 },
+	{ 0x8CA2, 0xF1B4, WORD_LEN, 0 },
+	{ 0x8CA4, 0x0000, WORD_LEN, 0 },
+	{ 0x8CA6, 0xF1C4, WORD_LEN, 0 },
+	{ 0x8CA8, 0xFF00, WORD_LEN, 0 },
+	{ 0x8CAA, 0x33CC, WORD_LEN, 0 },
+	{ 0x8CAC, 0xFF80, WORD_LEN, 0 },
+	{ 0x8CAE, 0x0658, WORD_LEN, 0 },
+	{ 0x8CB0, 0xFF80, WORD_LEN, 0 },
+	{ 0x8CB2, 0x0250, WORD_LEN, 0 },
+	{ 0x8CB4, 0x8000, WORD_LEN, 0 },
+	{ 0x8CB6, 0x0168, WORD_LEN, 0 },
+	{ 0x8CB8, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8CBA, 0x0D9A, WORD_LEN, 0 },
+	{ 0x8CBC, 0x0684, WORD_LEN, 0 },
+	{ 0x8CBE, 0x17A4, WORD_LEN, 0 },
+	{ 0x8CC0, 0xF00E, WORD_LEN, 0 },
+	{ 0x8CC2, 0x8E01, WORD_LEN, 0 },
+	{ 0x8CC4, 0xB8A4, WORD_LEN, 0 },
+	{ 0x8CC6, 0xAE01, WORD_LEN, 0 },
+	{ 0x8CC8, 0x8E09, WORD_LEN, 0 },
+	{ 0x8CCA, 0x2051, WORD_LEN, 0 },
+	{ 0x8CCC, 0x8000, WORD_LEN, 0 },
+	{ 0x8CCE, 0xF29C, WORD_LEN, 0 },
+	{ 0x8CD0, 0x17E0, WORD_LEN, 0 },
+	{ 0x8CD2, 0xF00D, WORD_LEN, 0 },
+	{ 0x8CD4, 0x153A, WORD_LEN, 0 },
+	{ 0x8CD6, 0x1080, WORD_LEN, 0 },
+	{ 0x8CD8, 0x153B, WORD_LEN, 0 },
+	{ 0x8CDA, 0x1081, WORD_LEN, 0 },
+	{ 0x8CDC, 0xB808, WORD_LEN, 0 },
+	{ 0x8CDE, 0x7825, WORD_LEN, 0 },
+	{ 0x8CE0, 0x16B8, WORD_LEN, 0 },
+	{ 0x8CE2, 0x1101, WORD_LEN, 0 },
+	{ 0x8CE4, 0x092B, WORD_LEN, 0 },
+	{ 0x8CE6, 0x0003, WORD_LEN, 0 },
+	{ 0x8CE8, 0x16B0, WORD_LEN, 0 },
+	{ 0x8CEA, 0x1082, WORD_LEN, 0 },
+	{ 0x8CEC, 0x1E3C, WORD_LEN, 0 },
+	{ 0x8CEE, 0x1082, WORD_LEN, 0 },
+	{ 0x8CF0, 0x16B1, WORD_LEN, 0 },
+	{ 0x8CF2, 0x1082, WORD_LEN, 0 },
+	{ 0x8CF4, 0x1E3D, WORD_LEN, 0 },
+	{ 0x8CF6, 0x1082, WORD_LEN, 0 },
+	{ 0x8CF8, 0x16B4, WORD_LEN, 0 },
+	{ 0x8CFA, 0x1082, WORD_LEN, 0 },
+	{ 0x8CFC, 0x1E3E, WORD_LEN, 0 },
+	{ 0x8CFE, 0x1082, WORD_LEN, 0 },
+	{ 0x8D00, 0x16B5, WORD_LEN, 0 },
+	{ 0x8D02, 0x1082, WORD_LEN, 0 },
+	{ 0x8D04, 0x1E3F, WORD_LEN, 0 },
+	{ 0x8D06, 0x1082, WORD_LEN, 0 },
+	{ 0x8D08, 0x8E40, WORD_LEN, 0 },
+	{ 0x8D0A, 0xBAA6, WORD_LEN, 0 },
+	{ 0x8D0C, 0xAE40, WORD_LEN, 0 },
+	{ 0x8D0E, 0x0991, WORD_LEN, 0 },
+	{ 0x8D10, 0x0022, WORD_LEN, 0 },
+	{ 0x8D12, 0x16BA, WORD_LEN, 0 },
+	{ 0x8D14, 0x1102, WORD_LEN, 0 },
+	{ 0x8D16, 0x0A89, WORD_LEN, 0 },
+	{ 0x8D18, 0x0003, WORD_LEN, 0 },
+	{ 0x8D1A, 0x16B2, WORD_LEN, 0 },
+	{ 0x8D1C, 0x1084, WORD_LEN, 0 },
+	{ 0x8D1E, 0x0ECA, WORD_LEN, 0 },
+	{ 0x8D20, 0x0664, WORD_LEN, 0 },
+	{ 0x8D22, 0x16B0, WORD_LEN, 0 },
+	{ 0x8D24, 0x1083, WORD_LEN, 0 },
+	{ 0x8D26, 0x1E3C, WORD_LEN, 0 },
+	{ 0x8D28, 0x1002, WORD_LEN, 0 },
+	{ 0x8D2A, 0x153A, WORD_LEN, 0 },
+	{ 0x8D2C, 0x1080, WORD_LEN, 0 },
+	{ 0x8D2E, 0x153B, WORD_LEN, 0 },
+	{ 0x8D30, 0x1081, WORD_LEN, 0 },
+	{ 0x8D32, 0x16B3, WORD_LEN, 0 },
+	{ 0x8D34, 0x1084, WORD_LEN, 0 },
+	{ 0x8D36, 0xB808, WORD_LEN, 0 },
+	{ 0x8D38, 0x7825, WORD_LEN, 0 },
+	{ 0x8D3A, 0x16B8, WORD_LEN, 0 },
+	{ 0x8D3C, 0x1101, WORD_LEN, 0 },
+	{ 0x8D3E, 0x16BA, WORD_LEN, 0 },
+	{ 0x8D40, 0x1102, WORD_LEN, 0 },
+	{ 0x8D42, 0x0EA6, WORD_LEN, 0 },
+	{ 0x8D44, 0x0664, WORD_LEN, 0 },
+	{ 0x8D46, 0x16B1, WORD_LEN, 0 },
+	{ 0x8D48, 0x1083, WORD_LEN, 0 },
+	{ 0x8D4A, 0x1E3D, WORD_LEN, 0 },
+	{ 0x8D4C, 0x1002, WORD_LEN, 0 },
+	{ 0x8D4E, 0x153A, WORD_LEN, 0 },
+	{ 0x8D50, 0x1080, WORD_LEN, 0 },
+	{ 0x8D52, 0x153B, WORD_LEN, 0 },
+	{ 0x8D54, 0x1081, WORD_LEN, 0 },
+	{ 0x8D56, 0x16B6, WORD_LEN, 0 },
+	{ 0x8D58, 0x1084, WORD_LEN, 0 },
+	{ 0x8D5A, 0xB808, WORD_LEN, 0 },
+	{ 0x8D5C, 0x7825, WORD_LEN, 0 },
+	{ 0x8D5E, 0x16B8, WORD_LEN, 0 },
+	{ 0x8D60, 0x1101, WORD_LEN, 0 },
+	{ 0x8D62, 0x16BA, WORD_LEN, 0 },
+	{ 0x8D64, 0x1102, WORD_LEN, 0 },
+	{ 0x8D66, 0x0E82, WORD_LEN, 0 },
+	{ 0x8D68, 0x0664, WORD_LEN, 0 },
+	{ 0x8D6A, 0x16B4, WORD_LEN, 0 },
+	{ 0x8D6C, 0x1083, WORD_LEN, 0 },
+	{ 0x8D6E, 0x1E3E, WORD_LEN, 0 },
+	{ 0x8D70, 0x1002, WORD_LEN, 0 },
+	{ 0x8D72, 0x153A, WORD_LEN, 0 },
+	{ 0x8D74, 0x1080, WORD_LEN, 0 },
+	{ 0x8D76, 0x153B, WORD_LEN, 0 },
+	{ 0x8D78, 0x1081, WORD_LEN, 0 },
+	{ 0x8D7A, 0x16B7, WORD_LEN, 0 },
+	{ 0x8D7C, 0x1084, WORD_LEN, 0 },
+	{ 0x8D7E, 0xB808, WORD_LEN, 0 },
+	{ 0x8D80, 0x7825, WORD_LEN, 0 },
+	{ 0x8D82, 0x16B8, WORD_LEN, 0 },
+	{ 0x8D84, 0x1101, WORD_LEN, 0 },
+	{ 0x8D86, 0x16BA, WORD_LEN, 0 },
+	{ 0x8D88, 0x1102, WORD_LEN, 0 },
+	{ 0x8D8A, 0x0E5E, WORD_LEN, 0 },
+	{ 0x8D8C, 0x0664, WORD_LEN, 0 },
+	{ 0x8D8E, 0x16B5, WORD_LEN, 0 },
+	{ 0x8D90, 0x1083, WORD_LEN, 0 },
+	{ 0x8D92, 0x1E3F, WORD_LEN, 0 },
+	{ 0x8D94, 0x1002, WORD_LEN, 0 },
+	{ 0x8D96, 0x8E00, WORD_LEN, 0 },
+	{ 0x8D98, 0xB8A6, WORD_LEN, 0 },
+	{ 0x8D9A, 0xAE00, WORD_LEN, 0 },
+	{ 0x8D9C, 0x153A, WORD_LEN, 0 },
+	{ 0x8D9E, 0x1081, WORD_LEN, 0 },
+	{ 0x8DA0, 0x153B, WORD_LEN, 0 },
+	{ 0x8DA2, 0x1080, WORD_LEN, 0 },
+	{ 0x8DA4, 0xB908, WORD_LEN, 0 },
+	{ 0x8DA6, 0x7905, WORD_LEN, 0 },
+	{ 0x8DA8, 0x16BA, WORD_LEN, 0 },
+	{ 0x8DAA, 0x1100, WORD_LEN, 0 },
+	{ 0x8DAC, 0x0859, WORD_LEN, 0 },
+	{ 0x8DAE, 0x0042, WORD_LEN, 0 },
+	{ 0x8DB0, 0xD017, WORD_LEN, 0 },
+	{ 0x8DB2, 0x9E31, WORD_LEN, 0 },
+	{ 0x8DB4, 0x904D, WORD_LEN, 0 },
+	{ 0x8DB6, 0x0A2D, WORD_LEN, 0 },
+	{ 0x8DB8, 0x0063, WORD_LEN, 0 },
+	{ 0x8DBA, 0x8E00, WORD_LEN, 0 },
+	{ 0x8DBC, 0x16B0, WORD_LEN, 0 },
+	{ 0x8DBE, 0x1081, WORD_LEN, 0 },
+	{ 0x8DC0, 0x1E3C, WORD_LEN, 0 },
+	{ 0x8DC2, 0x1042, WORD_LEN, 0 },
+	{ 0x8DC4, 0x16B1, WORD_LEN, 0 },
+	{ 0x8DC6, 0x1081, WORD_LEN, 0 },
+	{ 0x8DC8, 0x1E3D, WORD_LEN, 0 },
+	{ 0x8DCA, 0x1042, WORD_LEN, 0 },
+	{ 0x8DCC, 0x16B4, WORD_LEN, 0 },
+	{ 0x8DCE, 0x1081, WORD_LEN, 0 },
+	{ 0x8DD0, 0x1E3E, WORD_LEN, 0 },
+	{ 0x8DD2, 0x1042, WORD_LEN, 0 },
+	{ 0x8DD4, 0x16B5, WORD_LEN, 0 },
+	{ 0x8DD6, 0x1081, WORD_LEN, 0 },
+	{ 0x8DD8, 0x1E3F, WORD_LEN, 0 },
+	{ 0x8DDA, 0x1042, WORD_LEN, 0 },
+	{ 0x8DDC, 0xB886, WORD_LEN, 0 },
+	{ 0x8DDE, 0xF013, WORD_LEN, 0 },
+	{ 0x8DE0, 0x16B2, WORD_LEN, 0 },
+	{ 0x8DE2, 0x1081, WORD_LEN, 0 },
+	{ 0x8DE4, 0xB8A6, WORD_LEN, 0 },
+	{ 0x8DE6, 0x1E3C, WORD_LEN, 0 },
+	{ 0x8DE8, 0x1042, WORD_LEN, 0 },
+	{ 0x8DEA, 0x16B3, WORD_LEN, 0 },
+	{ 0x8DEC, 0x1081, WORD_LEN, 0 },
+	{ 0x8DEE, 0x1E3D, WORD_LEN, 0 },
+	{ 0x8DF0, 0x1042, WORD_LEN, 0 },
+	{ 0x8DF2, 0x16B6, WORD_LEN, 0 },
+	{ 0x8DF4, 0x1081, WORD_LEN, 0 },
+	{ 0x8DF6, 0x1E3E, WORD_LEN, 0 },
+	{ 0x8DF8, 0x1042, WORD_LEN, 0 },
+	{ 0x8DFA, 0x16B7, WORD_LEN, 0 },
+	{ 0x8DFC, 0x1081, WORD_LEN, 0 },
+	{ 0x8DFE, 0x1E3F, WORD_LEN, 0 },
+	{ 0x8E00, 0x1042, WORD_LEN, 0 },
+	{ 0x8E02, 0xAE00, WORD_LEN, 0 },
+	{ 0x8E04, 0x0D2A, WORD_LEN, 0 },
+	{ 0x8E06, 0x0184, WORD_LEN, 0 },
+	{ 0x8E08, 0x04B5, WORD_LEN, 0 },
+	{ 0x8E0A, 0x0684, WORD_LEN, 0 },
+	{ 0x8E0C, 0xFF80, WORD_LEN, 0 },
+	{ 0x8E0E, 0x050C, WORD_LEN, 0 },
+	{ 0x8E10, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8E12, 0x0BAA, WORD_LEN, 0 },
+	{ 0x8E14, 0x0224, WORD_LEN, 0 },
+	{ 0x8E16, 0xC5E1, WORD_LEN, 0 },
+	{ 0x8E18, 0xD067, WORD_LEN, 0 },
+	{ 0x8E1A, 0x8000, WORD_LEN, 0 },
+	{ 0x8E1C, 0x880A, WORD_LEN, 0 },
+	{ 0x8E1E, 0x085B, WORD_LEN, 0 },
+	{ 0x8E20, 0x019F, WORD_LEN, 0 },
+	{ 0x8E22, 0xD166, WORD_LEN, 0 },
+	{ 0x8E24, 0xD800, WORD_LEN, 0 },
+	{ 0x8E26, 0xA90F, WORD_LEN, 0 },
+	{ 0x8E28, 0xD165, WORD_LEN, 0 },
+	{ 0x8E2A, 0x81A1, WORD_LEN, 0 },
+	{ 0x8E2C, 0x8160, WORD_LEN, 0 },
+	{ 0x8E2E, 0xD165, WORD_LEN, 0 },
+	{ 0x8E30, 0x2D41, WORD_LEN, 0 },
+	{ 0x8E32, 0x1602, WORD_LEN, 0 },
+	{ 0x8E34, 0x2B41, WORD_LEN, 0 },
+	{ 0x8E36, 0x060C, WORD_LEN, 0 },
+	{ 0x8E38, 0x1934, WORD_LEN, 0 },
+	{ 0x8E3A, 0x0082, WORD_LEN, 0 },
+	{ 0x8E3C, 0x1930, WORD_LEN, 0 },
+	{ 0x8E3E, 0x0302, WORD_LEN, 0 },
+	{ 0x8E40, 0x2D41, WORD_LEN, 0 },
+	{ 0x8E42, 0x1402, WORD_LEN, 0 },
+	{ 0x8E44, 0x2B41, WORD_LEN, 0 },
+	{ 0x8E46, 0x040C, WORD_LEN, 0 },
+	{ 0x8E48, 0x1935, WORD_LEN, 0 },
+	{ 0x8E4A, 0x0082, WORD_LEN, 0 },
+	{ 0x8E4C, 0x1931, WORD_LEN, 0 },
+	{ 0x8E4E, 0x0302, WORD_LEN, 0 },
+	{ 0x8E50, 0x2D41, WORD_LEN, 0 },
+	{ 0x8E52, 0x1202, WORD_LEN, 0 },
+	{ 0x8E54, 0x2B41, WORD_LEN, 0 },
+	{ 0x8E56, 0x020C, WORD_LEN, 0 },
+	{ 0x8E58, 0x1936, WORD_LEN, 0 },
+	{ 0x8E5A, 0x0082, WORD_LEN, 0 },
+	{ 0x8E5C, 0x1932, WORD_LEN, 0 },
+	{ 0x8E5E, 0x0302, WORD_LEN, 0 },
+	{ 0x8E60, 0x1937, WORD_LEN, 0 },
+	{ 0x8E62, 0x0342, WORD_LEN, 0 },
+	{ 0x8E64, 0x1933, WORD_LEN, 0 },
+	{ 0x8E66, 0x00C2, WORD_LEN, 0 },
+	{ 0x8E68, 0xD157, WORD_LEN, 0 },
+	{ 0x8E6A, 0x8120, WORD_LEN, 0 },
+	{ 0x8E6C, 0x7208, WORD_LEN, 0 },
+	{ 0x8E6E, 0x81A8, WORD_LEN, 0 },
+	{ 0x8E70, 0x7108, WORD_LEN, 0 },
+	{ 0x8E72, 0x7D60, WORD_LEN, 0 },
+	{ 0x8E74, 0x7308, WORD_LEN, 0 },
+	{ 0x8E76, 0x0451, WORD_LEN, 0 },
+	{ 0x8E78, 0x0684, WORD_LEN, 0 },
+	{ 0x8E7A, 0x78E0, WORD_LEN, 0 },
+	{ 0x8E7C, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8E7E, 0x0AE2, WORD_LEN, 0 },
+	{ 0x8E80, 0x0224, WORD_LEN, 0 },
+	{ 0x8E82, 0xC5E1, WORD_LEN, 0 },
+	{ 0x8E84, 0xD14D, WORD_LEN, 0 },
+	{ 0x8E86, 0x894D, WORD_LEN, 0 },
+	{ 0x8E88, 0x0A63, WORD_LEN, 0 },
+	{ 0x8E8A, 0x0002, WORD_LEN, 0 },
+	{ 0x8E8C, 0xD04A, WORD_LEN, 0 },
+	{ 0x8E8E, 0x8040, WORD_LEN, 0 },
+	{ 0x8E90, 0x8A0B, WORD_LEN, 0 },
+	{ 0x8E92, 0xB8A6, WORD_LEN, 0 },
+	{ 0x8E94, 0xAA0B, WORD_LEN, 0 },
+	{ 0x8E96, 0xD800, WORD_LEN, 0 },
+	{ 0x8E98, 0xA90F, WORD_LEN, 0 },
+	{ 0x8E9A, 0xD149, WORD_LEN, 0 },
+	{ 0x8E9C, 0x8161, WORD_LEN, 0 },
+	{ 0x8E9E, 0x81A0, WORD_LEN, 0 },
+	{ 0x8EA0, 0xD148, WORD_LEN, 0 },
+	{ 0x8EA2, 0x2B41, WORD_LEN, 0 },
+	{ 0x8EA4, 0x0602, WORD_LEN, 0 },
+	{ 0x8EA6, 0x2D41, WORD_LEN, 0 },
+	{ 0x8EA8, 0x160C, WORD_LEN, 0 },
+	{ 0x8EAA, 0x1934, WORD_LEN, 0 },
+	{ 0x8EAC, 0x0082, WORD_LEN, 0 },
+	{ 0x8EAE, 0x1930, WORD_LEN, 0 },
+	{ 0x8EB0, 0x0302, WORD_LEN, 0 },
+	{ 0x8EB2, 0x2B41, WORD_LEN, 0 },
+	{ 0x8EB4, 0x0402, WORD_LEN, 0 },
+	{ 0x8EB6, 0x2D41, WORD_LEN, 0 },
+	{ 0x8EB8, 0x140C, WORD_LEN, 0 },
+	{ 0x8EBA, 0x1935, WORD_LEN, 0 },
+	{ 0x8EBC, 0x0082, WORD_LEN, 0 },
+	{ 0x8EBE, 0x1931, WORD_LEN, 0 },
+	{ 0x8EC0, 0x0302, WORD_LEN, 0 },
+	{ 0x8EC2, 0x2B41, WORD_LEN, 0 },
+	{ 0x8EC4, 0x0202, WORD_LEN, 0 },
+	{ 0x8EC6, 0x2D41, WORD_LEN, 0 },
+	{ 0x8EC8, 0x120C, WORD_LEN, 0 },
+	{ 0x8ECA, 0x1936, WORD_LEN, 0 },
+	{ 0x8ECC, 0x0082, WORD_LEN, 0 },
+	{ 0x8ECE, 0x1932, WORD_LEN, 0 },
+	{ 0x8ED0, 0x0302, WORD_LEN, 0 },
+	{ 0x8ED2, 0x1937, WORD_LEN, 0 },
+	{ 0x8ED4, 0x00C2, WORD_LEN, 0 },
+	{ 0x8ED6, 0x1933, WORD_LEN, 0 },
+	{ 0x8ED8, 0x0342, WORD_LEN, 0 },
+	{ 0x8EDA, 0xD13B, WORD_LEN, 0 },
+	{ 0x8EDC, 0x8120, WORD_LEN, 0 },
+	{ 0x8EDE, 0x7208, WORD_LEN, 0 },
+	{ 0x8EE0, 0x81A8, WORD_LEN, 0 },
+	{ 0x8EE2, 0x7108, WORD_LEN, 0 },
+	{ 0x8EE4, 0x7D60, WORD_LEN, 0 },
+	{ 0x8EE6, 0x7308, WORD_LEN, 0 },
+	{ 0x8EE8, 0xF003, WORD_LEN, 0 },
+	{ 0x8EEA, 0x0D62, WORD_LEN, 0 },
+	{ 0x8EEC, 0x0204, WORD_LEN, 0 },
+	{ 0x8EEE, 0x03D9, WORD_LEN, 0 },
+	{ 0x8EF0, 0x0684, WORD_LEN, 0 },
+	{ 0x8EF2, 0x78E0, WORD_LEN, 0 },
+	{ 0x8EF4, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8EF6, 0x0B52, WORD_LEN, 0 },
+	{ 0x8EF8, 0x0684, WORD_LEN, 0 },
+	{ 0x8EFA, 0xD532, WORD_LEN, 0 },
+	{ 0x8EFC, 0xD733, WORD_LEN, 0 },
+	{ 0x8EFE, 0x153A, WORD_LEN, 0 },
+	{ 0x8F00, 0x1080, WORD_LEN, 0 },
+	{ 0x8F02, 0x153B, WORD_LEN, 0 },
+	{ 0x8F04, 0x1081, WORD_LEN, 0 },
+	{ 0x8F06, 0x1528, WORD_LEN, 0 },
+	{ 0x8F08, 0x108E, WORD_LEN, 0 },
+	{ 0x8F0A, 0xB808, WORD_LEN, 0 },
+	{ 0x8F0C, 0x7825, WORD_LEN, 0 },
+	{ 0x8F0E, 0x703A, WORD_LEN, 0 },
+	{ 0x8F10, 0x152A, WORD_LEN, 0 },
+	{ 0x8F12, 0x1080, WORD_LEN, 0 },
+	{ 0x8F14, 0x152B, WORD_LEN, 0 },
+	{ 0x8F16, 0x1081, WORD_LEN, 0 },
+	{ 0x8F18, 0xBE08, WORD_LEN, 0 },
+	{ 0x8F1A, 0xB808, WORD_LEN, 0 },
+	{ 0x8F1C, 0x7825, WORD_LEN, 0 },
+	{ 0x8F1E, 0x701A, WORD_LEN, 0 },
+	{ 0x8F20, 0x1529, WORD_LEN, 0 },
+	{ 0x8F22, 0x1080, WORD_LEN, 0 },
+	{ 0x8F24, 0x7E05, WORD_LEN, 0 },
+	{ 0x8F26, 0x8700, WORD_LEN, 0 },
+	{ 0x8F28, 0x800C, WORD_LEN, 0 },
+	{ 0x8F2A, 0x7840, WORD_LEN, 0 },
+	{ 0x8F2C, 0xD028, WORD_LEN, 0 },
+	{ 0x8F2E, 0x153B, WORD_LEN, 0 },
+	{ 0x8F30, 0x1082, WORD_LEN, 0 },
+	{ 0x8F32, 0x9039, WORD_LEN, 0 },
+	{ 0x8F34, 0x153A, WORD_LEN, 0 },
+	{ 0x8F36, 0x1080, WORD_LEN, 0 },
+	{ 0x8F38, 0xB808, WORD_LEN, 0 },
+	{ 0x8F3A, 0x7845, WORD_LEN, 0 },
+	{ 0x8F3C, 0x7822, WORD_LEN, 0 },
+	{ 0x8F3E, 0xD11E, WORD_LEN, 0 },
+	{ 0x8F40, 0x8120, WORD_LEN, 0 },
+	{ 0x8F42, 0x912D, WORD_LEN, 0 },
+	{ 0x8F44, 0x082F, WORD_LEN, 0 },
+	{ 0x8F46, 0x0043, WORD_LEN, 0 },
+	{ 0x8F48, 0x2941, WORD_LEN, 0 },
+	{ 0x8F4A, 0x2201, WORD_LEN, 0 },
+	{ 0x8F4C, 0x2E41, WORD_LEN, 0 },
+	{ 0x8F4E, 0x1200, WORD_LEN, 0 },
+	{ 0x8F50, 0x1D3A, WORD_LEN, 0 },
+	{ 0x8F52, 0x1042, WORD_LEN, 0 },
+	{ 0x8F54, 0x1D28, WORD_LEN, 0 },
+	{ 0x8F56, 0x1002, WORD_LEN, 0 },
+	{ 0x8F58, 0x8700, WORD_LEN, 0 },
+	{ 0x8F5A, 0x2841, WORD_LEN, 0 },
+	{ 0x8F5C, 0x2201, WORD_LEN, 0 },
+	{ 0x8F5E, 0x1D3B, WORD_LEN, 0 },
+	{ 0x8F60, 0x1442, WORD_LEN, 0 },
+	{ 0x8F62, 0x1D2A, WORD_LEN, 0 },
+	{ 0x8F64, 0x1042, WORD_LEN, 0 },
+	{ 0x8F66, 0x800D, WORD_LEN, 0 },
+	{ 0x8F68, 0x1D2B, WORD_LEN, 0 },
+	{ 0x8F6A, 0x1402, WORD_LEN, 0 },
+	{ 0x8F6C, 0x7860, WORD_LEN, 0 },
+	{ 0x8F6E, 0x1D29, WORD_LEN, 0 },
+	{ 0x8F70, 0x1382, WORD_LEN, 0 },
+	{ 0x8F72, 0x0335, WORD_LEN, 0 },
+	{ 0x8F74, 0x0684, WORD_LEN, 0 },
+	{ 0x8F76, 0x78E0, WORD_LEN, 0 },
+	{ 0x8F78, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8F7A, 0x0B6A, WORD_LEN, 0 },
+	{ 0x8F7C, 0x01C4, WORD_LEN, 0 },
+	{ 0x8F7E, 0xD215, WORD_LEN, 0 },
+	{ 0x8F80, 0xD112, WORD_LEN, 0 },
+	{ 0x8F82, 0xA140, WORD_LEN, 0 },
+	{ 0x8F84, 0xC0D1, WORD_LEN, 0 },
+	{ 0x8F86, 0x7EE0, WORD_LEN, 0 },
+	{ 0x8F88, 0xC0F1, WORD_LEN, 0 },
+	{ 0x8F8A, 0x0ACA, WORD_LEN, 0 },
+	{ 0x8F8C, 0x06A4, WORD_LEN, 0 },
+	{ 0x8F8E, 0xDA44, WORD_LEN, 0 },
+	{ 0x8F90, 0xD111, WORD_LEN, 0 },
+	{ 0x8F92, 0xD512, WORD_LEN, 0 },
+	{ 0x8F94, 0x76A9, WORD_LEN, 0 },
+	{ 0x8F96, 0x085E, WORD_LEN, 0 },
+	{ 0x8F98, 0x06A4, WORD_LEN, 0 },
+	{ 0x8F9A, 0x70C9, WORD_LEN, 0 },
+	{ 0x8F9C, 0xD010, WORD_LEN, 0 },
+	{ 0x8F9E, 0xA50D, WORD_LEN, 0 },
+	{ 0x8FA0, 0xD010, WORD_LEN, 0 },
+	{ 0x8FA2, 0xA50C, WORD_LEN, 0 },
+	{ 0x8FA4, 0xD010, WORD_LEN, 0 },
+	{ 0x8FA6, 0xA510, WORD_LEN, 0 },
+	{ 0x8FA8, 0xD010, WORD_LEN, 0 },
+	{ 0x8FAA, 0xA500, WORD_LEN, 0 },
+	{ 0x8FAC, 0xD007, WORD_LEN, 0 },
+	{ 0x8FAE, 0x0311, WORD_LEN, 0 },
+	{ 0x8FB0, 0x06A4, WORD_LEN, 0 },
+	{ 0x8FB2, 0xA0C0, WORD_LEN, 0 },
+	{ 0x8FB4, 0x8000, WORD_LEN, 0 },
+	{ 0x8FB6, 0x000C, WORD_LEN, 0 },
+	{ 0x8FB8, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FBA, 0x040C, WORD_LEN, 0 },
+	{ 0x8FBC, 0x8000, WORD_LEN, 0 },
+	{ 0x8FBE, 0x00A8, WORD_LEN, 0 },
+	{ 0x8FC0, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FC2, 0x0250, WORD_LEN, 0 },
+	{ 0x8FC4, 0x8000, WORD_LEN, 0 },
+	{ 0x8FC6, 0x0038, WORD_LEN, 0 },
+	{ 0x8FC8, 0x8000, WORD_LEN, 0 },
+	{ 0x8FCA, 0x00A4, WORD_LEN, 0 },
+	{ 0x8FCC, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FCE, 0x0740, WORD_LEN, 0 },
+	{ 0x8FD0, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FD2, 0x10C4, WORD_LEN, 0 },
+	{ 0x8FD4, 0x0000, WORD_LEN, 0 },
+	{ 0x8FD6, 0xF4BC, WORD_LEN, 0 },
+	{ 0x8FD8, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FDA, 0x10C4, WORD_LEN, 0 },
+	{ 0x8FDC, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FDE, 0x0E7C, WORD_LEN, 0 },
+	{ 0x8FE0, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FE2, 0x0E10, WORD_LEN, 0 },
+	{ 0x8FE4, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FE6, 0x0EF4, WORD_LEN, 0 },
+	{ 0x8FE8, 0xFF80, WORD_LEN, 0 },
+	{ 0x8FEA, 0x0F78, WORD_LEN, 0 },
+	{ 0x8FEC, 0xEA0A, WORD_LEN, 0 },
+	{ 0x8FEE, 0x242F, WORD_LEN, 0 },
+	{ 0x8FF0, 0x7089, WORD_LEN, 0 },
+	{ 0x8FF2, 0x78E0, WORD_LEN, 0 },
+	{ 0x8FF4, 0x20A8, WORD_LEN, 0 },
+	{ 0x8FF6, 0x0180, WORD_LEN, 0 },
+	{ 0x8FF8, 0x1002, WORD_LEN, 0 },
+	{ 0x8FFA, 0x0D02, WORD_LEN, 0 },
+	{ 0x8FFC, 0x1902, WORD_LEN, 0 },
+	{ 0x8FFE, 0x0094, WORD_LEN, 0 },
+	{ 0x9000, 0x7FE0, WORD_LEN, 0 },
+	{ 0x9002, 0x7028, WORD_LEN, 0 },
+	{ 0x9004, 0x7308, WORD_LEN, 0 },
+	{ 0x9006, 0x1000, WORD_LEN, 0 },
+	{ 0x9008, 0x0900, WORD_LEN, 0 },
+	{ 0x900A, 0x7904, WORD_LEN, 0 },
+	{ 0x900C, 0x7947, WORD_LEN, 0 },
+	{ 0x900E, 0x1B00, WORD_LEN, 0 },
+	{ 0x9010, 0x0064, WORD_LEN, 0 },
+	{ 0x9012, 0x7EE0, WORD_LEN, 0 },
+	{ 0x9014, 0xEA0A, WORD_LEN, 0 },
+	{ 0x9016, 0x242F, WORD_LEN, 0 },
+	{ 0x9018, 0x7089, WORD_LEN, 0 },
+	{ 0x901A, 0x78E0, WORD_LEN, 0 },
+	{ 0x901C, 0x20A8, WORD_LEN, 0 },
+	{ 0x901E, 0x0180, WORD_LEN, 0 },
+	{ 0x9020, 0x1102, WORD_LEN, 0 },
+	{ 0x9022, 0x0502, WORD_LEN, 0 },
+	{ 0x9024, 0x1802, WORD_LEN, 0 },
+	{ 0x9026, 0x00B4, WORD_LEN, 0 },
+	{ 0x9028, 0x7FE0, WORD_LEN, 0 },
+	{ 0x902A, 0x7028, WORD_LEN, 0 },
+	{ 0x902C, 0x0000, WORD_LEN, 0 },
+	{ 0x902E, 0x0000, WORD_LEN, 0 },
+	{ 0x098E, 0x0016, WORD_LEN, 0 }, 	// LOGICAL_ADDRESS_ACCESS [MON_ADDRESS_LO]
+	{ 0x8016, 0x086C, WORD_LEN, 0 }, 	// MON_ADDRESS_LO
+	{ 0x8002, 0x0001, WORD_LEN, 300 },	// MON_CMD
+	//char_settings
+	{ 0x30D4, 0x9080, WORD_LEN, 0 },  // COLUMN_CORRECTION
+	{ 0x316E, 0xC400, WORD_LEN, 0 },  // DAC_ECL
+	{ 0x305E, 0x10A0, WORD_LEN, 0 },  // GLOBAL_GAIN
+	{ 0x3E00, 0x0010, WORD_LEN, 0 },  // SAMP_CONTROL
+	{ 0x3E02, 0xED02, WORD_LEN, 0 },  // SAMP_ADDR_EN
+	{ 0x3E04, 0xC88C, WORD_LEN, 0 },  // SAMP_RD1_SIG
+	{ 0x3E06, 0xC88C, WORD_LEN, 0 },  // SAMP_RD1_SIG_BOOST
+	{ 0x3E08, 0x700A, WORD_LEN, 0 },  // SAMP_RD1_RST
+	{ 0x3E0A, 0x701E, WORD_LEN, 0 },  // SAMP_RD1_RST_BOOST
+	{ 0x3E0C, 0x00FF, WORD_LEN, 0 },  // SAMP_RST1_EN
+	{ 0x3E0E, 0x00FF, WORD_LEN, 0 },  // SAMP_RST1_BOOST
+	{ 0x3E10, 0x00FF, WORD_LEN, 0 },  // SAMP_RST1_CLOOP_SH
+	{ 0x3E12, 0x0000, WORD_LEN, 0 },  // SAMP_RST_BOOST_SEQ
+	{ 0x3E14, 0xC78C, WORD_LEN, 0 },  // SAMP_SAMP1_SIG
+	{ 0x3E16, 0x6E06, WORD_LEN, 0 },  // SAMP_SAMP1_RST
+	{ 0x3E18, 0xA58C, WORD_LEN, 0 },  // SAMP_TX_EN
+	{ 0x3E1A, 0xA58E, WORD_LEN, 0 },  // SAMP_TX_BOOST
+	{ 0x3E1C, 0xA58E, WORD_LEN, 0 },  // SAMP_TX_CLOOP_SH
+	{ 0x3E1E, 0xC0D0, WORD_LEN, 0 },  // SAMP_TX_BOOST_SEQ
+	{ 0x3E20, 0xEB00, WORD_LEN, 0 },  // SAMP_VLN_EN
+	{ 0x3E22, 0x00FF, WORD_LEN, 0 },  // SAMP_VLN_HOLD
+	{ 0x3E24, 0xEB02, WORD_LEN, 0 },  // SAMP_VCL_EN
+	{ 0x3E26, 0xEA02, WORD_LEN, 0 },  // SAMP_COLCLAMP
+	{ 0x3E28, 0xEB0A, WORD_LEN, 0 },  // SAMP_SH_VCL
+	{ 0x3E2A, 0xEC01, WORD_LEN, 0 },  // SAMP_SH_VREF
+	{ 0x3E2C, 0xEB01, WORD_LEN, 0 },  // SAMP_SH_VBST
+	{ 0x3E2E, 0x00FF, WORD_LEN, 0 },  // SAMP_SPARE
+	{ 0x3E30, 0x00F3, WORD_LEN, 0 },  // SAMP_READOUT
+	{ 0x3E32, 0x3DFA, WORD_LEN, 0 },  // SAMP_RESET_DONE
+	{ 0x3E34, 0x00FF, WORD_LEN, 0 },  // SAMP_VLN_CLAMP
+	{ 0x3E36, 0x00F3, WORD_LEN, 0 },  // SAMP_ASC_INT
+	{ 0x3E38, 0x0000, WORD_LEN, 0 },  // SAMP_RS_CLOOP_SH_R
+	{ 0x3E3A, 0xF802, WORD_LEN, 0 },  // SAMP_RS_CLOOP_SH
+	{ 0x3E3C, 0x0FFF, WORD_LEN, 0 },  // SAMP_RS_BOOST_SEQ
+	{ 0x3E3E, 0xEA10, WORD_LEN, 0 },  // SAMP_TXLO_GND
+	{ 0x3E40, 0xEB05, WORD_LEN, 0 },  // SAMP_VLN_PER_COL
+	{ 0x3E42, 0xE5C8, WORD_LEN, 0 },  // SAMP_RD2_SIG
+	{ 0x3E44, 0xE5C8, WORD_LEN, 0 },  // SAMP_RD2_SIG_BOOST
+	{ 0x3E46, 0x8C70, WORD_LEN, 0 },  // SAMP_RD2_RST
+	{ 0x3E48, 0x8C71, WORD_LEN, 0 },  // SAMP_RD2_RST_BOOST
+	{ 0x3E4A, 0x00FF, WORD_LEN, 0 },  // SAMP_RST2_EN
+	{ 0x3E4C, 0x00FF, WORD_LEN, 0 },  // SAMP_RST2_BOOST
+	{ 0x3E4E, 0x00FF, WORD_LEN, 0 },  // SAMP_RST2_CLOOP_SH
+	{ 0x3E50, 0xE38D, WORD_LEN, 0 },  // SAMP_SAMP2_SIG
+	{ 0x3E52, 0x8B0A, WORD_LEN, 0 },  // SAMP_SAMP2_RST
+	{ 0x3E58, 0xEB0A, WORD_LEN, 0 },  // SAMP_PIX_CLAMP_EN
+	{ 0x3E5C, 0x0A00, WORD_LEN, 0 },  // SAMP_PIX_PULLUP_EN
+	{ 0x3E5E, 0x00FF, WORD_LEN, 0 },  // SAMP_PIX_PULLDOWN_EN_R
+	{ 0x3E60, 0x00FF, WORD_LEN, 0 },  // SAMP_PIX_PULLDOWN_EN_S
+	{ 0x3E90, 0x3C01, WORD_LEN, 0 },  // RST_ADDR_EN
+	{ 0x3E92, 0x00FF, WORD_LEN, 0 },  // RST_RST_EN
+	{ 0x3E94, 0x00FF, WORD_LEN, 0 },  // RST_RST_BOOST
+	{ 0x3E96, 0x3C00, WORD_LEN, 0 },  // RST_TX_EN
+	{ 0x3E98, 0x3C00, WORD_LEN, 0 },  // RST_TX_BOOST
+	{ 0x3E9A, 0x3C00, WORD_LEN, 0 },  // RST_TX_CLOOP_SH
+	{ 0x3E9C, 0xC0E0, WORD_LEN, 0 },  // RST_TX_BOOST_SEQ
+	{ 0x3E9E, 0x00FF, WORD_LEN, 0 },  // RST_RST_CLOOP_SH
+	{ 0x3EA0, 0x0000, WORD_LEN, 0 },  // RST_RST_BOOST_SEQ
+	{ 0x3EA6, 0x3C00, WORD_LEN, 0 },  // RST_PIX_PULLUP_EN
+	{ 0x3ED8, 0x3057, WORD_LEN, 0 },  // DAC_LD_12_13
+	{ 0x316C, 0xB44F, WORD_LEN, 0 },  // DAC_TXLO
+	{ 0x316E, 0xC6FF, WORD_LEN, 0 },  // DAC_ECL
+	{ 0x3ED2, 0xEA0A, WORD_LEN, 0 },  // DAC_LD_6_7
+	{ 0x3ED4, 0x00A3, WORD_LEN, 0 },  // DAC_LD_8_9
+	{ 0x3EDC, 0x6020, WORD_LEN, 0 },  // DAC_LD_16_17
+	{ 0x3EE6, 0xA541, WORD_LEN, 0 },  // DAC_LD_26_27
+	{ 0x31E0, 0x0000, WORD_LEN, 0 },  // PIX_DEF_ID
+	{ 0x3ED0, 0x2409, WORD_LEN, 0 },  // DAC_LD_4_5
+	{ 0x3EDE, 0x0A49, WORD_LEN, 0 },  // DAC_LD_18_19
+	{ 0x3EE0, 0x4909, WORD_LEN, 0 },  // DAC_LD_20_21
+	{ 0x3EE2, 0x09CF, WORD_LEN, 0 },  // DAC_LD_22_23
+	{ 0x30B6, 0x0008, WORD_LEN, 0 },  // AUTOLR_CONTROL
+	{ 0x337C, 0x0006, WORD_LEN, 0 },  // YUV_YCBCR_CONTROL
+	{ 0x3E1A, 0xA582, WORD_LEN, 0 },  // SAMP_TX_BOOST
+	{ 0x3E2E, 0xEC05, WORD_LEN, 0 },  // SAMP_SPARE
+	{ 0x3EE6, 0xA5C0, WORD_LEN, 0 },  // DAC_LD_26_27
+	{ 0x316C, 0xF43F, WORD_LEN, 0 },  // DAC_TXLO
+	{ 0x316E, 0xC6FF, WORD_LEN, 0 },  // DAC_ECL
+};    
+
+static const struct mt9p111_i2c_reg_conf const AF_setting[] = {
+	{ 0x098E, 0xC400, WORD_LEN, 0 },	// LOGICAL_ADDRESS_ACCESS [AFM_ALGO]
+	{ 0xC400, 0x88, BYTE_LEN, 0 },  // AFM_ALGO
+	{ 0xC40A, 0x0048, WORD_LEN, 0 },  // AFM_POS_MIN
+	{ 0xC40C, 0x00E0, WORD_LEN, 0 },  // AFM_POS_MAX
+	{ 0xC402, 0x00, BYTE_LEN, 0 },  // AFM_MODE
+	{ 0xB854, 0x52, BYTE_LEN, 0 },  // STAT_SM_WINDOW_POS_X
+	{ 0xB855, 0x58, BYTE_LEN, 0 },  // STAT_SM_WINDOW_POS_Y
+	{ 0xB856, 0x5D, BYTE_LEN, 0 },  // STAT_SM_WINDOW_SIZE_X
+	{ 0xB857, 0x5A, BYTE_LEN, 0 },  // STAT_SM_WINDOW_SIZE_Y
+	{ 0xB012, 0x09, BYTE_LEN, 0 },  // AF_FS_NUM_STEPS
+	{ 0xB018, 0x00, BYTE_LEN, 0 },  // AF_FS_POS_0
+	{ 0xB019, 0x28, BYTE_LEN, 0 },  // AF_FS_POS_1
+	{ 0xB01A, 0x40, BYTE_LEN, 0 },  // AF_FS_POS_2
+	{ 0xB01B, 0x58, BYTE_LEN, 0 },  // AF_FS_POS_3
+	{ 0xB01C, 0x70, BYTE_LEN, 0 },  // AF_FS_POS_4
+	{ 0xB01D, 0x88, BYTE_LEN, 0 },  // AF_FS_POS_5
+	{ 0xB01E, 0xA0, BYTE_LEN, 0 },  // AF_FS_POS_6
+	{ 0xB01F, 0xB8, BYTE_LEN, 0 },  // AF_FS_POS_7
+	{ 0xB020, 0xD0, BYTE_LEN, 0 },  // AF_FS_POS_8
+	{ 0xB002, 0x0002, WORD_LEN, 0 },  // AF_MODE
+	{ 0xB02C, 0x20, BYTE_LEN, 0 },  // AF_HC_STEP
+	{ 0x8404, 0x05, BYTE_LEN, 300 }, 	// SEQ_CMD
+	//{ 0x8404, 0x05, BYTE_LEN, 0 }, 	// SEQ_CMD
+	//{ 0x8404, 0x00, BYTE_POLL, 0 },
+	{ 0x3EDA, 0x6060, WORD_LEN, 0 },      // DAC_LD_14_15
+	{ 0x0018, 0x2008, WORD_LEN, 100 },      // STANDBY_CONTROL_AND_STATUS
+};
+
+static const struct mt9p111_i2c_reg_conf const aftrigger_tbl[] = {
+	{ 0x098E, 0xB006, WORD_LEN, 0 }, 	// LOGICAL_ADDRESS_ACCESS [AF_PROGRESS]
+	{ 0xB006, 0x01, BYTE_LEN, 0 },	// AF_PROGRESS
+};
+
+static const struct mt9p111_i2c_reg_conf const context_a_to_b_tbl[] = {
+	{ 0x098E, 0x843C, WORD_LEN, 0 }, 	// LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_5_MAX_FRAME_CNT]	
+	{ 0x843C, 0xFF, BYTE_LEN, 0 }, 	// SEQ_STATE_CFG_5_MAX_FRAME_CNT
+	{ 0x8404, 0x02, BYTE_LEN, 0 },	// SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const context_b_to_a_tbl[] = {
+	{ 0x098E, 0x843C, WORD_LEN, 0 }, 	// LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_5_MAX_FRAME_CNT]	
+	{ 0x843C, 0x01, BYTE_LEN, 0 }, 	// SEQ_STATE_CFG_5_MAX_FRAME_CNT
+	{ 0x8404, 0x01, BYTE_LEN, 0 },	// SEQ_CMD
+	{ 0x0016, 0x0047, WORD_LEN, 0 },	// CLOCKS_CONTRO
+};
+
+static const struct mt9p111_i2c_reg_conf const AB_OFF_setting[] = {
+	{ 0x098E, 0x8417, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_1_FD]
+	{ 0x8417, 0x00, BYTE_LEN, 0 },	// SEQ_STATE_CFG_1_FD
+};
+
+static const struct mt9p111_i2c_reg_conf const AB_60MHZ_setting[] = {
+	{ 0x098E, 0x8417, WORD_LEN, 0 },   // LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_1_FD]
+	{ 0x8417, 0x01, BYTE_LEN, 0 },	// SEQ_STATE_CFG_1_FD
+	{ 0xA004, 0x3C, BYTE_LEN, 0 },	// FD_EXPECTED_FLICKER_SOURCE_FREQUENCY
+	{ 0xA002, 0x0003, WORD_LEN, 0 },  // FD_ALGO
+	{ 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const AB_50MHZ_setting[] = {
+	{ 0x098E, 0x8417, WORD_LEN, 0 },  // LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_1_FD]
+	{ 0x8417, 0x01, BYTE_LEN, 0 },	// SEQ_STATE_CFG_1_FD
+	{ 0xA004, 0x32, BYTE_LEN, 0 },	// FD_EXPECTED_FLICKER_SOURCE_FREQUENCY
+	{ 0xA002, 0x0003, WORD_LEN, 0 },  // FD_ALGO
+	{ 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const AB_AUTO_setting[] = {
+	{ 0x098E, 0x8417, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_1_FD]
+	{ 0x8417, 0x02, BYTE_LEN, 0 }, // SEQ_STATE_CFG_1_FD
+	{ 0xA004, 0x3C, BYTE_LEN, 0 }, // FD_EXPECTED_FLICKER_SOURCE_FREQUENCY
+	{ 0xA002, 0x0001, WORD_LEN, 0 }, // FD_ALGO
+	{ 0x8404, 0x06, BYTE_LEN, 0 }, // SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const BR0_setting[] = {
+    { 0x098E, 0xA409 , WORD_LEN, 0 },    // LOGICAL_ADDRESS_ACCESS [AE_RULE_BASE_TARGET]
+    { 0xA409, 0x22, BYTE_LEN, 0 },	// AE_RULE_BASE_TARGET
+	{ 0xA805, 0x06, BYTE_LEN, 0 },	// AE_TRACK_GATE
+};
+
+static const struct mt9p111_i2c_reg_conf const BR1_setting[] = {
+    { 0x098E, 0xA409 , WORD_LEN, 0 },    // LOGICAL_ADDRESS_ACCESS [AE_RULE_BASE_TARGET]
+    { 0xA409, 0x28, BYTE_LEN, 0 },	// AE_RULE_BASE_TARGET
+	{ 0xA805, 0x06, BYTE_LEN, 0 },	// AE_TRACK_GATE
+};
+
+static const struct mt9p111_i2c_reg_conf const BR2_setting[] = {
+    { 0x098E, 0xA409 , WORD_LEN, 0 },    // LOGICAL_ADDRESS_ACCESS [AE_RULE_BASE_TARGET]
+	{ 0xA409, 0x34, BYTE_LEN, 0 },	// AE_RULE_BASE_TARGET
+	{ 0xA805, 0x06, BYTE_LEN, 0 },	// AE_TRACK_GATE
+};
+
+static const struct mt9p111_i2c_reg_conf const BR3_setting[] = {
+    { 0x098E, 0xA409 , WORD_LEN, 0 },    // LOGICAL_ADDRESS_ACCESS [AE_RULE_BASE_TARGET]
+	{ 0xA409, 0x42, BYTE_LEN, 0 },	// A134
+	{ 0xA805, 0x06, BYTE_LEN, 0 },	// AE_TRACK_GATE
+};
+
+static const struct mt9p111_i2c_reg_conf const BR4_setting[] = {
+	{ 0x098E, 0xA409, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [AE_RULE_BASE_TARGET]
+	{ 0xA409, 0x60, BYTE_LEN, 0 },	// AE_RULE_BASE_TARGET
+	{ 0xA805, 0x08, BYTE_LEN, 0 },	// AE_TRACK_GATE
+};
+
+static const struct mt9p111_i2c_reg_conf const BR5_setting[] = {
+    {0x098E, 0xA409 , WORD_LEN, 0 },    // LOGICAL_ADDRESS_ACCESS [AE_RULE_BASE_TARGET]
+    {0xA409, 0x74 , BYTE_LEN, 0 },      // AE_RULE_BASE_TARGET
+    {0xA805, 0x0A , BYTE_LEN, 0 },        // AE_TRACK_GATE
+};
+
+static const struct mt9p111_i2c_reg_conf const BR6_setting[] = {
+    {0x098E, 0xA409 , WORD_LEN, 0 },    // LOGICAL_ADDRESS_ACCESS [AE_RULE_BASE_TARGET]
+    {0xA409, 0x88 , BYTE_LEN, 0 },      // AE_RULE_BASE_TARGET
+    {0xA805, 0x0A , BYTE_LEN, 0 },        // AE_TRACK_GATE
+};
+
+static const struct mt9p111_i2c_reg_conf const CONST_M2_setting[] = {
+	{ 0x098E, 0xBC2B, WORD_LEN, 0 },  //LOGICAL_ADDRESS_ACCESS [LL_GAMMA_NEUTRAL_CURVE_0]
+	{ 0xBC2B, 0x00, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_0
+	{ 0xBC2C, 0x2E, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_1
+	{ 0xBC2D, 0x4C, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_2
+	{ 0xBC2E, 0x62, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_3
+	{ 0xBC2F, 0x76, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_4
+	{ 0xBC30, 0x88, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_5
+	{ 0xBC31, 0x96, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_6
+	{ 0xBC32, 0xA0, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_7
+	{ 0xBC33, 0xAC, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_8
+	{ 0xBC34, 0xB7, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_9
+	{ 0xBC35, 0xC1, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_10
+	{ 0xBC36, 0xCB, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_11
+	{ 0xBC37, 0xD3, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_12
+	{ 0xBC38, 0xDC, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_13
+	{ 0xBC39, 0xE4, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_14
+	{ 0xBC3A, 0xEB, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_15
+	{ 0xBC3B, 0xF2, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_16
+	{ 0xBC3C, 0xF9, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_17
+	{ 0xBC3D, 0xFF, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_18
+	{ 0x8404, 0x05, BYTE_LEN, 0 },  //SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const CONST_M1_setting[] = {
+	{ 0x098E, 0xBC2B, WORD_LEN, 0 },  //LOGICAL_ADDRESS_ACCESS [LL_GAMMA_NEUTRAL_CURVE_0]
+	{ 0xBC2B, 0x00, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_0
+	{ 0xBC2C, 0x20, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_1
+	{ 0xBC2D, 0x38, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_2
+	{ 0xBC2E, 0x50, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_3
+	{ 0xBC2F, 0x66, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_4
+	{ 0xBC30, 0x7A, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_5
+	{ 0xBC31, 0x89, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_6
+	{ 0xBC32, 0x97, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_7
+	{ 0xBC33, 0xA4, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_8
+	{ 0xBC34, 0xB0, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_9
+	{ 0xBC35, 0xBB, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_10
+	{ 0xBC36, 0xC5, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_11
+	{ 0xBC37, 0xCE, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_12
+	{ 0xBC38, 0xD7, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_13
+	{ 0xBC39, 0xE0, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_14
+	{ 0xBC3A, 0xE8, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_15
+	{ 0xBC3B, 0xF0, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_16
+	{ 0xBC3C, 0xF8, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_17
+	{ 0xBC3D, 0xFF, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_18
+	{ 0x8404, 0x05, BYTE_LEN, 0 },  //SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const CONST_ZERO_setting[] = {
+	{ 0x098E, 0xBC2B, WORD_LEN, 0 },  //LOGICAL_ADDRESS_ACCESS [LL_GAMMA_NEUTRAL_CURVE_0]
+	{ 0xBC2B, 0x00, BYTE_LEN, 0 },  // LL_GAMMA_NEUTRAL_CURVE_0
+	{ 0xBC2C, 0x08, BYTE_LEN, 0 },  // LL_GAMMA_NEUTRAL_CURVE_1
+	{ 0xBC2D, 0x19, BYTE_LEN, 0 },  // LL_GAMMA_NEUTRAL_CURVE_2
+	{ 0xBC2E, 0x31, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_3
+	{ 0xBC2F, 0x52, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_4
+	{ 0xBC30, 0x6E, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_5
+	{ 0xBC31, 0x87, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_6
+	{ 0xBC32, 0x9C, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_7
+	{ 0xBC33, 0xAD, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_8
+	{ 0xBC34, 0xBB, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_9
+	{ 0xBC35, 0xC6, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_10
+	{ 0xBC36, 0xD1, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_11
+	{ 0xBC37, 0xD9, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_12
+	{ 0xBC38, 0xE1, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_13
+	{ 0xBC39, 0xE8, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_14
+	{ 0xBC3A, 0xEF, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_15
+	{ 0xBC3B, 0xF5, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_16
+	{ 0xBC3C, 0xFA, BYTE_LEN, 0 }, // LL_GAMMA_NEUTRAL_CURVE_17
+	{ 0xBC3D, 0xFF, BYTE_LEN, 0 },  // LL_GAMMA_NEUTRAL_CURVE_18
+	{ 0x8404, 0x05, BYTE_LEN, 0 },  //SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const CONST_P1_setting[] = {
+	{ 0x098E, 0xBC2B, WORD_LEN, 0 },  //LOGICAL_ADDRESS_ACCESS [LL_GAMMA_NEUTRAL_CURVE_0]
+	{ 0xBC2B, 0x00, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_0
+	{ 0xBC2C, 0x06, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_1
+	{ 0xBC2D, 0x14, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_2
+	{ 0xBC2E, 0x2A, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_3
+	{ 0xBC2F, 0x49, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_4
+	{ 0xBC30, 0x67, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_5
+	{ 0xBC31, 0x84, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_6
+	{ 0xBC32, 0x9C, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_7
+	{ 0xBC33, 0xB0, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_8
+	{ 0xBC34, 0xBE, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_9
+	{ 0xBC35, 0xCB, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_10
+	{ 0xBC36, 0xD5, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_11
+	{ 0xBC37, 0xDD, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_12
+	{ 0xBC38, 0xE6, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_13
+	{ 0xBC39, 0xED, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_14
+	{ 0xBC3A, 0xF2, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_15
+	{ 0xBC3B, 0xF7, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_16
+	{ 0xBC3C, 0xFB, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_17
+	{ 0xBC3D, 0xFF, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_18
+	{ 0x8404, 0x05, BYTE_LEN, 0 },  //SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const CONST_P2_setting[] = {
+	{ 0x098E, 0xBC2B, WORD_LEN, 0 },  //LOGICAL_ADDRESS_ACCESS [LL_GAMMA_NEUTRAL_CURVE_0]
+	{ 0xBC2B, 0x00, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_0
+	{ 0xBC2C, 0x04, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_1
+	{ 0xBC2D, 0x0D, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_2
+	{ 0xBC2E, 0x1F, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_3
+	{ 0xBC2F, 0x3C, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_4
+	{ 0xBC30, 0x60, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_5
+	{ 0xBC31, 0x84, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_6
+	{ 0xBC32, 0xA0, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_7
+	{ 0xBC33, 0xB6, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_8
+	{ 0xBC34, 0xC6, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_9
+	{ 0xBC35, 0xD2, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_10
+	{ 0xBC36, 0xDC, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_11
+	{ 0xBC37, 0xE4, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_12
+	{ 0xBC38, 0xEB, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_13
+	{ 0xBC39, 0xF1, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_14
+	{ 0xBC3A, 0xF5, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_15
+	{ 0xBC3B, 0xFA, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_16
+	{ 0xBC3C, 0xFD, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_17
+	{ 0xBC3D, 0xFF, BYTE_LEN, 0 },  //LL_GAMMA_NEUTRAL_CURVE_18
+	{ 0x8404, 0x05, BYTE_LEN, 0 },  //SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const EF_NONE_setting[] = {
+    { 0x098E, 0xDC38, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xDC38, 0x00, BYTE_LEN, 0 },	// SYS_SELECT_FX
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const EF_MONO_setting[] = {
+    { 0x098E, 0xDC38, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xDC38, 0x01, BYTE_LEN, 0 },	// SYS_SELECT_FX
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const EF_SEPIA_setting[] = {
+    { 0x098E, 0xDC38, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xDC38, 0x02, BYTE_LEN, 0 },	// SYS_SELECT_FX
+    { 0xDC3A, 0x18, BYTE_LEN, 0 },	//SYS_SEPIA_CR
+    { 0xDC3B, 0xEE, BYTE_LEN, 0 },	//SYS_SEPIA_CB
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const EF_NEGATIVE_setting[] = {
+    { 0x098E, 0xDC38, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xDC38, 0x03, BYTE_LEN, 0 },	// SYS_SELECT_FX
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const EF_SOLARIZE_setting[] = {
+    { 0x098E, 0xDC38, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xDC38, 0x05, BYTE_LEN, 0 },	// SYS_SELECT_FX
+    { 0xDC39, 0x20, BYTE_LEN, 0 },	// SYS_SOLARIZATION_TH	
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*
+};
+
+static const struct mt9p111_i2c_reg_conf const EXP_NORMAL_setting[] = {
+    { 0x098E, 0xB820, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xB820, 0x14, BYTE_LEN, 0 },	// STAT_AE_WINDOW_POS_X
+    { 0xB821, 0x14, BYTE_LEN, 0 },	//STAT_AE_WINDOW_POS_Y
+    { 0xB822, 0xD2, BYTE_LEN, 0 },	// STAT_AE_WINDOW_SIZE_X
+    { 0xB823, 0xD2, BYTE_LEN, 0 },	//STAT_AE_WINDOW_SIZE_Y
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*//Div6D1-CL-Camera-HDfail-00*//Div6D1-CL-Camera-SnapShotFail-00*
+};
+
+static const struct mt9p111_i2c_reg_conf const EXP_SPOT_setting[] = {
+    { 0x098E, 0xB820, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xB820, 0x66, BYTE_LEN, 0 },	// STAT_AE_WINDOW_POS_X
+    { 0xB821, 0x66, BYTE_LEN, 0 },	//STAT_AE_WINDOW_POS_Y
+    { 0xB822, 0x33, BYTE_LEN, 0 },	// STAT_AE_WINDOW_SIZE_X
+    { 0xB823, 0x33, BYTE_LEN, 0 },	//STAT_AE_WINDOW_SIZE_Y
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*//Div6D1-CL-Camera-HDfail-00*//Div6D1-CL-Camera-SnapShotFail-00*
+};
+
+static const struct mt9p111_i2c_reg_conf const EXP_AVERAGE_setting[] = {
+    { 0x098E, 0xB820, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS
+    { 0xB820, 0x26, BYTE_LEN, 0 },	// STAT_AE_WINDOW_POS_X
+    { 0xB821, 0x26, BYTE_LEN, 0 },	//STAT_AE_WINDOW_POS_Y
+    { 0xB822, 0xB5, BYTE_LEN, 0 },	// STAT_AE_WINDOW_SIZE_X
+    { 0xB823, 0xB5, BYTE_LEN, 0 },	//STAT_AE_WINDOW_SIZE_Y
+    { 0x8404, 0x06, BYTE_LEN, 0 },	// SEQ_CMD	//Div2-SW6-MM-KK-WorkaroundSnapshotFail-0//Div6D1-CL-Camera-autofocus-03*//Div6D1-CL-Camera-HDfail-00*//Div6D1-CL-Camera-SnapShotFail-00*
+};
+
+static const struct mt9p111_i2c_reg_conf const SATU_M2_setting[] = {
+    {0x098E, 0xBC56, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [LL_START_CCM_SATURATION]
+    {0xBC56, 0x44, BYTE_LEN, 0 }, // LL_START_CCM_SATURATION
+};
+
+static const struct mt9p111_i2c_reg_conf const SATU_M1_setting[] = {
+    {0x098E, 0xBC56, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [LL_START_CCM_SATURATION]
+    {0xBC56, 0x80, BYTE_LEN, 0 }, // LL_START_CCM_SATURATION
+};
+
+static const struct mt9p111_i2c_reg_conf const SATU_ZERO_setting[] = {
+    {0x098E, 0xBC56, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [LL_START_CCM_SATURATION]
+    {0xBC56, 0x98, BYTE_LEN, 0 }, // LL_START_CCM_SATURATION
+};
+
+static const struct mt9p111_i2c_reg_conf const SATU_P1_setting[] = {
+    {0x098E, 0xBC56, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [LL_START_CCM_SATURATION]
+    {0xBC56, 0xB0, BYTE_LEN, 0 }, // LL_START_CCM_SATURATION
+};
+
+static const struct mt9p111_i2c_reg_conf const SATU_P2_setting[] = {
+    {0x098E, 0xBC56, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [LL_START_CCM_SATURATION]
+    {0xBC56, 0xC8, BYTE_LEN, 0 }, // LL_START_CCM_SATURATION
+};
+
+static const struct mt9p111_i2c_reg_conf const SHARP_M2_setting[] = {
+    {0x098E, 0xBC6A , WORD_LEN, 0 },	// LOGICAL_ADDRESS_ACCESS [LL_START_APERTURE_INTEGER_GAIN]
+    {0xBC6A, 0x00 , BYTE_LEN, 0 },	// LL_START_APERTURE_INTEGER_GAIN
+    {0xBC6B, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_INTEGER_GAIN
+    {0xBC6C, 0x00 , BYTE_LEN, 0 },	// LL_START_APERTURE_EXP_GAIN
+    {0xBC6D, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_EXP_GAIN
+};
+
+static const struct mt9p111_i2c_reg_conf const SHARP_M1_setting[] = {
+    {0x098E, 0xBC6A , WORD_LEN, 0 },	// LOGICAL_ADDRESS_ACCESS [LL_START_APERTURE_INTEGER_GAIN]
+    {0xBC6A, 0x03 , BYTE_LEN, 0 },	// LL_START_APERTURE_INTEGER_GAIN
+    {0xBC6B, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_INTEGER_GAIN
+    {0xBC6C, 0x00 , BYTE_LEN, 0 },	// LL_START_APERTURE_EXP_GAIN
+    {0xBC6D, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_EXP_GAIN
+};
+
+static const struct mt9p111_i2c_reg_conf const SHARP_ZERO_setting[] = {
+    {0x098E, 0xBC6A , WORD_LEN, 0 },	// LOGICAL_ADDRESS_ACCESS [LL_START_APERTURE_INTEGER_GAIN]
+    {0xBC6A, 0x05 , BYTE_LEN, 0 },	// LL_START_APERTURE_INTEGER_GAIN
+    {0xBC6B, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_INTEGER_GAIN
+    {0xBC6C, 0x00 , BYTE_LEN, 0 },	// LL_START_APERTURE_EXP_GAIN
+    {0xBC6D, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_EXP_GAIN
+};
+
+static const struct mt9p111_i2c_reg_conf const SHARP_P1_setting[] = {
+    {0x098E, 0xBC6A, WORD_LEN, 0 }, 	// LOGICAL_ADDRESS_ACCESS [LL_START_APERTURE_INTEGER_GAIN]
+    {0xBC6A, 0x09 , BYTE_LEN, 0 },	// LL_START_APERTURE_INTEGER_GAIN
+    {0xBC6B, 0x01 , BYTE_LEN, 0 },	// LL_END_APERTURE_INTEGER_GAIN
+    {0xBC6C, 0x00 , BYTE_LEN, 0 },	// LL_START_APERTURE_EXP_GAIN
+    {0xBC6D, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_EXP_GAIN
+};
+
+static const struct mt9p111_i2c_reg_conf const SHARP_P2_setting[] = {
+    {0x098E, 0xBC6A, WORD_LEN, 0 }, 	// LOGICAL_ADDRESS_ACCESS [LL_START_APERTURE_INTEGER_GAIN]
+    {0xBC6A, 0x09 , BYTE_LEN, 0 },	// LL_START_APERTURE_INTEGER_GAIN
+    {0xBC6B, 0x01 , BYTE_LEN, 0 },	// LL_END_APERTURE_INTEGER_GAIN
+    {0xBC6C, 0x01 , BYTE_LEN, 0 },	// LL_START_APERTURE_EXP_GAIN
+    {0xBC6D, 0x00 , BYTE_LEN, 0 },	// LL_END_APERTURE_EXP_GAIN
+};
+
+static const struct mt9p111_i2c_reg_conf const WB_AUTO_setting[] = {
+	{ 0x098E, 0xACB0, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [AWB_MIN_ACCEPTED_PRE_AWB_R2G_RATIO]
+	{ 0xACB0, 0x31, BYTE_LEN, 0 }, // AWB_RG_MIN
+	{ 0xACB1, 0x5B, BYTE_LEN, 0 }, // AWB_RG_MAX
+	{ 0xACB4, 0x2A, BYTE_LEN, 0 }, // AWB_BG_MIN
+	{ 0xACB5, 0x5B, BYTE_LEN, 0 }, // AWB_BG_MAX
+	{ 0xACB2, 0x3C, BYTE_LEN, 0 }, // AWB_RG_MIN_BRIGHT
+	//{ 0xACB3, 0x4B, BYTE_LEN, 0 }, // AWB_RG_MAX_BRIGHT
+	{ 0xACB3, 0x4F, BYTE_LEN, 0 }, // AWB_RG_MAX_BRIGHT
+	{ 0xACB6, 0x36, BYTE_LEN, 0 }, // AWB_BG_MIN_BRIGHT
+	{ 0xACB7, 0x42, BYTE_LEN, 0 }, // AWB_BG_MAX_BRIGHT
+	{ 0xAC44, 0x00, BYTE_LEN, 0 }, // AWB_LEFT_CCM_POS_RANGE_LIMIT								   
+	{ 0xAC45, 0x7F, BYTE_LEN, 0 }, // AWB_RIGHT_CCM_POS_RANGE_LIMIT  
+};
+
+static const struct mt9p111_i2c_reg_conf const WB_DAYLIGHT_setting[] = {
+	{ 0x098E, 0xACB0, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [AWB_MIN_ACCEPTED_PRE_AWB_R2G_RATIO]
+	{ 0xACB0, 0x3A, BYTE_LEN, 0 }, // AWB_RG_MIN
+	{ 0xACB1, 0x44, BYTE_LEN, 0 }, // AWB_RG_MAX
+	{ 0xACB4, 0x40, BYTE_LEN, 0 }, // AWB_BG_MIN
+	{ 0xACB5, 0x4A, BYTE_LEN, 0 }, // AWB_BG_MAX
+	{ 0xACB2, 0x3A, BYTE_LEN, 0 }, // AWB_RG_MIN_BRIGHT
+	{ 0xACB3, 0x44, BYTE_LEN, 0 }, // AWB_RG_MAX_BRIGHT
+	{ 0xACB6, 0x40, BYTE_LEN, 0 }, // AWB_BG_MIN_BRIGHT
+	{ 0xACB7, 0x4A, BYTE_LEN, 0 }, // AWB_BG_MAX_BRIGHT
+	{ 0xAC44, 0x7C, BYTE_LEN, 0 }, // AWB_LEFT_CCM_POS_RANGE_LIMIT								   
+	{ 0xAC45, 0x7F, BYTE_LEN, 0 }, // AWB_RIGHT_CCM_POS_RANGE_LIMIT 							   
+	{ 0xAC04, 0x40, BYTE_LEN, 0 }, // AWB_PRE_AWB_R2G_RATIO
+	{ 0xAC05, 0x48, BYTE_LEN, 0 }, // AWB_PRE_AWB_B2G_RATIO
+	{ 0xAC08, 0x7F, BYTE_LEN, 0 }, // AWB_CUR_CCM_POS
+};
+
+static const struct mt9p111_i2c_reg_conf const WB_CLOUDY_DAYLIGHT_setting[] = {
+	{ 0x098E, 0xACB0, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [AWB_MIN_ACCEPTED_PRE_AWB_R2G_RATIO]
+	{ 0xACB0, 0x38, BYTE_LEN, 0 }, // AWB_RG_MIN
+	{ 0xACB1, 0x42, BYTE_LEN, 0 }, // AWB_RG_MAX
+	{ 0xACB4, 0x44, BYTE_LEN, 0 }, // AWB_BG_MIN
+	{ 0xACB5, 0x4C, BYTE_LEN, 0 }, // AWB_BG_MAX
+	{ 0xACB2, 0x38, BYTE_LEN, 0 }, // AWB_RG_MIN_BRIGHT
+	{ 0xACB3, 0x42, BYTE_LEN, 0 }, // AWB_RG_MAX_BRIGHT
+	{ 0xACB6, 0x44, BYTE_LEN, 0 }, // AWB_BG_MIN_BRIGHT
+	{ 0xACB7, 0x4C, BYTE_LEN, 0 }, // AWB_BG_MAX_BRIGHT
+	{ 0xAC44, 0x7C, BYTE_LEN, 0 }, // AWB_LEFT_CCM_POS_RANGE_LIMIT								   
+	{ 0xAC45, 0x7F, BYTE_LEN, 0 }, // AWB_RIGHT_CCM_POS_RANGE_LIMIT 							   
+	{ 0xAC04, 0x3E, BYTE_LEN, 0 }, // AWB_PRE_AWB_R2G_RATIO
+	{ 0xAC05, 0x48, BYTE_LEN, 0 }, // AWB_PRE_AWB_B2G_RATIO
+	{ 0xAC08, 0x7F, BYTE_LEN, 0 }, // AWB_CUR_CCM_POS
+};
+
+static const struct mt9p111_i2c_reg_conf const WB_INCANDESCENT_setting[] = {
+	{ 0x098E, 0xACB0, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [AWB_MIN_ACCEPTED_PRE_AWB_R2G_RATIO]
+	{ 0xACB0, 0x57, BYTE_LEN, 0 }, // AWB_RG_MIN
+	{ 0xACB1, 0x5F, BYTE_LEN, 0 }, // AWB_RG_MAX
+	{ 0xACB4, 0x26, BYTE_LEN, 0 }, // AWB_BG_MIN
+	{ 0xACB5, 0x2E, BYTE_LEN, 0 }, // AWB_BG_MAX
+	{ 0xACB2, 0x57, BYTE_LEN, 0 }, // AWB_RG_MIN_BRIGHT
+	{ 0xACB3, 0x5F, BYTE_LEN, 0 }, // AWB_RG_MAX_BRIGHT
+	{ 0xACB6, 0x26, BYTE_LEN, 0 }, // AWB_BG_MIN_BRIGHT
+	{ 0xACB7, 0x2E, BYTE_LEN, 0 }, // AWB_BG_MAX_BRIGHT
+	{ 0xAC44, 0x00, BYTE_LEN, 0 }, // AWB_LEFT_CCM_POS_RANGE_LIMIT								   
+	{ 0xAC45, 0x08, BYTE_LEN, 0 }, // AWB_RIGHT_CCM_POS_RANGE_LIMIT 							   
+	{ 0xAC04, 0x5B, BYTE_LEN, 0 }, // AWB_PRE_AWB_R2G_RATIO
+	{ 0xAC05, 0x2A, BYTE_LEN, 0 }, // AWB_PRE_AWB_B2G_RATIO
+	{ 0xAC08, 0x00, BYTE_LEN, 0 }, // AWB_CUR_CCM_POS
+};
+
+static const struct mt9p111_i2c_reg_conf const WB_FLUORESCENT_setting[] = {
+	{ 0x098E, 0xACB0, WORD_LEN, 0 }, // LOGICAL_ADDRESS_ACCESS [AWB_MIN_ACCEPTED_PRE_AWB_R2G_RATIO]
+	{ 0xACB0, 0x44, BYTE_LEN, 0 }, // AWB_RG_MIN
+	{ 0xACB1, 0x4B, BYTE_LEN, 0 }, // AWB_RG_MAX
+	{ 0xACB4, 0x2C, BYTE_LEN, 0 }, // AWB_BG_MIN
+	{ 0xACB5, 0x34, BYTE_LEN, 0 }, // AWB_BG_MAX
+	{ 0xACB2, 0x44, BYTE_LEN, 0 }, // AWB_RG_MIN_BRIGHT
+	{ 0xACB3, 0x4B, BYTE_LEN, 0 }, // AWB_RG_MAX_BRIGHT
+	{ 0xACB6, 0x2C, BYTE_LEN, 0 }, // AWB_BG_MIN_BRIGHT
+	{ 0xACB7, 0x34, BYTE_LEN, 0 }, // AWB_BG_MAX_BRIGHT
+	{ 0xAC44, 0x40, BYTE_LEN, 0 }, // AWB_LEFT_CCM_POS_RANGE_LIMIT								   
+	{ 0xAC45, 0x4A, BYTE_LEN, 0 }, // AWB_RIGHT_CCM_POS_RANGE_LIMIT 							   
+	{ 0xAC04, 0x47, BYTE_LEN, 0 }, // AWB_PRE_AWB_R2G_RATIO
+	{ 0xAC05, 0x30, BYTE_LEN, 0 }, // AWB_PRE_AWB_B2G_RATIO
+	{ 0xAC08, 0x45, BYTE_LEN, 0 }, // AWB_CUR_CCM_POS
+};
+
+static const struct mt9p111_i2c_reg_conf const ISO_AUTO_setting[] = {
+	{ 0x098E, 0x281C , WORD_LEN, 0 },  // LOGICAL_ADDRESS_ACCESS [AE_TRACK_MIN_AGAIN]
+	{ 0xA81C, 0x0040, WORD_LEN, 0 },  // AE_TRACK_MIN_AGAIN
+	{ 0xA81E, 0x012C , WORD_LEN, 0 },  // AE_TRACK_TARGET_AGAIN
+	{ 0xA820, 0x014C , WORD_LEN, 0 },  // AE_TRACK_MAX_AGAIN
+	{ 0xA822, 0x0080 , WORD_LEN, 0 },  // AE_TRACK_MIN_DGAIN
+	{ 0xA824, 0x00A0 , WORD_LEN, 0 },  // AE_TRACK_MAX_DGAIN
+	{ 0xA805, 0x06 , BYTE_LEN, 0 },  // AE_TRACK_GATE
+	{ 0x8404, 0x06 , BYTE_LEN, 0 },  // SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const ISO_100_setting[] = {
+	{ 0x098E, 0x281C, WORD_LEN, 0 },  // LOGICAL_ADDRESS_ACCESS [AE_TRACK_MIN_AGAIN]
+	{ 0xA81C, 0x0056, WORD_LEN, 0 },  // AE_TRACK_MIN_AGAIN
+	{ 0xA81E, 0x0056, WORD_LEN, 0 },  // AE_TRACK_TARGET_AGAIN
+	{ 0xA820, 0x0056, WORD_LEN, 0 },  // AE_TRACK_MAX_AGAIN
+	{ 0xA822, 0x0080, WORD_LEN, 0 },  // AE_TRACK_MIN_DGAIN
+	{ 0xA824, 0x0080, WORD_LEN, 0 },  // AE_TRACK_MAX_DGAIN
+	{ 0xA805, 0x06 , BYTE_LEN, 0 },  // AE_TRACK_GATE
+	{ 0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const ISO_200_setting[] = {
+	{ 0x098E, 0x281C, WORD_LEN, 0 },  // LOGICAL_ADDRESS_ACCESS [AE_TRACK_MIN_AGAIN]
+	{ 0xA81C, 0x00B0, WORD_LEN, 0 },  // AE_TRACK_MIN_AGAIN
+	{ 0xA81E, 0x00B0, WORD_LEN, 0 },  // AE_TRACK_TARGET_AGAIN
+	{ 0xA820, 0x00B0, WORD_LEN, 0 },  // AE_TRACK_MAX_AGAIN
+	{ 0xA822, 0x0080, WORD_LEN, 0 },  // AE_TRACK_MIN_DGAIN
+	{ 0xA824, 0x0080, WORD_LEN, 0 },  // AE_TRACK_MAX_DGAIN
+	{ 0xA805, 0x06 , BYTE_LEN, 0 },  // AE_TRACK_GATE
+	{ 0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const ISO_400_setting[] = {
+	{ 0x098E, 0x281C, WORD_LEN, 0 },  // LOGICAL_ADDRESS_ACCESS [AE_TRACK_MIN_AGAIN]
+	{ 0xA81E, 0x015E, WORD_LEN, 0 },  // AE_TRACK_TARGET_AGAIN
+	{ 0xA81C, 0x015E, WORD_LEN, 0 },  // AE_TRACK_MIN_AGAIN
+	{ 0xA820, 0x015E, WORD_LEN, 0 },  // AE_TRACK_MAX_AGAIN
+	{ 0xA822, 0x0080, WORD_LEN, 0 },  // AE_TRACK_MIN_DGAIN
+	{ 0xA824, 0x0080, WORD_LEN, 0 },  // AE_TRACK_MAX_DGAIN
+	{ 0xA805, 0x18 , BYTE_LEN, 0 },  // AE_TRACK_GATE
+	{ 0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
+};
+
+static const struct mt9p111_i2c_reg_conf const ISO_800_setting[] = {
+	{ 0x098E, 0x281C, WORD_LEN, 0 },  // LOGICAL_ADDRESS_ACCESS [AE_TRACK_MIN_AGAIN]
+	{ 0xA81E, 0x015E, WORD_LEN, 0 },  // AE_TRACK_TARGET_AGAIN
+	{ 0xA81C, 0x015E, WORD_LEN, 0 },  // AE_TRACK_MIN_AGAIN
+	{ 0xA820, 0x015E, WORD_LEN, 0 },  // AE_TRACK_MAX_AGAIN
+	{ 0xA822, 0x0100, WORD_LEN, 0 },  // AE_TRACK_MIN_DGAIN
+	{ 0xA824, 0x0100, WORD_LEN, 0 },  // AE_TRACK_MAX_DGAIN
+	{ 0xA805, 0x1A , BYTE_LEN, 0 },  // AE_TRACK_GATE
+	{ 0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
+};
+
+struct mt9p111_reg mt9p111_regs = {
+	.inittbl = init_tbl,
+	.inittbl_size = ARRAY_SIZE(init_tbl),
+    .lcyltbl = yellow_light_tbl,
+	.lcyltbl_size = ARRAY_SIZE(yellow_light_tbl),
+	.lcdltbl = lc_outdoor_daylight_tbl,
+	.lcdltbl_size = ARRAY_SIZE(lc_outdoor_daylight_tbl),
+    .lctbl = lc_tbl,
+	.lctbl_size = ARRAY_SIZE(lc_tbl),
+	.otpdltbl = otp_outdoor_daylight_tbl,
+	.otpdltbl_size = ARRAY_SIZE(otp_outdoor_daylight_tbl),
+	.otptbl = otp_tbl,
+	.otptbl_size = ARRAY_SIZE(otp_tbl),
+	.iqtbl = iq_tbl,
+	.iqtbl_size = ARRAY_SIZE(iq_tbl),
+	.chartbl = char_tbl,
+	.chartbl_size = ARRAY_SIZE(char_tbl),
+	.aftrigger_tbl = aftrigger_tbl,
+	.aftrigger_tbl_size = ARRAY_SIZE(aftrigger_tbl),
+	.context_a_to_b_tbl = context_a_to_b_tbl,
+	.context_a_to_b_tbl_size = ARRAY_SIZE(context_a_to_b_tbl),
+	.context_b_to_a_tbl = context_b_to_a_tbl,
+	.context_b_to_a_tbl_size = ARRAY_SIZE(context_b_to_a_tbl),	
+	.aftbl = AF_setting,
+	.aftbl_size = ARRAY_SIZE(AF_setting),	
+	.ab_off_tbl = AB_OFF_setting,
+	.ab_off_tbl_size = ARRAY_SIZE(AB_OFF_setting),
+	.ab_60mhz_tbl = AB_60MHZ_setting,
+	.ab_60mhz_tbl_size = ARRAY_SIZE(AB_60MHZ_setting),
+	.ab_50mhz_tbl = AB_50MHZ_setting,
+	.ab_50mhz_tbl_size = ARRAY_SIZE(AB_50MHZ_setting),
+	.ab_auto_tbl = AB_AUTO_setting,
+	.ab_auto_tbl_size = ARRAY_SIZE(AB_AUTO_setting),	
+	.br0_tbl = BR0_setting,
+	.br0_tbl_size = ARRAY_SIZE(BR0_setting),
+	.br1_tbl = BR1_setting,
+	.br1_tbl_size = ARRAY_SIZE(BR1_setting),
+	.br2_tbl = BR2_setting,
+	.br2_tbl_size = ARRAY_SIZE(BR2_setting),
+	.br3_tbl = BR3_setting,
+	.br3_tbl_size = ARRAY_SIZE(BR3_setting),
+	.br4_tbl = BR4_setting,
+	.br4_tbl_size = ARRAY_SIZE(BR4_setting),
+	.br5_tbl = BR5_setting,
+	.br5_tbl_size = ARRAY_SIZE(BR5_setting),
+	.br6_tbl = BR6_setting,
+	.br6_tbl_size = ARRAY_SIZE(BR6_setting),	
+	.const_m2_tbl = CONST_M2_setting,
+	.const_m2_tbl_size = ARRAY_SIZE(CONST_M2_setting),
+	.const_m1_tbl = CONST_M1_setting,
+	.const_m1_tbl_size = ARRAY_SIZE(CONST_M1_setting),
+	.const_zero_tbl = CONST_ZERO_setting,
+	.const_zero_tbl_size = ARRAY_SIZE(CONST_ZERO_setting),
+	.const_p1_tbl = CONST_P1_setting,
+	.const_p1_tbl_size = ARRAY_SIZE(CONST_P1_setting),
+	.const_p2_tbl = CONST_P2_setting,
+	.const_p2_tbl_size = ARRAY_SIZE(CONST_P2_setting),
+	.effect_none_tbl = EF_NONE_setting,
+	.effect_none_tbl_size = ARRAY_SIZE(EF_NONE_setting),
+	.effect_mono_tbl = EF_MONO_setting,
+	.effect_mono_tbl_size = ARRAY_SIZE(EF_MONO_setting),
+	.effect_sepia_tbl = EF_SEPIA_setting,
+	.effect_sepia_tbl_size = ARRAY_SIZE(EF_SEPIA_setting),
+	.effect_negative_tbl = EF_NEGATIVE_setting,
+	.effect_negative_tbl_size = ARRAY_SIZE(EF_NEGATIVE_setting),
+	.effect_solarize_tbl = EF_SOLARIZE_setting,
+	.effect_solarize_tbl_size = ARRAY_SIZE(EF_SOLARIZE_setting),	
+	.exp_normal_tbl = EXP_NORMAL_setting,
+	.exp_normal_tbl_size = ARRAY_SIZE(EXP_NORMAL_setting),
+	.exp_spot_tbl = EXP_SPOT_setting,
+	.exp_spot_tbl_size = ARRAY_SIZE(EXP_SPOT_setting),
+	.exp_average_tbl = EXP_AVERAGE_setting,
+	.exp_average_tbl_size = ARRAY_SIZE(EXP_AVERAGE_setting),	
+	.satu_m2_tbl = SATU_M2_setting,
+	.satu_m2_tbl_size = ARRAY_SIZE(SATU_M2_setting),
+	.satu_m1_tbl = SATU_M1_setting,
+	.satu_m1_tbl_size = ARRAY_SIZE(SATU_M1_setting),
+	.satu_zero_tbl = SATU_ZERO_setting,
+	.satu_zero_tbl_size = ARRAY_SIZE(SATU_ZERO_setting),
+	.satu_p1_tbl = SATU_P1_setting,
+	.satu_p1_tbl_size = ARRAY_SIZE(SATU_P1_setting),
+	.satu_p2_tbl = SATU_P2_setting,
+	.satu_p2_tbl_size = ARRAY_SIZE(SATU_P2_setting),	
+	.sharp_m2_tbl = SHARP_M2_setting,
+	.sharp_m2_tbl_size = ARRAY_SIZE(SHARP_M2_setting),
+	.sharp_m1_tbl = SHARP_M1_setting,
+	.sharp_m1_tbl_size = ARRAY_SIZE(SHARP_M1_setting),
+	.sharp_zero_tbl = SHARP_ZERO_setting,
+	.sharp_zero_tbl_size = ARRAY_SIZE(SHARP_ZERO_setting),
+	.sharp_p1_tbl = SHARP_P1_setting,
+	.sharp_p1_tbl_size = ARRAY_SIZE(SHARP_P1_setting),
+	.sharp_p2_tbl = SHARP_P2_setting,
+	.sharp_p2_tbl_size = ARRAY_SIZE(SHARP_P2_setting),	
+	.wb_auto_tbl = WB_AUTO_setting,
+	.wb_auto_tbl_size = ARRAY_SIZE(WB_AUTO_setting),
+	.wb_daylight_tbl = WB_DAYLIGHT_setting,
+	.wb_daylight_tbl_size = ARRAY_SIZE(WB_DAYLIGHT_setting),
+	.wb_cloudy_daylight_tbl = WB_CLOUDY_DAYLIGHT_setting,
+	.wb_cloudy_daylight_tbl_size = ARRAY_SIZE(WB_CLOUDY_DAYLIGHT_setting),
+	.wb_incandescent_tbl = WB_INCANDESCENT_setting,
+	.wb_incandescent_tbl_size = ARRAY_SIZE(WB_INCANDESCENT_setting),
+	.wb_fluorescent_tbl = WB_FLUORESCENT_setting,
+	.wb_fluorescent_tbl_size = ARRAY_SIZE(WB_FLUORESCENT_setting),	
+	.hd_inittbl = hd_init_tbl,
+	.hd_inittbl_size = ARRAY_SIZE(hd_init_tbl),
+	.hd_to_vga_tbl = hd_to_vga_tbl,
+	.hd_to_vga_tbl_size = ARRAY_SIZE(hd_to_vga_tbl),
+    .d1_inittbl = d1_init_tbl,
+    .d1_inittbl_size = ARRAY_SIZE(d1_init_tbl),
+    .wvga_inittbl = wvga_init_tbl,
+    .wvga_inittbl_size = ARRAY_SIZE(wvga_init_tbl),
+	.iso_auto_tbl = ISO_AUTO_setting,
+	.iso_auto_tbl_size = ARRAY_SIZE(ISO_AUTO_setting),
+	.iso_100_tbl = ISO_100_setting,
+	.iso_100_tbl_size = ARRAY_SIZE(ISO_100_setting),
+	.iso_200_tbl = ISO_200_setting,
+	.iso_200_tbl_size = ARRAY_SIZE(ISO_200_setting),
+	.iso_400_tbl = ISO_400_setting,
+	.iso_400_tbl_size = ARRAY_SIZE(ISO_400_setting),
+	.iso_800_tbl = ISO_800_setting,
+	.iso_800_tbl_size = ARRAY_SIZE(ISO_800_setting),		
+};
+

@@ -1,0 +1,1630 @@
+menuconfig FIH_CONFIG_GROUP
+    bool "FIH Configurations Group"
+    default y
+    help
+        Turn on this group to enable FIH's configurations menu
+
+if FIH_CONFIG_GROUP
+    comment "FIH Project Flags for FIH_CONFIG_GROUP"
+    config FIH_FTM
+        bool "Enable the FTM related functions/features"
+        default n
+
+    config FIH_PROJECT_SFX
+        bool
+        help
+        Enable the board support to SFX
+    config FIH_PROJECT_FBX
+        bool
+        help
+        Enable the board support to FBX
+    config FIH_FXX
+        bool
+        default y
+
+    config FIH_BUILDTYPE_DEBUG
+        bool "Enable Build Type for Debug (Turn off this flag if you need a Release type)"
+        default y
+
+    choice
+        prompt "Select a project name"
+        default FIH_PROJECT_SF313
+        config FIH_PROJECT_SF313
+            bool "SF313"
+            select FIH_PROJECT_SFX
+            help
+                Enable the support for SF313
+        config FIH_PROJECT_SF4V5
+            bool "SF4V5"
+            select FIH_PROJECT_SFX
+            help
+                Enable the support for SF4V5
+
+        config FIH_PROJECT_SF4Y6
+            bool "SF4Y6"
+            select FIH_PROJECT_SFX
+            help
+                Enable the support for SF4Y6
+
+        config FIH_PROJECT_SF8
+            bool "SF8"
+            select FIH_PROJECT_SFX
+            help
+                Enable the support for SF8
+
+        config FIH_PROJECT_FB400
+            bool "FB400"
+            select FIH_PROJECT_FBX
+            select FIH_PROJECT_FB0
+            help
+                Enable the support for FB400
+    endchoice
+
+    config FIH_PROJECT_FB0
+        bool
+        default n
+
+    # --- SF313-------------------------------------------------- START
+    # ***********************************************************    
+    # Project configurations for SF313
+    # ***********************************************************
+    menu "Configurations for SF313"
+        depends on FIH_PROJECT_SF313
+        choice
+            prompt "<SAMPLE>Sleect A Customer ID"
+            default ID_0000
+            config ID_0000
+                bool "ID: 0000, Customer: Generic"
+            config ID_0001
+                bool "ID: 0001, Customer: others"
+        endchoice
+
+        config FIH_LEDS_MPP
+            bool "FIH MPP Leds(Orange/Green)"
+            default y
+            depends on FIH_CONFIG_GROUP
+            help
+                Select if the FIH MPP Led functions are attached.
+
+        config FIH_KEYBOARD_PMIC8058
+            bool "FIH PMIC8058 keypad"
+            depends on FIH_CONFIG_GROUP && PMIC8058 && ARCH_MSM7X30
+            default y
+            help
+                Say Y here if you want to enable the driver for the PMIC8058
+                keypad provided as a reference design from Qualcomm. This is intended
+                to support upto 18x8 matrix based keypad design.
+
+                To compile this driver as a module, choose M here: the module will
+                be called pmic8058-keypad.
+
+        config FIH_TOUCHSCREEN
+            bool "FIH TOUCHSCREEN"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the touch panel is attached.
+
+        config FIH_TOUCHSCREEN_ATMEL_QT602240
+            bool "ATMEL QT602240 Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default y
+            help
+                Select if the Atmel qt602240 touch panel is attached.
+
+        config FIH_TOUCHSCREEN_FT5201
+            bool "FT5201 Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default n
+            help
+                Select if you want to support a FT5201 touch screen device.
+
+        config FIH_MINITRACKBALL
+            bool "FIH MINI TRACKBALL"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Say Y here if you want support for the Mini-Trackball/Jogball devices.
+
+        config FIH_PMIC_VIB
+            bool "FIH PMIC Vibrator"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the PMIC vibrator is attached.
+
+        config FIH_SDMMC
+            bool "FIH SDMMC"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the FIH SD functions are attached.
+
+        config FIH_USB_VID_PID
+            bool "FIH_USB_VID_PID"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Customize USB pid/vid for FIH SAX device.
+
+        config FIH_USB_CDROM_IMG
+            bool "FIH_USB_CDROM_IMG"
+            depends on FIH_USB_VID_PID
+            default n
+            help
+                Enable a virtual CD-ROM function with image inserted which contains drivers and APs.
+
+        config FIH_MT9P111
+            bool "FIH Aptina Sensor MT9P111 (YUV 5M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Aptina 5M YUV Sensor with AF
+
+        config FIH_BATTERY_DS2786
+            bool "FIH BATTERY GAS GAUGE, DS2786."
+            depends on I2C
+            default y
+            help
+                Select if the DS2786 is used.
+    endmenu
+
+    # --- SF313-------------------------------------------------- END
+    
+    # --- SF4V5-------------------------------------------------- START  
+    # ***********************************************************      
+    # Project configurations for SF4V5
+    # ***********************************************************    
+    menu "Configurations for SF4V5"
+        depends on FIH_PROJECT_SF4V5
+        choice
+            prompt "<SAMPLE>Sleect A Customer ID"
+            default ID_0000
+            config ID_0000
+                bool "ID: 0000, Customer: Generic"
+            config ID_0001
+                bool "ID: 0001, Customer: others"
+        endchoice
+        
+        config FIH_MDDI_TOSHIBA_FWVGA
+            bool "MDDI Toshiba FWVGA (480x854) Panel"
+            depends on FB_MSM_LCDC_HW && FIH_CONFIG_GROUP
+            select FB_MSM_MDDI_TOSHIBA_FWVGA_PORTRAIT
+            default y
+            help
+                Select if you want to support the MDDI Toshiba FWVGA panel.
+        
+        config FIH_MT9P111
+            bool "FIH Aptina Sensor MT9P111 (YUV 5M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Aptina 5M YUV Sensor with AF       
+
+        config MT9P111_STANDBY
+            bool "Mt9p111 soft standby"
+            depends on FIH_MT9P111
+            default n
+            help
+                Aptina mt9p111 soft standby
+
+        config MT9P111_SUSPEND
+            bool "Mt9p111 suspend"
+            depends on MT9P111_STANDBY && HAS_EARLYSUSPEND
+            default n
+            help
+               Aptina mt9p111  suspend
+        config MT9P111_RESUME
+            bool "Mt9p111 resume"
+            depends on MT9P111_SUSPEND
+            default n
+            help
+               Aptina mt9p111 resume
+
+        config MT9P111_AUTO_DETECT_OTP
+            bool "Mt9p111 auto select OTP or LC"
+            depends on FIH_MT9P111 && FIH_PROJECT_SF4V5
+            default n
+            help
+               Aptina mt9p111 auto select OTP/LC when sensor init.
+
+        config MT9P111_AUTO_SWITCH_INDOOR_AND_OUTDOOR
+            bool "Mt9p111 auto switch indoor or outdoor mode"
+            depends on MT9P111_AUTO_DETECT_OTP
+            default n
+            help
+               Aptina mt9p111 auto detect and switch inside/outside mode after snapshot.
+
+        config MT9P111_FAST_AF_SPECIAL_CONDITION
+            bool "Mt9p111 judge AF on special condition"
+            depends on FIH_MT9P111 && FIH_PROJECT_SF4V5
+            default n
+            help
+               Aptina mt9p111 judge AF on special condition.
+
+        config FIH_AAT1272
+            bool "AAT1272 Flash LED"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP && FIH_MT9P111
+            default y
+            help
+                FIH aat1272 flash led
+
+        config AAT1272_ENABLE_FLASH_MODE
+            bool "Enable flash mode for second flash"
+            depends on FIH_AAT1272 && FIH_PROJECT_SF4V5
+            default n
+            help
+               Enable flash mode for second flash when snapshot.
+
+        config FIH_TCM9001MD
+            bool "Toshiba Sensor TCM9001MD (YUV 0.3M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Toshiba 0.3M YUV Sensor
+
+        config TCM9001MD_STANDBY
+            bool "Tcm9001md hw standby"
+            depends on FIH_TCM9001MD
+            default n
+            help
+                Toshiba tcm9001md hw standby
+
+        config SENSORS_YAS529
+            bool "Yamaha YAS529 Driver(Combined with Bosch BMA150)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                Yamaha Ecompass Driver implemented by FIH.     
+                
+        config SENSORS_NK_YAS529
+            bool "Yamaha YAS529 Driver(Divided)"
+            depends on I2C && FIH_CONFIG_GROUP
+            default y
+            help
+                Yamaha Ecompass Driver implemented by FIH.  
+                
+        config SENSORS_BMA150
+            bool "Bosch BMA150 Driver(Divided)"
+            depends on I2C && FIH_CONFIG_GROUP
+            default n
+            help
+                Bosch BMA150 Driver implemented by FIH.    
+
+        config SENSORS_LTR502ALS
+            bool "Liteon ALS Driver"
+            depends on I2C && FIH_CONFIG_GROUP
+            default y
+            help
+                Liteon ALS Driver implemented by FIH.
+
+#Div2D5-LC-BSP-Implement_Internal_SD-00 +[                
+        config FIH_SF5_DUAL_SD_CARD
+            bool "Enable Dual SD card"
+            default n
+            help
+                Select if you want to enable dual SD card.
+#Div2D5-LC-BSP-Implement_Internal_SD-00 +]
+               
+#owenhuang+[      
+        config NEW_YAMAHA_SENSORS
+        	bool "Use new Yamaha Sensors Architecture"
+        	depends on I2C
+        	default n
+        	help
+        		Say Y here if you want to use new yamaha driver architecture.
+        		
+        config INPUT_YAS529
+        	bool "Enable yamaha yas529"
+        	depends on NEW_YAMAHA_SENSORS
+        	default n
+        	help
+        		Say Y here if you have yas529 chip on board
+        		
+        config INPUT_YAS529_POSITION
+			int "YAS529 Mounting Position on Board"
+			depends on INPUT_YAS529
+			default "0"
+			help
+	  			Chip mounting position (pin 1).
+	    			0: top, upper-left
+	    			1: top, upper-right
+	    			2: top, lower-right
+	    			3: top, lower-left
+	    			4: bottom, upper-left
+	    			5: bottom, upper-right
+	    			6: bottom, lower-right
+	    			7: bottom, lower-left
+	    		
+	   	config INPUT_BMA150
+        	bool "Enable Bosch bma150"
+        	depends on NEW_YAMAHA_SENSORS
+        	default n
+        	help
+        		Say Y here if you have bma150 chip on board
+        		
+        config INPUT_BMA150_POSITION
+			int "BMA150 Mounting Position on Board"
+			depends on INPUT_BMA150
+			default "0"
+			help
+	  			Chip mounting position (pin 1).
+	    			0: top, upper-left
+	    			1: top, upper-right
+	    			2: top, lower-right
+	    			3: top, lower-left
+	    			4: bottom, upper-left
+	    			5: bottom, upper-right
+	    			6: bottom, lower-right
+	    			7: bottom, lower-left
+	    		
+	    config INPUT_ORIENTATION
+	    	bool "Simulate Orienation Sensors by yas529"
+	    	depends on INPUT_YAS529 && INPUT_BMA150
+	    	default n
+	    	help
+	    		Say Y if you want to enable Orientation Sensors.
+	    		
+	    config INPUT_LIGHT
+	    	bool "Enable Light Sensor daemon kernel driver"
+	    	depends on INPUT_YAS529
+	    	default n
+	    	help 
+	    		Say Y if you have light sensor.
+	    		
+	    config INPUT_PROXIMITY
+	    	bool "Enable Proximity Sensor deamon kernel driver"
+	    	depends on INPUT_YAS529
+	    	default n
+	    	help
+	    		Say Y if you have proximity sensor.
+#owenhuang+]        
+
+        menuconfig FIH_PMIC_VIB
+            bool "FIH PMIC Vibrator"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the PMIC vibrator is attached.
+                
+       config MSM_UART2DM
+			bool "Enable Qualcomm High Speed UART#2 (UART2DM)"
+			default n
+			depends on FIH_CONFIG_GROUP
+			help
+	 		If you need use high speed uart - UART2DM, please say Y to enable the function.
+	 	
+	 config UEI_MCU_IR
+        	bool "UEI MCU IR Controller"
+        	default n
+        	depends on MSM_UART2DM
+        	help
+        	If you have UEI componet, please say Y to enable the funciton. 
+
+        if FIH_PMIC_VIB
+        config FIH_FTM_PMIC_VIB
+            bool "FTM Vibrator Test Feature"
+            depends on FIH_CONFIG_GROUP && FIH_FTM && (FIH_PMIC_VIB || PMIC8058_VIBRATOR)
+            default y
+            help
+                This option enables support for FTM vibrator testing.
+        endif
+
+        config FIH_FTM_PHONE
+            bool "Control Phone Function"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM
+            default y
+            help
+                This option enables support for controlling phone functions
+
+        config FIH_FM_LNA
+            bool "Control FM LNA"
+            depends on  FIH_CONFIG_GROUP && MARIMBA_CORE
+            default y
+            help
+                Select if the You need to control FM LNA.
+
+        config FIH_FTM_BATTERY_CHARGING
+            bool "FTM Battery and Charging Test Feature"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM && (BATTERY_FIH_DS2784 || BATTERY_BQ275X0)
+            default y
+            help
+                This option enables support for FBX FTM battery and charging testing.
+
+        config BATTERY_FIH_MSM
+            tristate "FIH MSM battery driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058 && ARCH_MSM
+            default y
+            help
+              Say Y here to enable support for batteries with QC PMIC.
+
+        menuconfig BATTERY_BQ275X0
+            tristate "TI BQ275X0 fuel gauge driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058
+            default y 
+            help
+              Say Y here to enable support for on-board BQ275X0 gauge IC.
+        
+        if BATTERY_BQ275X0
+            config BQ275X0_ROMMODE
+            tristate "TI BQ275X0 fuel gauge rom mode driver"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to write .dfi file to BQ275x0.
+	      
+            config FIH_BQ275X0_DISABLE_LOW_BATTERY_PROTECTION
+            bool "Disable low battery protection"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to disable BQ275x0 low battery protection.
+        endif
+
+        menuconfig FIH_TOUCHSCREEN
+            bool "FIH TouchScreen"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the touch panel is attached.
+
+        if FIH_TOUCHSCREEN
+        config FIH_TOUCHSCREEN_BU21018MWV
+            bool "BU21018MWV Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default n
+            help
+                Select if the bu21018mwv touch panel is attached.
+                
+        config FIH_TOUCHSCREEN_SYNAPTICS_T1320
+            bool "Synaptics T1320 Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default y
+            help
+                Select if the Synaptics T1320 touch panel is attached.
+        endif
+
+        config FIH_HDMI_ADV7525
+            bool "ADI HDMI Driver"
+            depends on FB_MSM_HDMI_ADV7520_PANEL && FIH_CONFIG_GROUP
+            default n
+            help
+                This option enables this feature if there is HDMI support on the device.
+
+    endmenu
+
+    # --- SF4V5-------------------------------------------------- END
+
+    # --- SF4Y6-------------------------------------------------- START    
+    # ***********************************************************      
+    # Project configurations for SF4Y6
+    # ***********************************************************  
+    menu "Configurations for SF4Y6"
+        depends on FIH_PROJECT_SF4Y6
+        config FIH_LCDC_TOSHIBA_WVGA_PT
+            bool "LCDC Toshiba WVGA (480x800) Panel"
+            depends on FB_MSM_LCDC_HW && FIH_CONFIG_GROUP
+            select FB_MSM_LCDC_TOSHIBA_WVGA_PT
+            default y
+            help
+                Select if you want to support the LCDC Toshiba WVGA panel.
+
+        config FIH_MT9P111
+            bool "FIH Aptina Sensor MT9P111 (YUV 5M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Aptina 5M YUV Sensor with AF
+
+        config MT9P111_STANDBY
+            bool "Mt9p111 soft standby"
+            depends on FIH_MT9P111
+            default n
+            help
+                Aptina mt9p111 soft standby
+
+        config MT9P111_SUSPEND
+            bool "Mt9p111 suspend"
+            depends on MT9P111_STANDBY && HAS_EARLYSUSPEND
+            default n
+            help
+               Aptina mt9p111  suspend
+               
+        config MT9P111_RESUME
+            bool "Mt9p111 resume"
+            depends on MT9P111_SUSPEND
+            default n
+            help
+               Aptina mt9p111 resume
+
+        config MT9P111_AUTO_DETECT_OTP
+            bool "Mt9p111 auto select OTP or LC"
+            depends on FIH_MT9P111 && FIH_PROJECT_SF4Y6
+            default n
+            help
+               Aptina mt9p111 auto select OTP/LC when sensor init.
+
+        config MT9P111_AUTO_SWITCH_INDOOR_AND_OUTDOOR
+            bool "Mt9p111 auto switch indoor or outdoor mode"
+            depends on MT9P111_AUTO_DETECT_OTP
+            default n
+            help
+               Aptina mt9p111 auto detect and switch inside/outside mode after snapshot.
+               
+        config MT9P111_FAST_AF_SPECIAL_CONDITION
+            bool "Mt9p111 judge AF on special condition"
+            depends on FIH_MT9P111 && FIH_PROJECT_SF4Y6
+            default n
+            help
+               Aptina mt9p111 judge AF on special condition.
+
+        config FIH_AAT1272
+            bool "AAT1272 Flash LED"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP && FIH_MT9P111
+            default y
+            help
+                FIH aat1272 flash led
+
+        config AAT1272_ENABLE_FLASH_MODE
+            bool "Enable flash mode for second flash"
+            depends on FIH_AAT1272 && FIH_PROJECT_SF4Y6
+            default n
+            help
+               Enable flash mode for second flash when snapshot.
+                
+        config FIH_HM0356
+            bool "Himax Sensor HM0356 (YUV 0.3M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Himax 0.3M YUV Sensor
+                
+        config HM0356_STANDBY
+            bool "hm0356 soft standby"
+            depends on FIH_HM0356
+            default n
+            help
+                Himax hm0356 soft standby
+        
+        config FIH_HM0357
+            bool "Himax Sensor HM0357 (YUV 0.3M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default n
+            help
+                FIH Himax 0.3M YUV Sensor
+
+        config HM0357_STANDBY
+            bool "hm0357 soft standby"
+            depends on FIH_HM0357
+            default n
+            help
+                Himax hm0357 soft standby
+
+        config SENSORS_YAS529
+            bool "Yamaha YAS529 Driver(combined with Bosch BMA150 driver)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default n
+            help
+                Yamaha Ecompass Driver implemented by FIH.    
+                
+        config SENSORS_NK_YAS529
+            bool "Yamaha YAS529 Driver(Divided)"
+            depends on I2C && FIH_CONFIG_GROUP
+            default n
+            help
+                Yamaha Ecompass Driver implemented by FIH.  
+                
+        config SENSORS_AKM8975C
+			bool "AKM8975C Compass Driver"
+			depends on I2C && FIH_CONFIG_GROUP
+			default y
+			help
+	 		AKM8975C Compass Driver implemented by AKM vendor.   
+	 	
+	 	config SENSORS_BMA150
+            bool "Bosch BMA150 Driver"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Bosch BMA150 Driver implemented by FIH.    
+
+        config SENSORS_LTR502ALS
+            bool "Liteon ALS Driver"
+            depends on I2C && FIH_CONFIG_GROUP
+            default y
+            help
+                Liteon ALS Driver implemented by FIH.
+
+        config FIH_NAND_BOOT
+            bool "Generate nand boot images only"
+            depends on FIH_PROJECT_SF4Y6
+            default n 
+            help
+                Generate nand boot images only
+
+        menuconfig FIH_PMIC_VIB
+            bool "FIH PMIC Vibrator"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the PMIC vibrator is attached.
+
+        if FIH_PMIC_VIB
+        config FIH_FTM_PMIC_VIB
+            bool "FTM Vibrator Test Feature"
+            depends on FIH_CONFIG_GROUP && FIH_FTM && (FIH_PMIC_VIB || PMIC8058_VIBRATOR)
+            default y
+            help
+                This option enables support for FTM vibrator testing.
+        endif
+
+        config LEDS_FIH_FBX_RPC
+            bool "LEDs Driver for FBX (Controlled by RPC)"
+            depends on LEDS_CLASS && FIH_CONFIG_GROUP && !LEDS_MSM_PMIC
+            default y
+            help
+                This option enables support for controlling FBX LEDs
+                by PMIC RPC calls
+                
+#       config LEDS_FIH_FBX_PWM
+#           bool "LEDs Driver for FBX (Controlled by PWM)"
+#           depends on LEDS_CLASS && FIH_CONFIG_GROUP && !LEDS_MSM_PMIC
+#           default y
+#           help
+#               This option enables support for controlling FBX LEDs
+#               by PMIC PWM.
+
+       config LEDS_PWM_SF6              
+          bool "LEDs Driver for SF6 (Controlled by PWM)"
+          depends on LEDS_CLASS && FIH_CONFIG_GROUP
+            default y
+            help
+              This option enables support for controlling SF6 LEDs
+                by PMIC PWM.
+
+        config FIH_FTM_PHONE
+            bool "Control Phone Function"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM
+            default y
+            help
+                This option enables support for controlling phone functions
+
+        config FIH_FM_LNA
+            bool "Control FM LNA"
+            depends on  FIH_CONFIG_GROUP && MARIMBA_CORE
+            default y
+            help
+                Select if the You need to control FM LNA.
+
+        config FIH_FTM_BATTERY_CHARGING
+            bool "FTM Battery and Charging Test Feature"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM && (BATTERY_FIH_DS2784 || BATTERY_BQ275X0)
+            default y
+            help
+                This option enables support for FBX FTM battery and charging testing.
+
+        config BATTERY_FIH_MSM
+            tristate "FIH MSM battery driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058 && ARCH_MSM
+            default y
+            help
+              Say Y here to enable support for batteries with QC PMIC.
+
+        menuconfig BATTERY_BQ275X0
+            tristate "TI BQ275X0 fuel gauge driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058
+            default y
+            help
+              Say Y here to enable support for on-board BQ275X0 gauge IC.
+        
+        if BATTERY_BQ275X0
+            config BQ275X0_ROMMODE
+            tristate "TI BQ275X0 fuel gauge rom mode driver"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to write .dfi file to BQ275x0.
+              
+            config FIH_BQ275X0_DISABLE_LOW_BATTERY_PROTECTION
+            bool "Disable low battery protection"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to disable BQ275x0 low battery protection.
+        endif
+
+# SW2-D5-OwenHung-SF4Y6 keypad driver porting+ (remove CONFIG_KEYBOARD_FBX)
+#       menuconfig KEYBOARD_FBX
+#           tristate "FBX Keyboard"
+#           depends on PMIC8058 && FIH_CONFIG_GROUP && !KEYBOARD_PMIC8058
+#           default y
+#           help
+#             Say Y here if you want to enable the driver for the FBX project.
+#
+#             To compile this driver as a module, choose M here: the module will
+#             be called fbx_kybd.
+#
+#       if KEYBOARD_FBX
+#           config KEYBOARD_FBX_DEBUG
+#           bool "FBX Keyboard Debugging Messages"
+#           default n
+#           help
+#             Say Y here if you want the FBX keyboard driver to produce 
+#             a bunch of debug messages to the system log.  Select this if 
+#             you are having a problem with FBX keyboard support and want to see
+#             more of what is going on.
+#       endif
+
+       menuconfig KEYBOARD_SF4Y6
+           tristate "SF4Y6 Keyboard"
+           depends on PMIC8058 && FIH_CONFIG_GROUP && !KEYBOARD_PMIC8058
+           default y
+           help
+             Say Y here if you want to enable the driver for the SF4Y6 project.
+
+             To compile this driver as a module, choose M here: the module will
+             be called sf6_kybd.
+
+# SW2-D5-OwenHung-SF4Y6 keypad driver porting- (remove CONFIG_KEYBOARD_FBX)
+
+        menuconfig FIH_TOUCHSCREEN
+            bool "FIH TouchScreen"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the touch panel is attached.
+
+        if FIH_TOUCHSCREEN
+        config FIH_TOUCHSCREEN_BU21018MWV
+            bool "BU21018MWV Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default n
+            help
+                Select if the bu21018mwv touch panel is attached.
+
+        config FIH_TOUCHSCREEN_ATMEL_QT602240
+            bool "ATMEL QT602240 Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default y
+            help
+                Select if the Atmel qt602240 touch panel is attached.
+        endif
+
+        config FIH_WIMAX_GCT_SDIO
+            bool "WiMAX GCT SDIO driver"
+            depends on WIMAX && FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the WiMAX SDIO driver
+
+    endmenu
+
+    # --- SF4Y6-------------------------------------------------- END
+      
+    # --- SF8-------------------------------------------------- START    
+    # ***********************************************************      
+    # Project configurations for SF8
+    # ***********************************************************  
+    menu "Configurations for SF8"
+        depends on FIH_PROJECT_SF8
+
+        config FIH_LCDC_SONY_WVGA_PT
+            bool "LCDC Sony WVGA (480x800) Panel"
+            depends on FB_MSM_LCDC_HW && FIH_CONFIG_GROUP
+            select FB_MSM_LCDC_SONY_WVGA_PT
+            default y
+            help
+                Select if you want to support the LCDC Sony WVGA panel.
+
+        config FIH_MT9P111
+            bool "FIH Aptina Sensor MT9P111 (YUV 5M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Aptina 5M YUV Sensor with AF
+
+        config MT9P111_STANDBY
+            bool "Mt9p111 soft standby"
+            depends on FIH_MT9P111
+            default n
+            help
+               Aptina mt9p111 soft standby
+
+        config MT9P111_SUSPEND
+            bool "Mt9p111 suspend"
+            depends on MT9P111_STANDBY && HAS_EARLYSUSPEND
+            default n
+            help
+               Aptina mt9p111  suspend
+        config MT9P111_RESUME
+            bool "Mt9p111 resume"
+            depends on MT9P111_SUSPEND
+            default n
+            help
+               Aptina mt9p111 resume
+
+        config MT9P111_AUTO_DETECT_OTP
+            bool "Mt9p111 auto select OTP or LC"
+            depends on FIH_MT9P111 && FIH_PROJECT_SF8
+            default n
+            help
+               Aptina mt9p111 auto select OTP/LC when sensor init.
+
+        config MT9P111_AUTO_SWITCH_INDOOR_AND_OUTDOOR
+            bool "Mt9p111 auto switch indoor or outdoor mode"
+            depends on MT9P111_AUTO_DETECT_OTP
+            default n
+            help
+               Aptina mt9p111 auto detect and switch inside/outside mode after snapshot.
+
+        config MT9P111_FAST_AF_SPECIAL_CONDITION
+            bool "Mt9p111 judge AF on special condition"
+            depends on FIH_MT9P111 && FIH_PROJECT_SF8
+            default n
+            help
+               Aptina mt9p111 judge AF on special condition.
+
+        config FIH_FITI_FP6773
+            bool "FITI FP6773 Flash LED"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP && FIH_MT9P111
+            default n
+            help
+                FIH fiti fp6773 flash led
+                
+        config FIH_HM0356
+            bool "Himax Sensor HM0356 (YUV 0.3M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default n
+            help
+                FIH Himax 0.3M YUV Sensor
+
+        config HM0356_STANDBY
+            bool "hm0356 soft standby"
+            depends on FIH_HM0356
+            default n
+            help
+                Himax hm0356 soft standby             
+        
+        config FIH_HM0357
+            bool "Himax Sensor HM0357 (YUV 0.3M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default n
+            help
+                FIH Himax 0.3M YUV Sensor
+
+        config HM0357_STANDBY
+            bool "hm0357 soft standby"
+            depends on FIH_HM0357
+            default n
+            help
+                Himax hm0357 soft standby
+
+        config BROADCOM_BCM4329
+            bool "Broadcom BCM4329 for WLAN/BT/FM solution"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Broadcom BCM4329 Driver implement by FIH.
+
+        config BROADCOM_BCM4329_BLUETOOTH
+            bool "Broadcom BCM4329 for Bluetooth solution"
+            depends on BROADCOM_BCM4329
+            default y
+            help
+                Broadcom BCM4329 bluetooth Driver implement by FIH.
+
+        config BROADCOM_BCM4329_BLUETOOTH_POWER
+            bool "Broadcom Bluetooth of BCM4329 power control"
+            depends on BROADCOM_BCM4329_BLUETOOTH && RFKILL
+            default y
+            help
+                Broadcom BCM4329 bluetooth Driver implement by FIH.
+
+        config BROADCOM_BCM4329_WLAN
+            bool "Broadcom BCM4329 for WLAN solution"
+            depends on BROADCOM_BCM4329
+            default y
+            help
+                Broadcom BCM4329 WLAN Driver implement by FIH.
+
+        config BROADCOM_BCM4329_WLAN_POWER
+            bool "Broadcom WLAN of BCM4329 power control"
+            depends on BROADCOM_BCM4329_WLAN && RFKILL
+            default y
+            help
+                Broadcom BCM4329 bluetooth Driver implement by FIH.
+
+        config SENSORS_YAS529
+            bool "Yamaha YAS529 Driver(Combined with Bosch BMA150)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                Yamaha Ecompass Driver implemented by FIH.     
+                
+        config SENSORS_NK_YAS529
+            bool "Yamaha YAS529 Driver(Divided)"
+            depends on I2C && FIH_CONFIG_GROUP
+            default y
+            help
+                Yamaha Ecompass Driver implemented by FIH.  
+                
+        config SENSORS_BMA150
+            bool "Bosch BMA150 Driver(Divided)"
+            depends on I2C && FIH_CONFIG_GROUP
+            default n
+            help
+                Bosch BMA150 Driver implemented by FIH.   
+                
+        config SENSORS_CM3623
+            bool "Capllea CM3623 ALS/PS Driver"
+            depends on I2C && FIH_CONFIG_GROUP
+            default n
+            help
+                Capllea CM3602 ALS/PS Driver implemented by FIH.  
+                
+        config SENSORS_CM3623_IS_AD
+            bool "CM3623 AD Version"
+            depends on SENSORS_CM3623
+            default n
+            help
+                Say yes if your chip is AD versoin, i2c address is 0x49, else 0x11.
+             
+        config NEW_YAMAHA_SENSORS
+            bool "Use new Yamaha Sensors Architecture"
+            depends on I2C
+            default n
+            help
+                Say Y here if you want to use new yamaha driver architecture.
+        		
+        config INPUT_YAS529
+            bool "Enable yamaha yas529"
+            depends on NEW_YAMAHA_SENSORS
+            default n
+            help
+                Say Y here if you have yas529 chip on board
+        		
+        config INPUT_YAS529_POSITION
+            int "YAS529 Mounting Position on Board"
+            depends on INPUT_YAS529
+            default "0"
+            help
+                Chip mounting position (pin 1).
+                    0: top, upper-left
+                    1: top, upper-right
+                    2: top, lower-right
+                    3: top, lower-left
+                    4: bottom, upper-left
+                    5: bottom, upper-right
+                    6: bottom, lower-right
+                    7: bottom, lower-left
+	    		
+        config INPUT_BMA150
+            bool "Enable Bosch bma150"
+            depends on NEW_YAMAHA_SENSORS
+            default n
+            help
+                Say Y here if you have bma150 chip on board
+        		
+        config INPUT_BMA150_POSITION
+            int "BMA150 Mounting Position on Board"
+            depends on INPUT_BMA150
+            default "0"
+            help
+                Chip mounting position (pin 1).
+                    0: top, upper-left
+                    1: top, upper-right
+                    2: top, lower-right
+                    3: top, lower-left
+                    4: bottom, upper-left
+                    5: bottom, upper-right
+                    6: bottom, lower-right
+                    7: bottom, lower-left
+	    		
+        config INPUT_ORIENTATION
+            bool "Simulate Orienation Sensors by yas529"
+            depends on INPUT_YAS529 && INPUT_BMA150
+            default n
+            help
+                Say Y if you want to enable Orientation Sensors.
+	    		
+        config INPUT_LIGHT
+            bool "Enable Light Sensor daemon kernel driver"
+            depends on INPUT_YAS529
+            default n
+            help 
+                Say Y if you have light sensor.
+	    		
+        config INPUT_PROXIMITY
+            bool "Enable Proximity Sensor deamon kernel driver"
+            depends on INPUT_YAS529
+            default n
+            help
+                Say Y if you have proximity sensor.       
+
+        menuconfig FIH_PMIC_VIB
+            bool "FIH PMIC Vibrator"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the PMIC vibrator is attached.
+                
+        config MSM_UART2DM
+            bool "Enable Qualcomm High Speed UART#2 (UART2DM)"
+            default n
+            depends on FIH_CONFIG_GROUP
+            help
+                If you need use high speed uart - UART2DM, please say Y to enable the function.
+	 	
+        config UEI_MCU_IR
+            bool "UEI MCU IR Controller"
+            default n
+            depends on MSM_UART2DM
+            help
+                If you have UEI componet, please say Y to enable the funciton. 
+
+        if FIH_PMIC_VIB
+        config FIH_FTM_PMIC_VIB
+            bool "FTM Vibrator Test Feature"
+            depends on FIH_CONFIG_GROUP && FIH_FTM && (FIH_PMIC_VIB || PMIC8058_VIBRATOR)
+            default y
+            help
+                This option enables support for FTM vibrator testing.
+        endif
+# SW2-D5-OwenHung-SF4H8 keypad backlight driver porting- (remove CONFIG_LEDS_FIH_FBX_RPC & CONFIG_LEDS_FIH_FBX_PWM)+
+#       config LEDS_FIH_FBX_RPC
+#           bool "LEDs Driver for FBX (Controlled by RPC)"
+#           depends on LEDS_CLASS && FIH_CONFIG_GROUP && !LEDS_MSM_PMIC
+#           default y
+#           help
+#               This option enables support for controlling FBX LEDs
+#               by PMIC RPC calls
+#
+#       config LEDS_FIH_FBX_PWM
+#           bool "LEDs Driver for FBX (Controlled by PWM)"
+#           depends on LEDS_CLASS && FIH_CONFIG_GROUP && !LEDS_MSM_PMIC
+#           default y
+#           help
+#               This option enables support for controlling FBX LEDs
+#               by PMIC PWM.
+# SW2-D5-OwenHung-SF4H8 keypad backlight driver porting- (remove CONFIG_LEDS_FIH_FBX_RPC & CONFIG_LEDS_FIH_FBX_PWM)-
+
+        config FIH_FTM_PHONE
+            bool "Control Phone Function"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM
+            default y
+            help
+                This option enables support for controlling phone functions
+
+        config FIH_FM_LNA
+            bool "Control FM LNA"
+            depends on  FIH_CONFIG_GROUP && MARIMBA_CORE
+            default y
+            help
+                Select if the You need to control FM LNA.
+
+        config FIH_FTM_BATTERY_CHARGING
+            bool "FTM Battery and Charging Test Feature"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM && (BATTERY_FIH_DS2784 || BATTERY_BQ275X0)
+            default y
+            help
+                This option enables support for FBX FTM battery and charging testing.
+
+        config BATTERY_FIH_MSM
+            tristate "FIH MSM battery driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058 && ARCH_MSM
+            default y
+            help
+              Say Y here to enable support for batteries with QC PMIC.
+
+        menuconfig BATTERY_BQ275X0
+            tristate "TI BQ275X0 fuel gauge driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058
+            default y 
+            help
+              Say Y here to enable support for on-board BQ275X0 gauge IC.
+        
+        if BATTERY_BQ275X0
+            config BQ275X0_ROMMODE
+            tristate "TI BQ275X0 fuel gauge rom mode driver"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to write .dfi file to BQ275x0.
+              
+            config FIH_BQ275X0_DISABLE_LOW_BATTERY_PROTECTION
+            bool "Disable low battery protection"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to disable BQ275x0 low battery protection.
+        endif
+
+# SW2-D5-OwenHung-SF4H8 keypad driver porting- (remove CONFIG_KEYBOARD_FBX)+
+#       menuconfig KEYBOARD_FBX
+#           tristate "FBX Keyboard"
+#           depends on PMIC8058 && FIH_CONFIG_GROUP && !KEYBOARD_PMIC8058
+#           default y
+#           help
+#             Say Y here if you want to enable the driver for the FBX project.
+#
+#             To compile this driver as a module, choose M here: the module will
+#             be called fbx_kybd.
+#
+#       if KEYBOARD_FBX
+#           config KEYBOARD_FBX_DEBUG
+#           bool "FBX Keyboard Debugging Messages"
+#           default n
+#           help
+#             Say Y here if you want the FBX keyboard driver to produce 
+#             a bunch of debug messages to the system log.  Select this if 
+#             you are having a problem with FBX keyboard support and want to see
+#             more of what is going on.
+#       endif
+
+        menuconfig KEYBOARD_SF4H8
+            tristate "SF4H8 Keyboard"
+            depends on PMIC8058 && FIH_CONFIG_GROUP && !KEYBOARD_PMIC8058
+            default y
+            help
+              Say Y here if you want to enable the driver for the SF4H8 project.
+
+              To compile this driver as a module, choose M here: the module will
+              be called sf8_kybd.
+# SW2-D5-OwenHung-SF4H8 keypad driver porting- (remove CONFIG_KEYBOARD_FBX)-
+
+        if KEYBOARD_SF4H8
+            config KEYBOARD_SF4H8_COVERDET
+            bool "SF8 Keyboard trigger cover detect key"
+            depends on PMIC8058 && FIH_CONFIG_GROUP && KEYBOARD_SF4H8
+            default n
+            help
+              Say Y here if you want SF8 Keyboard trigger cover detect key. 
+              And execute system reboot.
+        endif
+
+        menuconfig FIH_TOUCHSCREEN
+            bool "FIH TouchScreen"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the touch panel is attached.
+
+        if FIH_TOUCHSCREEN
+        config FIH_TOUCHSCREEN_BU21018MWV
+            bool "BU21018MWV Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default n
+            help
+                Select if the bu21018mwv touch panel is attached.
+                
+        config FIH_TOUCHSCREEN_ATMEL_MXT165
+            bool "ATMEL MXT165 Touchscreen"
+            depends on I2C && FIH_TOUCHSCREEN
+            default y
+            help
+                Select if the Atmel mxt165 touch panel is attached.
+        endif
+
+        config FIH_HDMI_ADV7525
+            bool "ADI HDMI Driver"
+            depends on FB_MSM_HDMI_ADV7520_PANEL && FIH_CONFIG_GROUP
+            default y
+            help
+                This option enables this feature if there is HDMI support on the device.
+
+    endmenu
+
+    # --- SF8-------------------------------------------------- END
+
+      
+    # --- FB400-------------------------------------------------- START
+    # ***********************************************************    
+    # Project configurations for FB400
+    # ***********************************************************    
+    menu "Configurations for FB400"
+        depends on FIH_PROJECT_FB400
+
+        config FIH_LCDC_TOSHIBA_WVGA_PT
+            bool "LCDC Toshiba WVGA (480x800) Panel"
+            depends on FB_MSM_LCDC_HW && FIH_CONFIG_GROUP
+            select FB_MSM_LCDC_TOSHIBA_WVGA_PT
+            default y
+            help
+                Select if you want to support the LCDC Toshiba WVGA panel.
+
+        config FIH_MT9P111
+            bool "FIH Aptina Sensor MT9P111 (YUV 5M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Aptina 5M YUV Sensor with AF
+
+        config MT9P111_STANDBY
+            bool "Mt9p111 soft standby"
+            depends on FIH_MT9P111
+            default n
+            help
+               Aptina mt9p111 soft standby
+
+        config MT9P111_SUSPEND
+            bool "Mt9p111 suspend"
+            depends on MT9P111_STANDBY && HAS_EARLYSUSPEND
+            default n
+            help
+               Aptina mt9p111  suspend
+        config MT9P111_RESUME
+            bool "Mt9p111 resume"
+            depends on MT9P111_SUSPEND
+            default n
+            help
+               Aptina mt9p111 resume
+
+        config MT9P111_DYNPGA
+            bool "Mt9p111 dynamic pga"
+            depends on FIH_MT9P111 && FIH_PROJECT_FB400
+            default n
+            help
+               Aptina mt9p111 dynamic pga only for FB400
+
+        config FIH_AAT1272
+            bool "AAT1272 Flash LED"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP && FIH_MT9P111
+            default y
+            help
+                FIH aat1272 flash led
+
+        config FIH_HM0356
+            bool "Himax Sensor HM0356 (YUV 0.3M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                FIH Himax 0.3M YUV Sensor
+
+        config FIH_HM0357
+            bool "Himax Sensor HM0357 (YUV 0.3M)"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default n
+            help
+                FIH Himax 0.3M YUV Sensor
+
+        config SENSORS_YAS529
+            bool "Yamaha YAS529 Driver"
+            depends on MSM_CAMERA && FIH_CONFIG_GROUP
+            default y
+            help
+                Yamaha Ecompass Driver implemented by FIH.       
+
+        config SENSORS_LTR502ALS
+            bool "Liteon ALS Driver"
+            depends on I2C && FIH_CONFIG_GROUP
+            default y
+            help
+                Liteon ALS Driver implemented by FIH.  
+                
+#owenhuang+[      
+        config NEW_YAMAHA_SENSORS
+        	bool "Use new Yamaha Sensors Architecture"
+        	depends on I2C
+        	default n
+        	help
+        		Say Y here if you want to use new yamaha driver architecture.
+        		
+        config INPUT_YAS529
+        	bool "Enable yamaha yas529"
+        	depends on NEW_YAMAHA_SENSORS
+        	default n
+        	help
+        		Say Y here if you have yas529 chip on board
+        		
+        config INPUT_YAS529_POSITION
+			int "YAS529 Mounting Position on Board"
+			depends on INPUT_YAS529
+			default "0"
+			help
+	  			Chip mounting position (pin 1).
+	    			0: top, upper-left
+	    			1: top, upper-right
+	    			2: top, lower-right
+	    			3: top, lower-left
+	    			4: bottom, upper-left
+	    			5: bottom, upper-right
+	    			6: bottom, lower-right
+	    			7: bottom, lower-left
+	    		
+	   	config INPUT_BMA150
+        	bool "Enable Bosch bma150"
+        	depends on NEW_YAMAHA_SENSORS
+        	default n
+        	help
+        		Say Y here if you have bma150 chip on board
+        		
+        config INPUT_BMA150_POSITION
+			int "BMA150 Mounting Position on Board"
+			depends on INPUT_BMA150
+			default "0"
+			help
+	  			Chip mounting position (pin 1).
+	    			0: top, upper-left
+	    			1: top, upper-right
+	    			2: top, lower-right
+	    			3: top, lower-left
+	    			4: bottom, upper-left
+	    			5: bottom, upper-right
+	    			6: bottom, lower-right
+	    			7: bottom, lower-left
+	    		
+	    config INPUT_ORIENTATION
+	    	bool "Simulate Orienation Sensors by yas529"
+	    	depends on INPUT_YAS529 && INPUT_BMA150
+	    	default n
+	    	help
+	    		Say Y if you want to enable Orientation Sensors.
+	    		
+	    config INPUT_LIGHT
+	    	bool "Enable Light Sensor daemon kernel driver"
+	    	depends on INPUT_YAS529
+	    	default n
+	    	help 
+	    		Say Y if you have light sensor.
+	    		
+	    config INPUT_PROXIMITY
+	    	bool "Enable Proximity Sensor deamon kernel driver"
+	    	depends on INPUT_YAS529
+	    	default n
+	    	help
+	    		Say Y if you have proximity sensor.
+#owenhuang+]     
+
+        config FIH_PMIC_VIB
+            bool "FIH PMIC Vibrator"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the PMIC vibrator is attached.
+
+        config FIH_FTM_PMIC_VIB
+            bool "FTM Vibrator Test Feature"
+            depends on FIH_CONFIG_GROUP && FIH_FTM && (FIH_PMIC_VIB || PMIC8058_VIBRATOR)
+            default y
+            help
+                This option enables support for FTM vibrator testing.
+
+        config LEDS_FIH_FBX_RPC
+            bool "LEDs Driver for FBX (Controlled by RPC)"
+            depends on LEDS_CLASS && FIH_CONFIG_GROUP && !LEDS_MSM_PMIC
+            default y
+            help
+                This option enables support for controlling FBX LEDs
+                by PMIC RPC calls
+
+        config LEDS_FIH_FBX_PWM
+            bool "LEDs Driver for FBX (Controlled by PWM)"
+            depends on LEDS_CLASS && FIH_CONFIG_GROUP && !LEDS_MSM_PMIC
+            default y
+            help
+                This option enables support for controlling FBX LEDs
+                by PMIC PWM.
+
+        config FIH_FTM_PHONE
+            bool "Control Phone Function"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM
+            default y
+            help
+                This option enables support for controlling phone functions
+    
+    config FIH_FM_LNA
+            bool "Control FM LNA"
+            depends on  FIH_CONFIG_GROUP && MARIMBA_CORE
+            default y
+            help
+                Select if the You need to control FM LNA.
+        
+        config BATTERY_FIH_DS2784
+            tristate "FIH DS2784 battery driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058
+            select DS2482
+            default y
+            help
+              Say Y here to enable support for batteries with ds2784 chip and
+              ds2482 I2C 1-Wire bridge will also be enabled.
+
+        config FIH_FTM_BATTERY_CHARGING
+            bool "FTM Battery and Charging Test Feature"
+            depends on  FIH_CONFIG_GROUP && FIH_FTM && (BATTERY_FIH_DS2784 || BATTERY_BQ275X0)
+            default y
+            help
+                This option enables support for FBX FTM battery and charging testing.
+
+        config BATTERY_FIH_MSM
+            tristate "FIH MSM battery driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058 && ARCH_MSM
+            default y
+            help
+              Say Y here to enable support for batteries with QC PMIC.
+
+        config DS2482
+            tristate "MAXIM DS2482-101 Single-Channel 1-Wire Master with Sleep Mode"
+            depends on I2C && FIH_CONFIG_GROUP && PMIC8058
+            default y
+            help
+              If you say yes here you get support for MAXIM DS2482-101 
+              Single-Channel 1-Wire Master with Sleep Mode.
+
+              This driver can also be built as a module.  If so, the module
+              will be called ds2482.
+              
+        menuconfig KEYBOARD_FBX
+            tristate "FBX Keyboard"
+            depends on PMIC8058 && FIH_CONFIG_GROUP && !KEYBOARD_PMIC8058
+            default y
+            help
+              Say Y here if you want to enable the driver for the FBX project.
+
+              To compile this driver as a module, choose M here: the module will
+              be called fbx_kybd.
+              
+        if KEYBOARD_FBX
+            config KEYBOARD_FBX_DEBUG
+            bool "FBX Keyboard Debugging Messages"
+            default n
+            help
+              Say Y here if you want the FBX keyboard driver to produce 
+              a bunch of debug messages to the system log.  Select this if 
+              you are having a problem with FBX keyboard support and want to see
+              more of what is going on.
+        endif
+
+        config FIH_TOUCHSCREEN_BU21018MWV
+            bool "BU21018MWV Touchscreen"
+            depends on I2C && FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the bu21018mwv touch panel is attached.
+                
+        config FIH_TOUCHSCREEN_BI041P
+            bool "BI041P Touchscreen"
+            depends on I2C && FIH_CONFIG_GROUP
+            default y
+            help
+                Select if the ELAN BI041P touch panel is attached.
+                
+        config FIH_HDMI_ADV7525
+            bool "ADI HDMI Driver"
+            depends on FB_MSM_HDMI_ADV7520_PANEL && FIH_CONFIG_GROUP
+            default y
+            help
+                This option enables this feature if there is HDMI support on the device.
+                
+        menuconfig BATTERY_BQ275X0
+            tristate "TI BQ275X0 fuel gauge driver"
+            depends on FIH_CONFIG_GROUP && PMIC8058
+            default n
+            help
+              Say Y here to enable support for on-board BQ275X0 gauge IC.
+        
+        if BATTERY_BQ275X0
+            config BQ275X0_ROMMODE
+            tristate "TI BQ275X0 fuel gauge rom mode driver"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to write .dfi file to BQ275x0.
+              
+            config FIH_BQ275X0_DISABLE_LOW_BATTERY_PROTECTION
+            bool "Disable low battery protection"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+              Say Y here if you want to disable BQ275x0 low battery protection.
+        endif
+
+        config FIH_FBX_AUDIO
+            bool "Audio Driver"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                This option enables this feature if project is FB0
+    endmenu
+    # --- FB400-------------------------------------------------- END  
+
+    menu "FIH Debug"
+        depends on FIH_CONFIG_GROUP
+        config FIH_SUSPEND_RESUME_LOG
+            bool "FIH LOG about SUSPEND/RESUME"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Enable suspend and resume log support
+
+        config FIH_PANIC2MODEM
+            bool "FIH Panic Infroms Modem"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                When panic, informs modem
+
+        config FIH_PANIC_LOG
+            bool "FIH Panic Kernel Log"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                When panic, dump kernel log to flash/SD
+
+        config FIH_EFS2SD
+            bool "FIH EFS2SD"
+            depends on FIH_CONFIG_GROUP
+            default y
+            help
+                Get EFS Log, and put them in /data/efslog
+    
+    config FIH_POWER_LOG
+            bool "FIH LOG about Power & Battery Log"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable power & battery log support
+
+    config FIH_PLOG
+            bool "FIH Plog"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable Plog mechanism
+
+    config FIH_FLOG
+            bool "FIH Flog"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable FTM log mechanism
+
+   config FIH_LAST_ALOG
+            bool "FIH LAST ALOG"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable/Disable Last Alog         
+
+    config FIH_MLOG
+            bool "FIH Mlog"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable Mlog mechanism
+
+    config FIH_AUDIO_LOG
+            bool "FIH Audio Log"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable Audio log mechanism
+
+    config FIH_MODEM_SUSPEND_LOG
+            bool "FIH MODEM SUSPEND LOG"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable to show the suspend log at modem of last suspend event.
+
+    config FIH_DUMP_WAKELOCK
+            bool "FIH DUMP WAKELOCK"
+            depends on FIH_CONFIG_GROUP
+            default n
+            help
+                Enable to dump wakelock if it active.                
+    endmenu
+
+    config FIH_REMOVE_SERIAL_DYNAMICALLY
+            bool "FIH Remove msm_serial dynamically"
+            depends on FIH_BUILDTYPE_DEBUG
+            default n
+            help
+                Register console and serial depending on key
+		
+    config FIH_MODEM_REMOVE_UART2_CLK
+            bool "FIH modem already removed UART2 clk voter"
+            depends on FIH_REMOVE_SERIAL_DYNAMICALLY
+            default n
+            help
+                Don't control console_suspend_enabled variable if UART2 clock already removedat mode side.
+endif
