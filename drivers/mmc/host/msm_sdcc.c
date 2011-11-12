@@ -39,6 +39,7 @@
 #include <linux/memory.h>
 #include <linux/pm_runtime.h>
 #include <linux/wakelock.h>
+#include <linux/gpio.h>
 #include <linux/fs.h>
 #include <linux/pm.h>
 #include <linux/reboot.h>
@@ -81,6 +82,11 @@ static struct dentry *debugfs_dir;
 static struct dentry *debugfs_file;
 static int  msmsdcc_dbg_init(void);
 #endif
+
+// KD 2011-10-28 external definition for the libra driver flag
+// Note: This is initialized to zero (*not* loaded)
+static int libra_loaded = 0;
+EXPORT_SYMBOL(libra_loaded);
 
 static unsigned int msmsdcc_pwrsave = 1;
 static int support_sd_removal_turnoff = 1;
@@ -1637,7 +1643,6 @@ msmsdcc_platform_sdiowakeup_irq(int irq, void *dev_id)
 		host->sdio_irq_disabled = 1;
 	}
 	spin_unlock(&host->lock);
-
 	return IRQ_HANDLED;
 }
 
@@ -1842,7 +1847,13 @@ static void msmsdcc_early_suspend(struct early_suspend *h)
         }//end of    if( (fih_get_product_id() == Product_SF6) &&  (fih_get_product_phase() >= Product_PR3))
 #endif
 //DIV5-CONN-MW-POWER SAVING MODE-01+]
-
+//KD 2010-10-26 - Hold wakelock on the Wlan interface while asleep
+	if (libra_loaded) {
+		wake_lock(&host->sdio_wlan_lock);
+		printk("%s: [msm_sdcc] wake_lock WLAN\n", mmc_hostname(host->mmc));
+	} else {
+		printk("%s: [msm_sdcc] NO wake_lock WLAN NOT loaded\n", mmc_hostname(host->mmc));
+	}	
 	spin_lock_irqsave(&host->lock, flags);
 	host->polling_enabled = host->mmc->caps & MMC_CAP_NEEDS_POLL;
 	host->mmc->caps &= ~MMC_CAP_NEEDS_POLL;
@@ -1890,7 +1901,13 @@ static void msmsdcc_late_resume(struct early_suspend *h)
 		}
 	}
 
-
+//KD 2010-10-26 - Release wakelock on the Wlan interface when resuming
+	if (libra_loaded) {
+		wake_unlock(&host->sdio_wlan_lock);
+		printk("%s: [msm_sdcc] wake_unlock WLAN\n", mmc_hostname(host->mmc));
+	} else {
+		printk("%s: [msm_sdcc] NO wake_unlock WLAN NOT loaded\n", mmc_hostname(host->mmc));
+	}
 	if (host->polling_enabled) {
 		spin_lock_irqsave(&host->lock, flags);
 		host->mmc->caps |= MMC_CAP_NEEDS_POLL;
@@ -2104,6 +2121,9 @@ msmsdcc_probe(struct platform_device *pdev)
 
 	wake_lock_init(&host->sdio_suspend_wlock, WAKE_LOCK_SUSPEND,
 			mmc_hostname(mmc));
+// KD 2010-10-26 - Init wake lock for the WLAN interface
+	wake_lock_init(&host->sdio_wlan_lock, WAKE_LOCK_SUSPEND,
+					mmc_hostname(mmc));
 
 //DIV5-CONN-MW-POWER SAVING MODE-01+[
         #if defined(CONFIG_FIH_PROJECT_SF4Y6) && defined(CONFIG_FIH_WIMAX_GCT_SDIO)
@@ -2250,6 +2270,8 @@ msmsdcc_probe(struct platform_device *pdev)
 		wake_lock_destroy(&host->sdio_wlock);
 		free_irq(plat->sdiowakeup_irq, host);
 	}
+// KD 2010-10-26 Destroy wake lock on the WLAN interface on the way out
+	wake_lock_destroy(&host->sdio_wlan_lock);
  pio_irq_free:
 	free_irq(irqres->start, host);
  irq_free:

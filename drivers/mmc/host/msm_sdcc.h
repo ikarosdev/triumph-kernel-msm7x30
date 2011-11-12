@@ -264,6 +264,7 @@ struct msmsdcc_host {
 	unsigned int	dummy_52_needed;
 	unsigned int	dummy_52_state;
 	unsigned int	sdio_irq_disabled;
+	struct wake_lock	sdio_wlan_lock;
 	struct wake_lock	sdio_wlock;
 	struct wake_lock	sdio_suspend_wlock;
 //DIV5-CONN-MW-POWER SAVING MODE-01+[

@@ -23,13 +23,16 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 
+
 /* Libra SDIO function device */
 static struct sdio_func *libra_sdio_func;
 static struct mmc_host *libra_mmc_host;
 static int libra_mmc_host_index;
 
-static suspend_handler_t *libra_suspend_hldr;
-static resume_handler_t *libra_resume_hldr;
+suspend_handler_t* libra_suspend_hldr = NULL;
+resume_handler_t*  libra_resume_hldr = NULL;
+
+extern	int	libra_loaded;
 
 /**
  * libra_sdio_configure() - Function to configure the SDIO device param
@@ -59,6 +62,7 @@ int libra_sdio_configure(sdio_irq_handler_t libra_sdio_rxhandler,
 	if (sdio_set_block_size(func, blksize)) {
 		printk(KERN_ERR "%s: Unable to set the block size.\n",
 				__func__);
+		sdio_release_host(func);
 		goto cfg_error;
 	}
 
@@ -100,14 +104,9 @@ cfg_error:
 }
 EXPORT_SYMBOL(libra_sdio_configure);
 
-int libra_sdio_configure_suspend_resume(
-		suspend_handler_t *libra_sdio_suspend_hdlr,
-		resume_handler_t *libra_sdio_resume_hdlr)
+int libra_sdio_configure_suspend_resume(suspend_handler_t* libra_sdio_suspend_hdlr, 
+                                        resume_handler_t* libra_sdio_resume_hdlr)
 {
-//sw2-6-1-RH-Wlan_Reset7-00+[
-	printk(KERN_ERR "%s: suspend handler %p, resume handler %p.\n",
-		       	__func__, libra_sdio_suspend_hdlr, libra_sdio_resume_hdlr);
-//sw2-6-1-RH-Wlan_Reset7-00+]
 	libra_suspend_hldr = libra_sdio_suspend_hdlr;
 	libra_resume_hldr = libra_sdio_resume_hdlr;
 	return 0;
@@ -119,7 +118,7 @@ EXPORT_SYMBOL(libra_sdio_configure_suspend_resume);
  */
 void libra_sdio_deconfigure(struct sdio_func *func)
 {
-	if(NULL == libra_sdio_func)
+  	if(NULL == libra_sdio_func)
 		return;
 
 	sdio_claim_host(func);
@@ -128,30 +127,6 @@ void libra_sdio_deconfigure(struct sdio_func *func)
 	sdio_release_host(func);
 }
 EXPORT_SYMBOL(libra_sdio_deconfigure);
-
-/*
- * libra_sdio_release_irq() - Function to release IRQ
- */
-void libra_sdio_release_irq(struct sdio_func *func)
-{
-	if(NULL == libra_sdio_func)
-		return;
-
-	sdio_release_irq(func);
-}
-EXPORT_SYMBOL(libra_sdio_release_irq);
-
-/*
- * libra_sdio_disable_func() - Function to disable sdio func
- */
-void libra_sdio_disable_func(struct sdio_func *func)
-{
-	if(NULL == libra_sdio_func)
-		return;
-
-	sdio_disable_func(func);
-}
-EXPORT_SYMBOL(libra_sdio_disable_func);
 
 /*
  * Return the SDIO Function device
@@ -168,10 +143,10 @@ EXPORT_SYMBOL(libra_getsdio_funcdev);
 void libra_sdio_setprivdata(struct sdio_func *sdio_func_dev,
 		void *padapter)
 {
-	if(NULL == libra_sdio_func)
-		return;
-
-	sdio_set_drvdata(sdio_func_dev, padapter);
+    if(NULL == libra_sdio_func)
+		   return;
+    
+	  sdio_set_drvdata(sdio_func_dev, padapter);
 }
 EXPORT_SYMBOL(libra_sdio_setprivdata);
 
@@ -184,17 +159,23 @@ void *libra_sdio_getprivdata(struct sdio_func *sdio_func_dev)
 }
 EXPORT_SYMBOL(libra_sdio_getprivdata);
 
+// give the libra module a fixed mac address
+//unsigned long long proc_comm_ftm_wlanaddr_read(void) {
+//	return 0xAF5026341ull;
+//}
+// EXPORT_SYMBOL(proc_comm_ftm_wlanaddr_read);
+
 /*
  * Function driver claims the SDIO device
  */
 void libra_claim_host(struct sdio_func *sdio_func_dev,
 		pid_t *curr_claimed, pid_t current_pid, atomic_t *claim_count)
 {
-	if(NULL == libra_sdio_func)
-		return;
-
-	if (*curr_claimed == current_pid) {
-		atomic_inc(claim_count);
+  if(NULL == libra_sdio_func)
+		  return;
+  
+	 if (*curr_claimed == current_pid) {
+		 atomic_inc(claim_count);
 		return;
 	}
 
@@ -214,13 +195,11 @@ void libra_release_host(struct sdio_func *sdio_func_dev,
 		pid_t *curr_claimed, pid_t current_pid, atomic_t *claim_count)
 {
 
-	if(NULL == libra_sdio_func) {
-        printk(" !!!! %s: NULL sdio_func current_claimed = %d current_pid = %d\n", __FUNCTION__, *curr_claimed, current_pid);
-		return;
-    }
+  if(NULL == libra_sdio_func)
+		  return;
+  
 	if (*curr_claimed != current_pid) {
 		/* Dont release  */
-        printk(" !!!! %s: (current_claimed = %d) != (current_pid = %d)\n", __FUNCTION__, *curr_claimed, current_pid);
 		return;
 	}
 
@@ -270,8 +249,33 @@ int libra_sdio_memcpy_toio(struct sdio_func *func,
 }
 EXPORT_SYMBOL(libra_sdio_memcpy_toio);
 
+int libra_enable_sdio_irq(struct sdio_func *func, u8 enable)
+{
+ 
+	if (libra_mmc_host) {
+		if (!enable) {
+	 		/*Disable SDIO IRQ */
+ 			libra_mmc_host->ops->enable_sdio_irq(libra_mmc_host, 0);
+
+      			/*SDIO IRQ thread can re-enable the interrupt  if card capability 
+			  is set as MMC_CAP_SDIO_IRQ. So disable that as well */
+      			libra_mmc_host->caps &= ~MMC_CAP_SDIO_IRQ;			
+		}
+		else {
+ 			libra_mmc_host->ops->enable_sdio_irq(libra_mmc_host, 1);
+ 			libra_mmc_host->caps |= MMC_CAP_SDIO_IRQ;				
+		}
+		return 0;
+	}
+
+	printk(KERN_ERR "%s: Could not enable disable irq \n", __func__);
+	return -1;
+}
+EXPORT_SYMBOL(libra_enable_sdio_irq);
+
 int libra_detect_card_change(void)
 {
+ 
 	if (libra_mmc_host) {
 		if (!strcmp(libra_mmc_host->class_dev.class->name, "mmc_host")
 			&& (libra_mmc_host_index == libra_mmc_host->index)) {
@@ -319,78 +323,70 @@ static int libra_sdio_probe(struct sdio_func *func,
 	libra_mmc_host_index = libra_mmc_host->index;
 	libra_sdio_func = func;
 
-	printk(KERN_INFO "%s: success with block size of %d\n",
-		__func__, func->cur_blksize);
+	/* Enable IRQ CAP */
+	libra_mmc_host->caps |= MMC_CAP_SDIO_IRQ; 
+
+	printk(KERN_INFO "%s: success with block size of %d caps %ld\n",
+		__func__, func->cur_blksize, func->card->host->caps );
 
 	/* Turn off SDIO polling from now on */
-	libra_mmc_host->caps &= ~MMC_CAP_NEEDS_POLL;
-	libra_mmc_host->caps |= MMC_CAP_SDIO_IRQ;  //sw2-6-1-RH-Wlan_Reset7-00+
+	libra_mmc_host->caps &= ~MMC_CAP_NEEDS_POLL;	
+	
 	return 0;
 }
 
 static void libra_sdio_remove(struct sdio_func *func)
 {
 	libra_sdio_func = NULL;
-
+	
 	printk(KERN_INFO "%s : Module removed.\n", __func__);
 }
 
-static int libra_sdio_suspend(struct device *dev)
+int libra_sdio_suspend (struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	int ret = 0;
+        int ret = 0;
 
-	printk(KERN_ERR "%s: Suspend Handler is %p \n" , __func__, libra_suspend_hldr);	//sw2-6-1-RH-Wlan_Reset7-00+
+	mmc_pm_flag_t flags = sdio_get_host_pm_caps(func);
 
+        printk("%s Called, func %p, flags 0x%x\n",__func__, func, flags);
+       
 	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
-
-	if (ret) {
-		printk(KERN_ERR "%s: Error Host doesn't support the keep power capability\n" ,
-			__func__);
+	if (ret)
 		return ret;
-	}
-//sw2-6-1-RH-Wlan_Reset7-00+[
-	if(libra_suspend_hldr) {
- 		//Disable bit 25 of SDCC
- 		libra_mmc_host->ops->enable_sdio_irq(libra_mmc_host, 0);
 
-      	//Disable the capability of re-enabling of Interrupt. sdio irq thread can reenable the interrupt
-      	//if card capability is set as MMC_CAP_SDIO_IRQ
-      	libra_mmc_host->caps &= ~MMC_CAP_SDIO_IRQ;
-
-		ret = libra_suspend_hldr(func);
-		if (ret) {
-			printk(KERN_ERR "%s: Libra driver is not able to suspend\n" , __func__);
-            libra_mmc_host->ops->enable_sdio_irq(libra_mmc_host, 1);
-            libra_mmc_host->caps |= MMC_CAP_SDIO_IRQ;	
+	if(libra_suspend_hldr)
+	{
+		unsigned int attempts = 0;
+		/* Disable SDIO IRQ when driver is being suspended */
+		do {
+			libra_enable_sdio_irq(func, 0);
+			ret = libra_suspend_hldr(func);
+			if (ret) {
+				printk(KERN_ERR "%s: Libra driver is not able to suspend\n" , __func__);
+				/* Error - Restore SDIO IRQ */
+				libra_enable_sdio_irq(func, 1);		
+				msleep(10);
+			}
+		} while(ret && ++attempts<5);
+		if (ret)
 			return ret;
-		}
 	}
-	else {
-		printk(KERN_ERR "%s: Suspend Handler is NULL\n" , __func__);
-	}
-//sw2-6-1-RH-Wlan_Reset7-00+]
-
 	return sdio_set_host_pm_flags(func, MMC_PM_WAKE_SDIO_IRQ);
 }
 
-static int libra_sdio_resume(struct device *dev)
+int libra_sdio_resume(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
+        printk("%s Called, func %p\n",__func__, func);
 
-//sw2-6-1-RH-Wlan_Reset7-00+[
-	printk(KERN_ERR "%s: Resume Handler is %p \n" , __func__, libra_suspend_hldr);
-
-	if (libra_resume_hldr) {
+	if(libra_resume_hldr)
+	{
 		libra_resume_hldr(func);
-        libra_mmc_host->ops->enable_sdio_irq(libra_mmc_host, 1);
-        libra_mmc_host->caps |= MMC_CAP_SDIO_IRQ;
-    } else {
-		printk(KERN_ERR "%s: Resume Handler is NULL\n" , __func__);
+		/* Restore SDIO IRQ */
+		libra_enable_sdio_irq(func, 1);				
 	}
-//sw2-6-1-RH-Wlan_Reset7-00+]
-
-	return 0;
+        return 0;
 }
 
 
@@ -399,7 +395,7 @@ static struct sdio_device_id libra_sdioid[] = {
     {}
 };
 
-static const struct dev_pm_ops libra_sdio_pm_ops = {
+static struct dev_pm_ops libra_sdio_pm_ops = {
     .suspend = libra_sdio_suspend,
     .resume = libra_sdio_resume,
 };
@@ -417,8 +413,8 @@ static int __init libra_sdioif_init(void)
 	libra_sdio_func = NULL;
 	libra_mmc_host = NULL;
 	libra_mmc_host_index = -1;
-	libra_suspend_hldr = NULL;
-	libra_resume_hldr = NULL;
+
+	libra_loaded = 1;
 
 	sdio_register_driver(&libra_sdiofn_driver);
 
@@ -429,19 +425,26 @@ static int __init libra_sdioif_init(void)
 
 static void __exit libra_sdioif_exit(void)
 {
+	unsigned int attempts = 0;
+
+	if (!libra_detect_card_change()) {
+		do {
+			++attempts;
+			msleep(500);
+		} while (libra_sdio_func != NULL && attempts < 3);
+	}
+
+	if (libra_sdio_func != NULL)
+		printk(KERN_ERR "%s: Card removal not detected\n", __func__);
 
 	sdio_unregister_driver(&libra_sdiofn_driver);
-
-	if (libra_mmc_host) {
-		mmc_detect_change(libra_mmc_host, 0);
-		msleep(500);
-	}
 
 	libra_sdio_func = NULL;
 	libra_mmc_host = NULL;
 	libra_mmc_host_index = -1;
 
-	printk(KERN_INFO "%s: Unloaded Successfully\n", __func__);
+	printk(KERN_INFO "%s: Unloaded Successfully, load flag was %d\n", __func__, libra_loaded);
+	libra_loaded = 0;
 }
 
 module_init(libra_sdioif_init);
