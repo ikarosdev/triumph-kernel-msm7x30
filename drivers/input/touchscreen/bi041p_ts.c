@@ -140,15 +140,13 @@ static int bi041p_get_coordinate(u8 *buf, int * coor) {
 	yCORD1 = ((int)(buf[1] & 0x0F) << 8) + ((int)buf[3]);
 	xCORD2 = ((int)(buf[4] & 0xF0) << 4) + ((int)buf[5]);
 	yCORD2 = ((int)(buf[4] & 0x0F) << 8) + ((int)buf[6]);
-	
-	printk(KERN_INFO "[Touchscreen] %s: x1_buf = %d, y1_buf = %d\n", __func__, xCORD1, yCORD1);
-	printk(KERN_INFO "[Touchscreen] %s: x2_buf = %d, y2_buf = %d\n", __func__, xCORD2, yCORD2);
-	
+
 	if ((xCORD1 != 0) && (yCORD1 != 0)) {
 		coor[1] = abs(t_max_y - yCORD1);
 		coor[0] = xCORD1;
-		printk(KERN_INFO "[Touchscreen] %s: x1 = %d, y1 = %d\n", __func__, coor[0], coor[1]);
-
+		if (bi041p_debug) {
+			printk(KERN_INFO "[Touchscreen] %s: x1 = %u, y1 = %u\n", __func__, coor[0], coor[1]);
+		}
 		ret = 1;
 	} else {
 		coor[0] = 0;
@@ -157,8 +155,9 @@ static int bi041p_get_coordinate(u8 *buf, int * coor) {
 	if ((xCORD2 != 0) && (yCORD2 != 0)) {
 		coor[3] = abs(t_max_y - yCORD2);
 		coor[2] = xCORD2;
-		printk(KERN_INFO "[Touchscreen] %s: x2 = %d, y2 = %d\n", __func__, coor[2], coor[3]);
-
+		if (bi041p_debug) {
+			printk(KERN_INFO "[Touchscreen] %s: x2 = %u, y2 = %u\n", __func__, coor[2], coor[3]);
+		}
 		ret = 2;
 	} else {
 		coor[2] = 0;
