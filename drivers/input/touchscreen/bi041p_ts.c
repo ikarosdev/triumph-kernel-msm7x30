@@ -130,16 +130,19 @@ static int bi041p_get_fw_version(void)
 //#define XCORD2(x) ((((int)((x)[4]) & 0xF0) << 4) + ((int)((x)[5])))
 //#define YCORD2(y) ((((int)((y)[4]) & 0x0F) << 8) + ((int)((y)[6])))
 
-static int bi041p_get_coordinate(u8 *buf, unsigned int * coor) {
+static int bi041p_get_coordinate(u8 *buf, int * coor) {
 
-	unsigned int xCORD1, xCORD2, yCORD1, yCORD2; //x1, x2, y1, y2
+	int xCORD1, xCORD2, yCORD1, yCORD2; //x1, x2, y1, y2
 	int ret = 0;
 	
 	/* Get our coordinates*/
-	xCORD1 = (unsigned int)(buf[1] & 0xF0 << 4) + buf[2];
-	yCORD1 = (unsigned int)(buf[1] & 0x0F << 8) + buf[3];
-	xCORD2 = (unsigned int)(buf[4] & 0xF0 << 4) + buf[5];
-	yCORD2 = (unsigned int)(buf[4] & 0x0F << 8) + buf[6];
+	xCORD1 = ((int)(buf[1] & 0xF0) << 4) + ((int)buf[2]);
+	yCORD1 = ((int)(buf[1] & 0x0F) << 8) + ((int)buf[3]);
+	xCORD2 = ((int)(buf[4] & 0xF0) << 4) + ((int)buf[5]);
+	yCORD2 = ((int)(buf[4] & 0x0F) << 8) + ((int)buf[6]);
+	
+	printk(KERN_INFO "[Touchscreen] %s: x1_buf = %d, y1_buf = %d\n", __func__, xCORD1, yCORD1);
+	printk(KERN_INFO "[Touchscreen] %s: x2_buf = %d, y2_buf = %d\n", __func__, xCORD2, yCORD2);
 	
 	if ((xCORD1 != 0) && (yCORD1 != 0)) {
 		coor[1] = abs(t_max_y - yCORD1);
@@ -151,8 +154,8 @@ static int bi041p_get_coordinate(u8 *buf, unsigned int * coor) {
 		coor[0] = 0;
 		coor[1] = 0;
 	}
-	if ((xCORD2 != 0) && (yCORD1 != 0)) {
-		coor[3] = abs(t_max_y - yCORD1);
+	if ((xCORD2 != 0) && (yCORD2 != 0)) {
+		coor[3] = abs(t_max_y - yCORD2);
 		coor[2] = xCORD2;
 		printk(KERN_INFO "[Touchscreen] %s: x2 = %d, y2 = %d\n", __func__, coor[2], coor[3]);
 
@@ -167,7 +170,7 @@ return ret;
 static void bi041p_isr_workqueue(struct work_struct *work) {
 
 	u8 buffer[9];
-	unsigned int coor[4] = {0};
+	int coor[4] = {0};
 	int cntBuf, virtual_button;
 	int retry = 3;
 	int getTouch = 0;
