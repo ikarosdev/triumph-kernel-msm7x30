@@ -130,7 +130,7 @@ static int bi041p_get_fw_version(void)
 //#define XCORD2(x) ((((int)((x)[4]) & 0xF0) << 4) + ((int)((x)[5])))
 //#define YCORD2(y) ((((int)((y)[4]) & 0x0F) << 8) + ((int)((y)[6])))
 
-static int bi041p_get_coordinate(u8 *buf, int * coor) {
+static int bi041p_get_coordinate(u8 *buf, int * pos) {
 
 	int xCORD1, xCORD2, yCORD1, yCORD2; //x1, x2, y1, y2
 	int ret = 0;
@@ -142,26 +142,26 @@ static int bi041p_get_coordinate(u8 *buf, int * coor) {
 	yCORD2 = ((int)(buf[4] & 0x0F) << 8) + ((int)buf[6]);
 
 	if ((xCORD1 != 0) && (yCORD1 != 0)) {
-		coor[1] = abs(t_max_y - yCORD1);
-		coor[0] = xCORD1;
+		pos[1] = abs(t_max_y - yCORD1);
+		pos[0] = xCORD1;
 		if (bi041p_debug) {
-			printk(KERN_INFO "[Touchscreen] %s: x1 = %u, y1 = %u\n", __func__, coor[0], coor[1]);
+			printk(KERN_INFO "[Touchscreen] %s: x1 = %u, y1 = %u\n", __func__, pos[0], pos[1]);
 		}
 		ret = 1;
 	} else {
-		coor[0] = 0;
-		coor[1] = 0;
+		pos[0] = 0;
+		pos[1] = 0;
 	}
 	if ((xCORD2 != 0) && (yCORD2 != 0)) {
-		coor[3] = abs(t_max_y - yCORD2);
-		coor[2] = xCORD2;
+		pos[3] = abs(t_max_y - yCORD2);
+		pos[2] = xCORD2;
 		if (bi041p_debug) {
-			printk(KERN_INFO "[Touchscreen] %s: x2 = %u, y2 = %u\n", __func__, coor[2], coor[3]);
+			printk(KERN_INFO "[Touchscreen] %s: x2 = %u, y2 = %u\n", __func__, pos[2], pos[3]);
 		}
 		ret = 2;
 	} else {
-		coor[2] = 0;
-		coor[3] = 0;
+		pos[2] = 0;
+		pos[3] = 0;
 	}
 return ret;
 }
@@ -169,7 +169,7 @@ return ret;
 static void bi041p_isr_workqueue(struct work_struct *work) {
 
 	u8 buffer[9];
-	int coor[4] = {0};
+	int pos[4] = {0};
 	int cntBuf, virtual_button;
 	int retry = 3;
 	int getTouch = 0;
@@ -188,7 +188,7 @@ static void bi041p_isr_workqueue(struct work_struct *work) {
 	if (buffer[0] == 0x5A) {
 		cntBuf = (buffer[8] ^ 0x01) >> 1;
 		virtual_button = (buffer[8]) >> 3;
-		getTouch = bi041p_get_coordinate(buffer, coor);
+		getTouch = bi041p_get_coordinate(buffer, pos);
 		
 		if ((virtual_button == 0) && !bBackCapKeyPressed && !bMenuCapKeyPressed && !bHomeCapKeyPressed && !bSearchCapKeyPressed) {
 			if (!cntBuf) {
@@ -199,10 +199,10 @@ static void bi041p_isr_workqueue(struct work_struct *work) {
 			} else {
 				if (cntBuf && getTouch) {
 					/* Panel recoginizes single touch */
-					if (coor[0] != 0 && coor[1] != 0) {
+					if (pos[0] != 0 && pos[1] != 0) {
 						input_report_abs(bi041p.input, ABS_MT_TOUCH_MAJOR, 255);
-						input_report_abs(bi041p.input, ABS_MT_POSITION_X, coor[0]);
-						input_report_abs(bi041p.input, ABS_MT_POSITION_Y, coor[1]);
+						input_report_abs(bi041p.input, ABS_MT_POSITION_X, pos[0]);
+						input_report_abs(bi041p.input, ABS_MT_POSITION_Y, pos[1]);
 						input_report_abs(bi041p.input, ABS_PRESSURE, 255);
 						input_mt_sync(bi041p.input);
 					}
@@ -210,15 +210,15 @@ static void bi041p_isr_workqueue(struct work_struct *work) {
 				if ((cntBuf > 1) && getTouch) {
 					/* Panel recognizes that we have 2nd finger touch */
 					input_report_abs(bi041p.input, ABS_MT_TOUCH_MAJOR, 255);
-					input_report_abs(bi041p.input, ABS_MT_POSITION_X, coor[2]);
-					input_report_abs(bi041p.input, ABS_MT_POSITION_Y, coor[3]);
+					input_report_abs(bi041p.input, ABS_MT_POSITION_X, pos[2]);
+					input_report_abs(bi041p.input, ABS_MT_POSITION_Y, pos[3]);
 					input_report_abs(bi041p.input, ABS_PRESSURE, 255);
 					input_mt_sync(bi041p.input);
 				} else {
 					/* No longer have 2nd finger touch */
 					input_report_abs(bi041p.input, ABS_MT_TOUCH_MAJOR, 0);
-					input_report_abs(bi041p.input, ABS_MT_POSITION_X, coor[2]);
-					input_report_abs(bi041p.input, ABS_MT_POSITION_Y, coor[3]);
+					input_report_abs(bi041p.input, ABS_MT_POSITION_X, pos[2]);
+					input_report_abs(bi041p.input, ABS_MT_POSITION_Y, pos[3]);
 					input_mt_sync(bi041p.input);
 				}
 				bIsFingerUp = 0;
