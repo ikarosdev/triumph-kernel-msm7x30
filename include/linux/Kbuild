@@ -397,3 +397,5 @@ header-y += msm_audio_aac.h
 header-y += android_pmem.h
 header-y += fih_hw_info.h
 
+header-y += genlock.h
+
