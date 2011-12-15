@@ -377,18 +377,35 @@ static long hm0357_set_sensor_mode(int mode)
     {
         case SENSOR_PREVIEW_MODE:
         {
-            //printk(KERN_ERR "hm0357_msg: case SENSOR_PREVIEW_MODE.\n");
-			printk(KERN_ERR "hm0357_msg: case SENSOR_PREVIEW_MODE orientation %d.\n", hm0357info->sensor_Orientation); 
-			if (hm0357info->sensor_Orientation == MSM_CAMERA_SENSOR_ORIENTATION_90) { 
-				printk(KERN_ERR "hm0357_msg: case ORIENTATION 90/180 FLIP REQUESTED.\n"); 
-				hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x08, BYTE_LEN);
-			}
+            printk(KERN_ERR "hm0357_msg: case SENSOR_PREVIEW_MODE orientation %d.\n", hm0357info->sensor_Orientation);
+            if (hm0357info->sensor_Orientation == MSM_CAMERA_SENSOR_ORIENTATION_270) 
+            {
+                printk(KERN_ERR "hm0356_msg: case ORIENTATION 270 REQUESTED.\n");
+            }
+            if (hm0357info->sensor_Orientation == MSM_CAMERA_SENSOR_ORIENTATION_90) 
+            {
+                printk(KERN_ERR "hm0356_msg: case ORIENTATION 90 - MIRROR REQUESTED.\n");
+//                hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x80, BYTE_LEN);
+//                hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x01, BYTE_LEN);
+		  hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x08, BYTE_LEN);
+            }
+            if (hm0357info->sensor_Orientation == MSM_CAMERA_SENSOR_ORIENTATION_180) 
+            {
+                printk(KERN_ERR "hm0356_msg: case ORIENTATION 180 REQUESTED.\n");
+                hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x80, BYTE_LEN);
+            }
+            if (hm0357info->sensor_Orientation == MSM_CAMERA_SENSOR_ORIENTATION_0) 
+            {
+                printk(KERN_ERR "hm0356_msg: case ORIENTATION 0 REQUESTED.\n");
+                hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x08, BYTE_LEN);
+            }
         }
             break;
 
         case SENSOR_SNAPSHOT_MODE:
         {
-            printk(KERN_ERR "hm0357_msg: case SENSOR_SNAPSHOT_MODE.\n");
+            printk(KERN_ERR "hm0357_msg: case SENSOR_SNAPSHOT_MODE REQUEST MIRRORED.\n");
+	    hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x08, BYTE_LEN);
         }
             break;
 
@@ -397,8 +414,26 @@ static long hm0357_set_sensor_mode(int mode)
             printk(KERN_ERR "hm0357_msg: case SENSOR_RAW_SNAPSHOT_MODE.\n");
         }
             break;
+//Div2-SW6-MM-CL-mirrorFront-00+{
+        case SENSOR_MIRROR_MODE:
+        {
+            printk(KERN_ERR "hm0356_msg: case SENSOR_MIRROR_MODE.\n");
+            if (hm0357info->sensor_Orientation == MSM_CAMERA_SENSOR_ORIENTATION_180) 
+            {
+                hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x80, BYTE_LEN);
+            }
+            if (hm0357info->sensor_Orientation == MSM_CAMERA_SENSOR_ORIENTATION_0) 
+            {
+                hm0357_i2c_write(hm0357_client->addr, 0x0006, 0x08, BYTE_LEN);
+            }
+
+            printk("Finish Orientation Setting %d.\n",hm0357info->sensor_Orientation);
+        }
+            break;
+//Div2-SW6-MM-CL-mirrorFront-00+}
 
         default:
+            printk("Invalid orientation request %d.\n",hm0357info->sensor_Orientation);
         return -EINVAL;
     }
 

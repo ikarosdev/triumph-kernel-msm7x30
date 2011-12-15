@@ -155,30 +155,14 @@
 
 /* FIHTDC, Div2-SW2-BSP, Ming, PMEM { */
 /* Enlarge PMEM_SF to 30 MB for WVGA */
-/* New changes for move to VMSPLIT3G */
-#ifdef CONFIG_VMSPLIT_2G
-#define MSM_PMEM_SF_SIZE    0x1E00000
-#else
-#define MSM_PMEM_SF_SIZE    0x1700000	//0x1300000
-#endif
-
+#define MSM_PMEM_SF_SIZE    0x1E00000   //0x1700000
 /* } FIHTDC, Div2-SW2-BSP, Ming, PMEM */
 /* FIHTDC, Div2-SW2-BSP SungSCLee, HDMI { */
-#ifdef CONFIG_VMSPLIT_2G
-#define MSM_FB_SIZE		0xA00000
-#else
-#define MSM_FB_SIZE		0x500000
-#endif
+#define MSM_FB_SIZE		0xA00000       ///0x500000
 /* } FIHTDC, Div2-SW2-BSP SungSCLee, HDMI */
-#ifdef CONFIG_VMSPLIT_2G
-#define MSM_GPU_PHYS_SIZE       0x200000
-#else
 #define MSM_GPU_PHYS_SIZE       SZ_2M
-#endif
-
-/* This cannot be changed or it kills 720p recording */
 #define MSM_PMEM_ADSP_SIZE      0x2000000  //SW2-5-CL-Camera-720P-00*
-#define MSM_FLUID_PMEM_ADSP_SIZE	0x1800000
+#define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI1_SIZE   0x600000
 #define MSM_PMEM_AUDIO_SIZE     0x200000
 
@@ -9696,7 +9680,6 @@ MACHINE_START(MSM8X55_SURF, "QCT MSM8X55 SURF")
 	.timer = &msm_timer,
 MACHINE_END
 
-//MACHINE_START(MSM8X55_FFA, "QCT MSM8X55 FFA")
 MACHINE_START(MSM8X55_FFA, "TRIUMPH")
 #ifdef CONFIG_MSM_DEBUG_UART
 	.phys_io  = MSM_DEBUG_UART_PHYS,

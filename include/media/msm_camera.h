@@ -474,6 +474,7 @@ struct msm_snapshot_pp_status {
 #define SENSOR_RAW_SNAPSHOT_MODE	2
 #define SENSOR_VIDEO_120FPS_MODE	3
 #define SENSOR_RESET_MODE 4//Div2-SW6-MM-CL-mt9p111noImage-00+
+#define SENSOR_MIRROR_MODE 5////Div2-SW6-MM-CL-mirrorFront-00+
 
 #define SENSOR_QTR_SIZE			0
 #define SENSOR_FULL_SIZE		1
