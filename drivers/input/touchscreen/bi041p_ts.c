@@ -193,7 +193,7 @@ static void bi041p_isr_workqueue(struct work_struct *work) {
 		if ((virtual_button == 0) && !bBackCapKeyPressed && !bMenuCapKeyPressed && !bHomeCapKeyPressed && !bSearchCapKeyPressed) {
 			if (!cntBuf) {
 				input_report_abs(bi041p.input, ABS_MT_TOUCH_MAJOR, 0);
-				input_report_abs(bi041p.input, ABS_PRESSURE, 0);
+				input_report_abs(bi041p.input, ABS_MT_PRESSURE, 0);
 				input_report_key(bi041p.input, BTN_TOUCH, 0);
 				input_mt_sync(bi041p.input);
 				bIsFingerUp = 1;
@@ -204,7 +204,7 @@ static void bi041p_isr_workqueue(struct work_struct *work) {
 						input_report_abs(bi041p.input, ABS_MT_TOUCH_MAJOR, 255);
 						input_report_abs(bi041p.input, ABS_MT_POSITION_X, pos[0]);
 						input_report_abs(bi041p.input, ABS_MT_POSITION_Y, pos[1]);
-						input_report_abs(bi041p.input, ABS_PRESSURE, 255);
+						input_report_abs(bi041p.input, ABS_MT_PRESSURE, 255);
 						input_report_key(bi041p.input, BTN_TOUCH, 1);
 						input_mt_sync(bi041p.input);
 					}
@@ -214,7 +214,7 @@ static void bi041p_isr_workqueue(struct work_struct *work) {
 					input_report_abs(bi041p.input, ABS_MT_TOUCH_MAJOR, 255);
 					input_report_abs(bi041p.input, ABS_MT_POSITION_X, pos[2]);
 					input_report_abs(bi041p.input, ABS_MT_POSITION_Y, pos[3]);
-					input_report_abs(bi041p.input, ABS_PRESSURE, 255);
+					input_report_abs(bi041p.input, ABS_MT_PRESSURE, 255);
 					input_report_key(bi041p.input, BTN_TOUCH, 1);
 					input_mt_sync(bi041p.input);
 				} else {
