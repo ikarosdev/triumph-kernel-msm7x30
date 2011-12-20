@@ -5030,6 +5030,43 @@ static struct platform_device android_pmem_audio_device = {
        .dev = { .platform_data = &android_pmem_audio_pdata },
 };
 
+#if CONFIG_MSM_HW3D
+static struct resource resources_hw3d[] = {
+	{
+		.start	= 0xA0000000,
+		.end	= 0xA00fffff,
+		.flags	= IORESOURCE_MEM,
+		.name	= "regs",
+	},
+	{
+		.flags	= IORESOURCE_MEM,
+		.name	= "smi",
+	},
+	{
+		.flags	= IORESOURCE_MEM,
+		.name	= "ebi",
+	},
+	{
+#ifdef CONFIG_ARCH_MSM7X30
+        .start  = INT_GRP_3D,
+        .end    = INT_GRP_3D,
+#else
+		.start	= INT_GRAPHICS,
+		.end	= INT_GRAPHICS,
+#endif
+		.flags	= IORESOURCE_IRQ,
+		.name	= "gfx",
+	},
+};
+
+static struct platform_device hw3d_device = {
+	.name		= "msm_hw3d",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(resources_hw3d),
+	.resource	= resources_hw3d,
+};
+#endif
+
 static struct kgsl_platform_data kgsl_pdata = {
 #ifdef CONFIG_MSM_NPA_SYSTEM_BUS
 	/* NPA Flow IDs */
@@ -5044,14 +5081,14 @@ static struct kgsl_platform_data kgsl_pdata = {
 	.min_grp2d_freq = 0,
 	.set_grp2d_async = NULL, /* HW workaround, run Z180 SYNC @ 192 MHZ */
 	.max_grp3d_freq = 245760000,
-	.min_grp3d_freq = 192 * 1000*1000,
+	.min_grp3d_freq = 192000000,
 	.set_grp3d_async = set_grp3d_async,
 	.imem_clk_name = "imem_clk",
 	.grp3d_clk_name = "grp_clk",
 	.grp2d0_clk_name = "grp_2d_clk",
 };
 
-static struct resource kgsl_resources[] = {
+static struct resource msm_kgsl_resources[] = {
 	{
 		.name = "kgsl_reg_memory",
 		.start = 0xA3500000, /* 3D GRP address */
@@ -5087,8 +5124,8 @@ static struct resource kgsl_resources[] = {
 static struct platform_device msm_device_kgsl = {
 	.name = "kgsl",
 	.id = -1,
-	.num_resources = ARRAY_SIZE(kgsl_resources),
-	.resource = kgsl_resources,
+	.num_resources = ARRAY_SIZE(msm_kgsl_resources),
+	.resource = msm_kgsl_resources,
 	.dev = {
 		.platform_data = &kgsl_pdata,
 	},
@@ -7073,6 +7110,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 // FIHTDC-SW2-Div6-CW-Project BCM4329 BLUETOOTH driver For SF8 +]
 	&msm_device_kgsl,
+#if CONFIG_MSM_HW3D
+	&hw3d_device,
+#endif
 //Div2-SW6-MM-HL-Camera-BringUp-00+{
 #ifdef CONFIG_FIH_MT9P111
         &msm_camera_sensor_mt9p111,
@@ -9588,8 +9628,8 @@ static void __init msm7x30_allocate_memory_regions(void)
 	size = gpu_phys_size;
 	if (size) {
 		addr = alloc_bootmem(size);
-		kgsl_resources[1].start = __pa(addr);
-		kgsl_resources[1].end = kgsl_resources[1].start + size - 1;
+		msm_kgsl_resources[1].start = __pa(addr);
+		msm_kgsl_resources[1].end = msm_kgsl_resources[1].start + size - 1;
 		pr_info("allocating %lu bytes at %p (%lx physical) for "
 			"KGSL\n", size, addr, __pa(addr));
 	}
